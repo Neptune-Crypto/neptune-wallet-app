@@ -2,15 +2,15 @@
 
 vxb neptune wallet is a cross-platform wallet for [neptunecash](https://github.com/Neptune-Crypto/neptune-core).
 
-## download
+## Download
 
 You can get compiled installer and docs here: <https://github.com/VxBlocks/vxb_neptune_wallet>
 
-## development
+## Development
 
 Refer to [neptune-wallet-core](https://github.com/VxBlocks/neptune-wallet-core) for server side source code. or read [self hosted server](#self-hosted-server) to run self hosted server.
 
-### prerequisites
+### Prerequisites
 
 1. System Dependencies
     - Linux
@@ -20,11 +20,11 @@ Refer to [neptune-wallet-core](https://github.com/VxBlocks/neptune-wallet-core) 
 
 3. Node.js
 
-### dependencies
+### Dependencies
 
 Refer to [tauri](https://tauri.app/start/prerequisites)
 
-### project structure
+### Project structure
 
 - `src` frontend
 - `src-tauri` backend
@@ -40,21 +40,43 @@ Refer to [tauri](https://tauri.app/start/prerequisites)
   - `gui` gui entrypoint
 - `leveldb-sys` leveldb stub since we dont use it and it is not compatible with cargo-xwin
 
-### build
-
-Install [Go Task](https://taskfile.dev/)
-
-Refer to [taskfile](./taskfile.yml)
+### Build locally, on an Ubuntu machine
 
 ```bash
+ # Install task
+curl -1sLf 'https://dl.cloudsmith.io/public/task/task/setup.deb.sh' | sudo -E bash
+
+# Install node package manager
+sudo apt install npm
+
+# Install and switch to latest node version
+sudo npm install n -g
+sudo n stable
+
+# Install yarn
+sudo npm install -g yarn
+
+# Install JS dependencies
+yarn install
+
+# Install system dependencies
+sudo apt install libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev libfuse2 librsvg2-dev libwebkit2gtk-4.1-dev build-essential
+
+# Build binaries
 task build
+```
+
+Run the newly built appimage
+```bash
+chmod +x ./src-tauri/target/release/bundle/appimage/NeptuneWallet_<version>_amd64.AppImage
+./src-tauri/target/release/bundle/appimage/NeptuneWallet_<version>_amd64.AppImage
 ```
 
 NOTE: windows version can only be built on linux with cargo-xwin.
 
 NOTE: android version can be compiled now, but the frontend is not ready, you can only use android app on tablet or landscape mode.
 
-### self hosted server
+### Self-hosted server
 
 The wallet use a patched version of `neptune-core` to support rest api.
 
