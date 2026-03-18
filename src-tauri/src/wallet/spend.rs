@@ -30,7 +30,7 @@ use crate::rpc_client::BroadcastError;
 use crate::wallet::wallet_state_table::ExpectedUtxoData;
 
 impl super::WalletState {
-    pub async fn send_to_address(
+    pub(crate) async fn send_to_address(
         &self,
         outputs: Vec<(ReceivingAddress, NativeCurrencyAmount)>,
         utxo_notification_media: (UtxoNotificationMedium, UtxoNotificationMedium),
@@ -151,7 +151,7 @@ impl super::WalletState {
         Ok(transaction)
     }
 
-    pub async fn generate_tx_outputs(
+    pub(crate) async fn generate_tx_outputs(
         &self,
         outputs: impl IntoIterator<Item = (ReceivingAddress, NativeCurrencyAmount)>,
         owned_utxo_notify_medium: UtxoNotificationMedium,
@@ -181,14 +181,14 @@ impl super::WalletState {
         tx_outputs.into()
     }
 
-    pub fn can_unlock(&self, utxo: &Utxo) -> bool {
+    pub(crate) fn can_unlock(&self, utxo: &Utxo) -> bool {
         self.get_known_spending_keys()
             .iter()
             .find(|k| k.lock_script_hash() == utxo.lock_script_hash())
             .is_some()
     }
 
-    pub fn auto_outputs(
+    pub(crate) fn auto_outputs(
         &self,
         address: ReceivingAddress,
         amount: NativeCurrencyAmount,
@@ -284,7 +284,7 @@ impl super::WalletState {
     /// with claiming it later on.
     //
     // "Later on" meaning: as an [ExpectedUtxo].
-    pub async fn create_change_output(
+    pub(crate) async fn create_change_output(
         &self,
         change_amount: NativeCurrencyAmount,
         change_key: SpendingKey,
@@ -389,7 +389,7 @@ impl super::WalletState {
 
     /// Extract `ExpectedUtxo`s from the `TxOutputList` that require off-chain
     /// notifications and that are destined for this wallet.
-    pub fn extract_expected_utxos(
+    pub(crate) fn extract_expected_utxos(
         &self,
         tx_outputs: &TxOutputList,
         notifier: UtxoNotifier,
@@ -414,7 +414,7 @@ impl super::WalletState {
 }
 
 #[derive(Debug, Error)]
-pub enum SendError {
+pub(crate) enum SendError {
     #[error(transparent)]
     Proof(#[from] anyhow::Error),
     #[error(transparent)]

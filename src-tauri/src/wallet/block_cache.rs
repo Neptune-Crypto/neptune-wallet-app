@@ -53,7 +53,7 @@ sqlx_migrator::sqlite_migration!(
     )]
 );
 
-pub struct PersistBlockCache {
+pub(crate) struct PersistBlockCache {
     pool: sqlx::SqlitePool,
     block_dir: PathBuf,
     memory_cache: MemoryBlockCache,
@@ -62,7 +62,7 @@ pub struct PersistBlockCache {
 impl PersistBlockCache {
     const BLOCK_BATCH_SIZE: u64 = 2000;
     const BLOCK_FILE_EXT: &str = "block";
-    pub async fn new(data_dir: &Path, network: Network, cache_size: usize) -> Result<Self> {
+    pub(crate) async fn new(data_dir: &Path, network: Network, cache_size: usize) -> Result<Self> {
         let block_dir = data_dir.join(format!("{}_block", network));
 
         if !block_dir.exists() {
@@ -175,7 +175,7 @@ impl PersistBlockCache {
         Ok(block)
     }
 
-    pub async fn delete_block_file(file: PathBuf) -> Result<()> {
+    pub(crate) async fn delete_block_file(file: PathBuf) -> Result<()> {
         let network_dir = file.parent().context("No parent directory")?;
         let tmp = network_dir.file_name().unwrap().to_string_lossy();
         let network_str = tmp.split('_').nth(0).context("No network")?;
@@ -209,7 +209,7 @@ impl PersistBlockCache {
         Ok(())
     }
 
-    pub fn list_cache_files(data_dir: &PathBuf) -> Result<Vec<BlockCacheFile>> {
+    pub(crate) fn list_cache_files(data_dir: &PathBuf) -> Result<Vec<BlockCacheFile>> {
         let mut files = vec![];
         let dirs = [
             Network::Main,
@@ -254,11 +254,11 @@ impl PersistBlockCache {
 }
 
 #[derive(Debug, Serialize)]
-pub struct BlockCacheFile {
-    pub path: String,
-    pub network: String,
-    pub range: (i64, i64),
-    pub size: u64,
+pub(crate) struct BlockCacheFile {
+    pub(crate) path: String,
+    pub(crate) network: String,
+    pub(crate) range: (i64, i64),
+    pub(crate) size: u64,
 }
 
 impl BlockCache for PersistBlockCache {
@@ -361,7 +361,7 @@ impl BlockCache for PersistBlockCache {
 }
 
 #[derive(Debug)]
-pub struct MemoryBlockCache {
+pub(crate) struct MemoryBlockCache {
     cache: Mutex<LinkedList<WalletBlock>>,
     size: usize,
 }
@@ -447,23 +447,23 @@ pub(super) trait BlockCache {
 }
 
 #[enum_dispatch]
-pub enum BlockCacheImpl {
+pub(crate) enum BlockCacheImpl {
     Persist(PersistBlockCache),
     Memory(MemoryBlockCache),
 }
 
 impl BlockCacheImpl {
-    pub fn new_memory(cache_size: usize) -> Self {
+    pub(crate) fn new_memory(cache_size: usize) -> Self {
         BlockCacheImpl::Memory(MemoryBlockCache::new(cache_size))
     }
 
-    pub async fn new_persist(data_dir: &Path, network: Network, cache_size: usize) -> Result<Self> {
+    pub(crate) async fn new_persist(data_dir: &Path, network: Network, cache_size: usize) -> Result<Self> {
         Ok(BlockCacheImpl::Persist(
             PersistBlockCache::new(data_dir, network, cache_size).await?,
         ))
     }
 
-    pub fn is_persist(&self) -> bool {
+    pub(crate) fn is_persist(&self) -> bool {
         matches!(self, BlockCacheImpl::Persist(_))
     }
 }

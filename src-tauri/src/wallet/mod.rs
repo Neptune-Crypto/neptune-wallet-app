@@ -41,25 +41,25 @@ use crate::config::Config;
 use crate::wallet::wallet_block::WalletBlock;
 
 // mod archive_state;
-pub mod balance;
-pub mod fake_archival_state;
-pub mod fork;
+pub(crate) mod balance;
+pub(crate) mod fake_archival_state;
+pub(crate) mod fork;
 mod input;
 pub(crate) mod wallet_block;
-pub use input::InputSelectionRule;
-pub mod block_cache;
+pub(crate) use input::InputSelectionRule;
+pub(crate) mod block_cache;
 mod key_cache;
 mod keys;
 mod pending;
 mod spend;
-pub mod sync;
-pub mod wallet_file;
+pub(crate) mod sync;
+pub(crate) mod wallet_file;
 mod wallet_state_table;
 
-pub struct WalletState {
+pub(crate) struct WalletState {
     key: WalletEntropy,
     scan_config: ScanConfig,
-    pub network: Network,
+    pub(crate) network: Network,
     num_symmetric_keys: AtomicU64,
     num_generation_spending_keys: AtomicU64,
     num_future_keys: AtomicU64,
@@ -72,26 +72,26 @@ pub struct WalletState {
 }
 
 impl WalletState {
-    pub async fn new_from_config(config: &Config) -> Result<Self> {
+    pub(crate) async fn new_from_config(config: &Config) -> Result<Self> {
         let wallet_config = config.get_current_wallet().await?;
         let database = Self::wallet_database_path(config, wallet_config.id).await?;
         Self::new(wallet_config, &database).await
     }
 
-    pub async fn wallet_database_path(config: &Config, id: i64) -> Result<PathBuf> {
+    pub(crate) async fn wallet_database_path(config: &Config, id: i64) -> Result<PathBuf> {
         let wallet_dir = Self::wallet_path(config, id).await?;
         DataDirectory::create_dir_if_not_exists(&wallet_dir).await?;
         Ok(wallet_dir.join("wallet_state.db"))
     }
 
-    pub async fn wallet_path(config: &Config, id: i64) -> Result<PathBuf> {
+    pub(crate) async fn wallet_path(config: &Config, id: i64) -> Result<PathBuf> {
         let data_dir = config.get_data_dir().await?;
         let network = config.get_network().await?;
         let wallet_dir = wallet_dir_by_id(&data_dir, network, id);
         Ok(wallet_dir)
     }
 
-    pub async fn new(wallet_config: WalletConfig, database: &PathBuf) -> Result<Self> {
+    pub(crate) async fn new(wallet_config: WalletConfig, database: &PathBuf) -> Result<Self> {
         #[allow(unused)]
         let pool = {
             let options = sqlx::sqlite::SqliteConnectOptions::new()
@@ -149,7 +149,7 @@ impl WalletState {
         Ok(state)
     }
 
-    pub async fn start_height(&self) -> Result<u64> {
+    pub(crate) async fn start_height(&self) -> Result<u64> {
         if let Some(tip) = self.get_tip().await? {
             return Ok(tip.0 + 1);
         }
@@ -455,15 +455,15 @@ impl WalletState {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UtxoRecoveryData {
-    pub utxo: Utxo,
-    pub sender_randomness: Digest,
-    pub receiver_preimage: Digest,
-    pub aocl_index: u64,
+pub(crate) struct UtxoRecoveryData {
+    pub(crate) utxo: Utxo,
+    pub(crate) sender_randomness: Digest,
+    pub(crate) receiver_preimage: Digest,
+    pub(crate) aocl_index: u64,
 }
 
 impl UtxoRecoveryData {
-    pub fn abs_i(&self) -> AbsoluteIndexSet {
+    pub(crate) fn abs_i(&self) -> AbsoluteIndexSet {
         let utxo_digest = Tip5::hash(&self.utxo);
 
         AbsoluteIndexSet::compute(

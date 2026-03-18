@@ -30,7 +30,7 @@ use rand::Rng;
 use tracing::info;
 
 impl super::ProofBuilder {
-    pub fn upgrade_proof(
+    pub(crate) fn upgrade_proof(
         &self,
         transaction: Transaction,
         block: &Block,
@@ -67,7 +67,7 @@ impl super::ProofBuilder {
         Ok(new_tx)
     }
 
-    pub fn update_single_proof(
+    pub(crate) fn update_single_proof(
         &self,
         tx: Transaction,
         previous_mutator_set_accumulator: &MutatorSetAccumulator,

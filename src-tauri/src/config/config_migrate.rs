@@ -40,7 +40,7 @@ sqlx_migrator::sqlite_migration!(
 );
 
 impl super::Config {
-    pub async fn migrate_tables(&self) -> anyhow::Result<()> {
+    pub(crate) async fn migrate_tables(&self) -> anyhow::Result<()> {
         let mut migrator = Migrator::default();
         // Adding migration can fail if another migration with same app and name and different values gets added
         // Adding migrations add its parents, replaces and not before as well

@@ -23,7 +23,7 @@ use crate::wallet::sync::SyncStatus;
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn get_server_url() -> Result<String> {
+pub(crate) async fn get_server_url() -> Result<String> {
     let token = get_token().await?;
 
     let url = format!(
@@ -36,7 +36,7 @@ pub async fn get_server_url() -> Result<String> {
     Ok(url)
 }
 
-pub async fn get_token() -> Result<String> {
+pub(crate) async fn get_token() -> Result<String> {
     let config = crate::service::get_state::<Arc<Config>>();
     let sk = config.get_secret_key().await.into_tauri_result()?;
     let public = tls::get_p256_pubkey(&sk);
@@ -44,7 +44,7 @@ pub async fn get_token() -> Result<String> {
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn run_rpc_server() -> Result<()> {
+pub(crate) async fn run_rpc_server() -> Result<()> {
     start_rpc_server_inner().await.map_err(|e| {
         let err = e.to_string();
         error!("error start rpc: {}", err);
@@ -52,7 +52,7 @@ pub async fn run_rpc_server() -> Result<()> {
     })
 }
 
-pub async fn start_rpc_server_inner() -> Result<()> {
+pub(crate) async fn start_rpc_server_inner() -> Result<()> {
     let mut rpc_handler = super::RPC_CLOSER.lock().await;
     if let Some(handler) = rpc_handler.deref() {
         if !handler.is_finished() {
@@ -83,7 +83,7 @@ pub async fn start_rpc_server_inner() -> Result<()> {
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn stop_rpc_server() -> Result<()> {
+pub(crate) async fn stop_rpc_server() -> Result<()> {
     if let Some(sync_state) = crate::service::try_get_state::<Arc<SyncState>>() {
         super::stop_rpc_server().await.into_tauri_result()?;
         sync_state.cancel_sync().await;
@@ -101,52 +101,52 @@ impl<T> TauriCommandResultExt for std::result::Result<T, RestError> {
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn sync_state() -> SyncStatus {
+pub(crate) async fn sync_state() -> SyncStatus {
     WalletRpcImpl::sync_state().await
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn wallet_balance() -> Result<WalletBalance> {
+pub(crate) async fn wallet_balance() -> Result<WalletBalance> {
     WalletRpcImpl::wallet_balance().await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn current_wallet_address(index: u64) -> Result<String> {
+pub(crate) async fn current_wallet_address(index: u64) -> Result<String> {
     WalletRpcImpl::current_wallet_address(index)
         .await
         .into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn history() -> Result<Vec<WalletHistory>> {
+pub(crate) async fn history() -> Result<Vec<WalletHistory>> {
     WalletRpcImpl::history().await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn avaliable_utxos() -> Result<Vec<Utxo>> {
+pub(crate) async fn avaliable_utxos() -> Result<Vec<Utxo>> {
     WalletRpcImpl::avaliable_utxos().await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn send_to_address(params: SendToAddressParams) -> Result<SendResponse> {
+pub(crate) async fn send_to_address(params: SendToAddressParams) -> Result<SendResponse> {
     WalletRpcImpl::send_to_address(params)
         .await
         .into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn pending_transactions() -> Result<Vec<TransactionStatus>> {
+pub(crate) async fn pending_transactions() -> Result<Vec<TransactionStatus>> {
     WalletRpcImpl::pending_transactions()
         .await
         .into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn forget_tx(txid: String) -> Result<()> {
+pub(crate) async fn forget_tx(txid: String) -> Result<()> {
     WalletRpcImpl::forget_tx(txid).await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn get_tip_height() -> Result<u64> {
+pub(crate) async fn get_tip_height() -> Result<u64> {
     WalletRpcImpl::get_tip_height().await.into_tauri_result()
 }

@@ -62,7 +62,7 @@ impl<'a> MakeWriter<'a> for MemoryLogger {
     }
 }
 
-pub fn setup_logger(level: Option<String>) -> anyhow::Result<()> {
+pub(crate) fn setup_logger(level: Option<String>) -> anyhow::Result<()> {
     let target_filter = build_target_filter(&level.unwrap_or("info".to_string()));
     let (filter, reload_handle) = reload::Layer::new(target_filter);
     let _ = LOG_HANDLER.set(Mutex::new(reload_handle));
@@ -96,7 +96,7 @@ fn build_target_filter(level: &str) -> tracing_subscriber::filter::Targets {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub fn get_logs() -> Vec<String> {
+pub(crate) fn get_logs() -> Vec<String> {
     let logs = unsafe { LOGS.get_unchecked() }.lock().unwrap();
     logs.iter()
         .map(|s| unsafe { String::from_utf8_unchecked(s.to_owned()) })
@@ -105,14 +105,14 @@ pub fn get_logs() -> Vec<String> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg(feature = "gui")]
-pub fn clear_logs() {
+pub(crate) fn clear_logs() {
     let mut logs = unsafe { LOGS.get_unchecked() }.lock().unwrap();
     logs.clear();
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg(feature = "gui")]
-pub fn set_log_level(level: &str) {
+pub(crate) fn set_log_level(level: &str) {
     let handler = LOG_HANDLER.get().unwrap().lock().unwrap();
     if let Err(e) = handler.reload(build_target_filter(level)) {
         tracing::error!("Failed to reload log handler: {}", e);
@@ -126,7 +126,7 @@ pub fn set_log_level(level: &str) {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg(feature = "gui")]
-pub fn get_log_level() -> String {
+pub(crate) fn get_log_level() -> String {
     let handler = LOG_HANDLER.get().unwrap().lock().unwrap();
     let current = handler.clone_current();
     if let Some(level) = current {
@@ -142,7 +142,7 @@ pub fn get_log_level() -> String {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg(feature = "gui")]
-pub fn log(level: &str, message: &str) {
+pub(crate) fn log(level: &str, message: &str) {
     match level {
         "trace" => tracing::trace!("{}", message),
         "debug" => tracing::debug!("{}", message),

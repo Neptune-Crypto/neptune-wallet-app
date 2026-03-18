@@ -10,7 +10,7 @@ use sqlx::Row;
 use super::Config;
 
 impl Config {
-    pub async fn get_current_wallet(&self) -> Result<WalletConfig> {
+    pub(crate) async fn get_current_wallet(&self) -> Result<WalletConfig> {
         let mut conn = self.db.acquire().await?;
 
         let id = self.get_wallet_id().await?;
@@ -40,7 +40,7 @@ impl Config {
         })
     }
 
-    pub async fn get_wallet_mnemonic(&self, id: i64) -> Result<Vec<String>> {
+    pub(crate) async fn get_wallet_mnemonic(&self, id: i64) -> Result<Vec<String>> {
         let mut conn = self.db.acquire().await?;
 
         let row = sqlx::query("select secret_key from wallets where id = ?")
@@ -52,7 +52,7 @@ impl Config {
         self.secret_to_mnemonic(secret).await
     }
 
-    pub async fn add_wallet(
+    pub(crate) async fn add_wallet(
         &self,
         name: &str,
         mnemonic: Vec<String>,
@@ -82,7 +82,7 @@ impl Config {
         Ok(res.last_insert_rowid())
     }
 
-    pub async fn remove_wallet(&self, id: i64) -> Result<()> {
+    pub(crate) async fn remove_wallet(&self, id: i64) -> Result<()> {
         let mut conn = self.db.acquire().await?;
         sqlx::query("delete from wallets where id = ?")
             .bind(id)
@@ -91,7 +91,7 @@ impl Config {
         Ok(())
     }
 
-    pub async fn get_wallets(&self) -> Result<Vec<WalletData>> {
+    pub(crate) async fn get_wallets(&self) -> Result<Vec<WalletData>> {
         let mut conn = self.db.acquire().await?;
 
         let rows = sqlx::query("select id,name,address,balance from wallets")
@@ -114,7 +114,7 @@ impl Config {
         Ok(wallets)
     }
 
-    pub async fn update_wallet_balance(&self, id: i64, balance: String) -> Result<()> {
+    pub(crate) async fn update_wallet_balance(&self, id: i64, balance: String) -> Result<()> {
         let mut conn = self.db.acquire().await?;
         sqlx::query("update wallets set balance = ? where id = ?")
             .bind(&balance)
@@ -124,14 +124,14 @@ impl Config {
         Ok(())
     }
 
-    pub async fn mnemonic_to_secret(&self, mnemonic: Vec<String>) -> Result<Vec<u8>> {
+    pub(crate) async fn mnemonic_to_secret(&self, mnemonic: Vec<String>) -> Result<Vec<u8>> {
         let phase = mnemonic.join(" ");
         let encoded =
             crate::rpc::tls::aes::aes_encode(&self.decrypt_key.lock().await, phase.as_bytes())?;
         Ok(encoded)
     }
 
-    pub async fn secret_to_mnemonic(&self, secret: Vec<u8>) -> Result<Vec<String>> {
+    pub(crate) async fn secret_to_mnemonic(&self, secret: Vec<u8>) -> Result<Vec<String>> {
         let decode_key = self.decrypt_key.lock().await.clone();
         let phrase = crate::rpc::tls::aes::aes_decode(&decode_key, &secret)?;
         let phrase = String::from_utf8(phrase)?;
@@ -141,7 +141,7 @@ impl Config {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WalletData {
+pub(crate) struct WalletData {
     id: i64,
     name: String,
     address: String,
@@ -149,18 +149,18 @@ pub struct WalletData {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ScanConfig {
+pub(crate) struct ScanConfig {
     #[serde(default = "default_num_keys")]
-    pub num_keys: u64,
+    pub(crate) num_keys: u64,
     #[serde(default)]
-    pub start_height: u64,
+    pub(crate) start_height: u64,
 }
 
-pub struct WalletConfig {
-    pub id: i64,
-    pub key: WalletEntropy,
-    pub scan_config: ScanConfig,
-    pub network: Network,
+pub(crate) struct WalletConfig {
+    pub(crate) id: i64,
+    pub(crate) key: WalletEntropy,
+    pub(crate) scan_config: ScanConfig,
+    pub(crate) network: Network,
 }
 
 impl Default for ScanConfig {
@@ -175,7 +175,7 @@ impl Default for ScanConfig {
 fn default_num_keys() -> u64 {
     25
 }
-pub fn mnemonic_to_address(mnemonic: &[String], network: Network) -> Result<String> {
+pub(crate) fn mnemonic_to_address(mnemonic: &[String], network: Network) -> Result<String> {
     let secret = SecretKeyMaterial::from_phrase(mnemonic)?;
     let key = WalletEntropy::new(secret);
     let generation_spending_key = key.nth_generation_spending_key(0);

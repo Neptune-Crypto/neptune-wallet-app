@@ -31,14 +31,14 @@ use crate::wallet::block_cache::BlockCacheImpl;
 use crate::wallet::wallet_block::WalletBlock;
 
 #[derive(Clone)]
-pub struct FakeArchivalState {
+pub(crate) struct FakeArchivalState {
     block_cache: Arc<BlockCacheImpl>,
     snapshot_reader: Arc<Option<SnapshotReader>>,
     network: Network,
 }
 
 impl FakeArchivalState {
-    pub fn new(
+    pub(crate) fn new(
         cache: BlockCacheImpl,
         network: Network,
         snapshot_reader: Option<SnapshotReader>,
@@ -50,7 +50,7 @@ impl FakeArchivalState {
         }
     }
 
-    pub async fn prepare(&self, first_block: u64, batch_size: u64) -> Result<()> {
+    pub(crate) async fn prepare(&self, first_block: u64, batch_size: u64) -> Result<()> {
         let last_block = first_block + batch_size - 1;
         if self.block_cache.is_persist()
             && self.block_cache.has_block_by_height(first_block).await?
@@ -124,7 +124,7 @@ impl FakeArchivalState {
             .await
     }
 
-    pub async fn reset_to_height(&self, height: u64) -> Result<()> {
+    pub(crate) async fn reset_to_height(&self, height: u64) -> Result<()> {
         self.block_cache
             .delete_block_by_start_height(height + 1)
             .await?;
@@ -134,8 +134,8 @@ impl FakeArchivalState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BlockPosition {
-    pub pos: u64,
-    pub size: u64,
+    pub(crate) pos: u64,
+    pub(crate) size: u64,
 }
 
 impl BlockPosition {
@@ -198,9 +198,9 @@ impl PartialOrd for SnapshotNetwork {
 
 #[derive(Debug, Clone)]
 struct SnapshotMetadata {
-    pub range: Range<u64>,
-    pub network: SnapshotNetwork,
-    pub path: PathBuf,
+    pub(crate) range: Range<u64>,
+    pub(crate) network: SnapshotNetwork,
+    pub(crate) path: PathBuf,
 }
 
 impl SnapshotMetadata {
@@ -268,7 +268,7 @@ impl SnapshotMetadata {
 }
 
 // [size][vec<block_pos>][0][vec[block]]
-pub async fn generate_snapshot(dir: &Path, network: Network, range: Range<u64>) -> Result<()> {
+pub(crate) async fn generate_snapshot(dir: &Path, network: Network, range: Range<u64>) -> Result<()> {
     let path = dir.join(format!(
         "neptune_{}_{}-{}.{}",
         network, range.start, range.end, SNAPSHOT_EXT
@@ -345,12 +345,12 @@ pub async fn generate_snapshot(dir: &Path, network: Network, range: Range<u64>) 
 
 const SNAPSHOT_EXT: &str = "snapshot";
 #[derive(Default, Debug)]
-pub struct SnapshotReader {
+pub(crate) struct SnapshotReader {
     snapshots: LinkedList<SnapshotMetadata>,
 }
 
 impl SnapshotReader {
-    pub async fn new(dir: &PathBuf) -> Result<Self> {
+    pub(crate) async fn new(dir: &PathBuf) -> Result<Self> {
         let mut snapshots = LinkedList::new();
         let mut read_dir = tokio::fs::read_dir(dir)
             .await

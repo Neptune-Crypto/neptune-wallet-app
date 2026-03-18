@@ -48,15 +48,15 @@ use crate::wallet::InputSelectionRule;
 // mod middleware;
 mod block;
 #[cfg(feature = "cli")]
-pub mod client;
-pub mod commands;
+pub(crate) mod client;
+pub(crate) mod commands;
 mod error;
-pub mod tls;
+pub(crate) mod tls;
 mod transaction_status;
 
 static RPC_CLOSER: Lazy<Mutex<Option<RpcHandler>>> = Lazy::new(|| Mutex::new(None));
 
-pub async fn stop_rpc_server() -> Result<()> {
+pub(crate) async fn stop_rpc_server() -> Result<()> {
     info!("stopping rpc server");
     let mut closer = RPC_CLOSER.lock().await;
     if let Some(handler) = closer.take() {
@@ -66,13 +66,13 @@ pub async fn stop_rpc_server() -> Result<()> {
 }
 
 #[derive(Debug)]
-pub struct RpcHandler {
-    pub closer: Sender<()>,
-    pub handler: JoinHandle<()>,
+pub(crate) struct RpcHandler {
+    pub(crate) closer: Sender<()>,
+    pub(crate) handler: JoinHandle<()>,
 }
 
 impl RpcHandler {
-    pub async fn stop(self) -> Result<()> {
+    pub(crate) async fn stop(self) -> Result<()> {
         self.closer
             .send(())
             .map_err(|_| anyhow!("the receiver dropped"))?;
@@ -85,22 +85,22 @@ impl RpcHandler {
         Ok(())
     }
 
-    pub fn is_finished(&self) -> bool {
+    pub(crate) fn is_finished(&self) -> bool {
         self.handler.is_finished()
     }
 }
 
 #[derive(Debug, Serialize)]
-pub struct WalletBalance {
-    pub available_balance: String,
-    pub total_balance: String,
+pub(crate) struct WalletBalance {
+    pub(crate) available_balance: String,
+    pub(crate) total_balance: String,
 }
 
-pub struct WalletRpcImpl;
+pub(crate) struct WalletRpcImpl;
 impl WalletRpc for WalletRpcImpl {}
 
 //TODO: move to crate::command
-pub trait WalletRpc {
+pub(crate) trait WalletRpc {
     async fn sync_state() -> SyncStatus {
         crate::service::get_state::<Arc<SyncState>>().status().await
     }
@@ -205,7 +205,7 @@ pub trait WalletRpc {
     }
 }
 
-pub async fn start_rpc_server() -> Result<(), anyhow::Error> {
+pub(crate) async fn start_rpc_server() -> Result<(), anyhow::Error> {
     let address: SocketAddr =
         SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), RPC_PORT));
 
@@ -353,22 +353,22 @@ async fn history() -> Result<ErasedJson, RestError> {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct SendToAddressParams {
-    pub outputs: Vec<Output>,
-    pub fee: String,
-    pub input_rule: Option<String>,
+pub(crate) struct SendToAddressParams {
+    pub(crate) outputs: Vec<Output>,
+    pub(crate) fee: String,
+    pub(crate) input_rule: Option<String>,
     #[serde(default)]
-    pub inputs: Vec<i64>,
+    pub(crate) inputs: Vec<i64>,
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Output {
-    pub address: String,
-    pub amount: String,
+pub(crate) struct Output {
+    pub(crate) address: String,
+    pub(crate) amount: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SendResponse {
+pub(crate) struct SendResponse {
     txid: String,
     outputs: Vec<String>,
 }
@@ -380,15 +380,15 @@ async fn send_to_address(Json(params): Json<SendToAddressParams>) -> Result<Eras
 }
 
 #[derive(Serialize)]
-pub struct Utxo {
-    pub id: i64,
-    pub hash: String,
-    pub confirm_timestamp: Timestamp,
+pub(crate) struct Utxo {
+    pub(crate) id: i64,
+    pub(crate) hash: String,
+    pub(crate) confirm_timestamp: Timestamp,
     // this two values are used to rollback
-    pub confirm_height: i64,
-    pub confirmed_txid: Option<String>,
-    pub amount: String,
-    pub locked: bool,
+    pub(crate) confirm_height: i64,
+    pub(crate) confirmed_txid: Option<String>,
+    pub(crate) amount: String,
+    pub(crate) locked: bool,
 }
 
 async fn avaliable_utxos() -> Result<ErasedJson, RestError> {

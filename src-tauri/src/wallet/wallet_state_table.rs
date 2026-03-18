@@ -86,37 +86,37 @@ sqlx_migrator::sqlite_migration!(
 );
 
 #[derive(Debug, Clone, Serialize)]
-pub struct UtxoDbData {
-    pub id: i64,
-    pub hash: String,
-    pub recovery_data: UtxoRecoveryData,
+pub(crate) struct UtxoDbData {
+    pub(crate) id: i64,
+    pub(crate) hash: String,
+    pub(crate) recovery_data: UtxoRecoveryData,
     // hash of the block, if any, in which this UTXO was spent
-    pub spent_in_block: Option<UtxoBlockInfo>,
+    pub(crate) spent_in_block: Option<UtxoBlockInfo>,
 
     // hash of the block, if any, in which this UTXO was confirmed
-    pub confirmed_in_block: UtxoBlockInfo,
+    pub(crate) confirmed_in_block: UtxoBlockInfo,
 
     // this two values are used to rollback
-    pub confirm_height: i64,
-    pub spent_height: Option<i64>,
+    pub(crate) confirm_height: i64,
+    pub(crate) spent_height: Option<i64>,
 
-    pub confirmed_txid: Option<String>,
-    pub spent_txid: Option<String>,
+    pub(crate) confirmed_txid: Option<String>,
+    pub(crate) spent_txid: Option<String>,
 }
 
 impl UtxoDbData {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UtxoBlockInfo {
-    pub block_height: u64,
-    pub block_digest: Digest,
-    pub timestamp: Timestamp,
+pub(crate) struct UtxoBlockInfo {
+    pub(crate) block_height: u64,
+    pub(crate) block_digest: Digest,
+    pub(crate) timestamp: Timestamp,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Tip {
-    pub height: u64,
-    pub digest: Digest,
+    pub(crate) height: u64,
+    pub(crate) digest: Digest,
 }
 
 impl UtxoDbData {
@@ -146,7 +146,7 @@ impl UtxoDbData {
         })
     }
 
-    pub async fn create<'c, E>(&self, executor: E) -> anyhow::Result<()>
+    pub(crate) async fn create<'c, E>(&self, executor: E) -> anyhow::Result<()>
     where
         E: sqlx::Executor<'c, Database = Sqlite>,
     {
@@ -166,7 +166,7 @@ impl UtxoDbData {
         Ok(())
     }
 
-    pub fn display_pretty(&self) -> String {
+    pub(crate) fn display_pretty(&self) -> String {
         let amount = self
             .recovery_data
             .utxo
@@ -190,13 +190,13 @@ impl UtxoDbData {
     }
 }
 
-pub struct ExpectedUtxoData {
+pub(crate) struct ExpectedUtxoData {
     #[expect(unused)]
-    pub id: i64,
-    pub txid: String,
-    pub expected_utxo: ExpectedUtxo,
+    pub(crate) id: i64,
+    pub(crate) txid: String,
+    pub(crate) expected_utxo: ExpectedUtxo,
     /// created time, used to clean outdated data
-    pub timestamp: Timestamp,
+    pub(crate) timestamp: Timestamp,
 }
 
 impl ExpectedUtxoData {
@@ -212,7 +212,7 @@ impl ExpectedUtxoData {
         })
     }
 
-    pub async fn create<'c, E>(&self, executor: E) -> anyhow::Result<()>
+    pub(crate) async fn create<'c, E>(&self, executor: E) -> anyhow::Result<()>
     where
         E: sqlx::Executor<'c, Database = Sqlite>,
     {
@@ -234,7 +234,7 @@ impl ExpectedUtxoData {
 }
 
 impl WalletState {
-    pub async fn migrate_tables(&self) -> anyhow::Result<()> {
+    pub(crate) async fn migrate_tables(&self) -> anyhow::Result<()> {
         let mut migrator = Migrator::default();
         // Adding migration can fail if another migration with same app and name and different values gets added
         // Adding migrations add its parents, replaces and not before as well
@@ -250,7 +250,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn set_num_symmetric_keys(&self, value: u64) -> Result<()> {
+    pub(crate) async fn set_num_symmetric_keys(&self, value: u64) -> Result<()> {
         let value_db = value.to_string();
         sqlx::query("INSERT INTO wallet_state_keys (id, value) VALUES ('num_symmetric_keys', ?) ON CONFLICT(id) DO UPDATE SET value = ?")
             .bind(&value_db)
@@ -263,7 +263,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn get_num_symmetric_keys(&self) -> Result<u64> {
+    pub(crate) async fn get_num_symmetric_keys(&self) -> Result<u64> {
         let row =
             sqlx::query("SELECT value FROM wallet_state_keys WHERE id = 'num_symmetric_keys'")
                 .fetch_one(&self.pool)
@@ -276,7 +276,7 @@ impl WalletState {
         }
     }
 
-    pub async fn set_num_generation_spending_keys(&self, value: u64) -> Result<()> {
+    pub(crate) async fn set_num_generation_spending_keys(&self, value: u64) -> Result<()> {
         let value_db = value.to_string();
         sqlx::query("INSERT INTO wallet_state_keys (id, value) VALUES ('num_generation_spending_keys', ?) ON CONFLICT(id) DO UPDATE SET value = ?")
             .bind(&value_db)
@@ -287,7 +287,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn get_num_generation_spending_keys(&self) -> Result<u64> {
+    pub(crate) async fn get_num_generation_spending_keys(&self) -> Result<u64> {
         let row = sqlx::query(
             "SELECT value FROM wallet_state_keys WHERE id = 'num_generation_spending_keys'",
         )
@@ -301,7 +301,7 @@ impl WalletState {
         }
     }
 
-    pub async fn set_tip(
+    pub(crate) async fn set_tip(
         &self,
         tx: &mut SqliteConnection,
         (height, digest): (u64, Digest),
@@ -318,7 +318,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn get_tip(&self) -> Result<Option<(u64, Digest)>> {
+    pub(crate) async fn get_tip(&self) -> Result<Option<(u64, Digest)>> {
         let row = sqlx::query("SELECT value FROM wallet_state_keys WHERE id = 'tip'")
             .fetch_one(&self.pool)
             .await;
@@ -334,9 +334,9 @@ impl WalletState {
         }
     }
 
-    pub async fn flush(&self) {}
+    pub(crate) async fn flush(&self) {}
 
-    pub async fn append_utxos(
+    pub(crate) async fn append_utxos(
         &self,
         tx: &mut SqliteConnection,
         utxos: Vec<UtxoDbData>,
@@ -349,7 +349,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn update_spent_utxos(
+    pub(crate) async fn update_spent_utxos(
         &self,
         tx: &mut SqliteConnection,
         utxos: Vec<(i64, UtxoBlockInfo)>,
@@ -380,7 +380,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn update_utxos_with_expected_utxos(
+    pub(crate) async fn update_utxos_with_expected_utxos(
         &self,
         tx: &mut SqliteConnection,
         utxos: Vec<(Digest, String)>,
@@ -401,7 +401,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn get_utxos(&self) -> Result<Vec<UtxoDbData>> {
+    pub(crate) async fn get_utxos(&self) -> Result<Vec<UtxoDbData>> {
         let mut conn = self.pool.acquire().await?;
         let rows = sqlx::query("SELECT * FROM wallet_state_utxos")
             .fetch_all(&mut *conn)
@@ -416,7 +416,7 @@ impl WalletState {
         Ok(utxos)
     }
 
-    pub async fn get_utxo_db_data(&self, hash: &Digest) -> Result<Option<UtxoDbData>> {
+    pub(crate) async fn get_utxo_db_data(&self, hash: &Digest) -> Result<Option<UtxoDbData>> {
         let hash = hash.to_hex();
         let row = sqlx::query("SELECT * FROM wallet_state_utxos WHERE hash =?")
             .bind(&hash)
@@ -433,7 +433,7 @@ impl WalletState {
         }
     }
 
-    pub async fn get_unspent_utxos(&self, tx: &mut SqliteConnection) -> Result<Vec<UtxoDbData>> {
+    pub(crate) async fn get_unspent_utxos(&self, tx: &mut SqliteConnection) -> Result<Vec<UtxoDbData>> {
         let rows = sqlx::query("SELECT * FROM wallet_state_utxos WHERE spent_in_block IS NULL")
             .fetch_all(&mut *tx)
             .await?;
@@ -447,7 +447,7 @@ impl WalletState {
         Ok(utxos)
     }
 
-    pub async fn get_unspent_inputs_with_ids(&self, ids: &[i64]) -> Result<Vec<UtxoDbData>> {
+    pub(crate) async fn get_unspent_inputs_with_ids(&self, ids: &[i64]) -> Result<Vec<UtxoDbData>> {
         let mut conn = self.pool.acquire().await?;
 
         let mut utxos = Vec::with_capacity(ids.len());
@@ -491,7 +491,7 @@ impl WalletState {
         Ok(utxos)
     }
 
-    pub async fn update_new_generation_expected_utxos(
+    pub(crate) async fn update_new_generation_expected_utxos(
         &self,
         txid: &str,
         timestamp: Timestamp,
@@ -517,7 +517,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn clean_old_expected_utxos(&self) -> Result<()> {
+    pub(crate) async fn clean_old_expected_utxos(&self) -> Result<()> {
         let mut conn = self.pool.acquire().await?;
         let now = Timestamp::now().to_millis() / 1000;
         let begin = now - (2 * 60 * 60);
@@ -530,7 +530,7 @@ impl WalletState {
     }
 
     //  add raw hash key; NOTE: this is unsafe, should only be called when syncing blocks
-    pub async fn add_raw_hash_key(&self, tx: &mut SqliteConnection, key: Digest) -> Result<()> {
+    pub(crate) async fn add_raw_hash_key(&self, tx: &mut SqliteConnection, key: Digest) -> Result<()> {
         let key_hex = key.to_hex();
         sqlx::query(
             "INSERT INTO wallet_state_raw_hash_keys (key) VALUES (?) ON CONFLICT DO NOTHING",
@@ -553,7 +553,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn init_raw_hash_keys(&self) -> Result<()> {
+    pub(crate) async fn init_raw_hash_keys(&self) -> Result<()> {
         let mut conn = self.pool.acquire().await?;
         let rows = sqlx::query("SELECT * FROM wallet_state_raw_hash_keys")
             .fetch_all(&mut *conn)
@@ -571,7 +571,7 @@ impl WalletState {
     }
 
     // Roll back state to a block defined by a height and a block hash.
-    pub async fn roll_back(
+    pub(crate) async fn roll_back(
         &self,
         tx: &mut SqliteConnection,
         height: u64,

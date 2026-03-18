@@ -32,13 +32,13 @@ const SYNC_SYNCING: i8 = 1;
 const SYNC_PAUSED: i8 = 2;
 const SYNC_WAIT_PAUSE: i8 = 3;
 
-pub const SYNC_BLOCK_BATCH_SIZE: u64 = 100;
-pub struct SyncState {
+pub(crate) const SYNC_BLOCK_BATCH_SIZE: u64 = 100;
+pub(crate) struct SyncState {
     height: AtomicU64,
     updated_to_tip: AtomicI8,
     syncing: AtomicI8,
     fake_archival_state: FakeArchivalState,
-    pub wallet: super::WalletState,
+    pub(crate) wallet: super::WalletState,
     cancel: AtomicI8,
     /// Used to notify the sync task to wake up and check for new blocks.
     waker: Notify,
@@ -46,16 +46,16 @@ pub struct SyncState {
 }
 
 #[derive(Debug, Serialize)]
-pub struct SyncStatus {
-    pub height: u64,
-    pub syncing: bool,
-    pub updated_to_tip: bool,
+pub(crate) struct SyncStatus {
+    pub(crate) height: u64,
+    pub(crate) syncing: bool,
+    pub(crate) updated_to_tip: bool,
 }
 
 static LAST_SYNC_EVENT_TIME: AtomicU64 = AtomicU64::new(0);
 
 impl SyncState {
-    pub async fn new(config: &Config) -> Result<Self> {
+    pub(crate) async fn new(config: &Config) -> Result<Self> {
         let wallet = WalletState::new_from_config(config).await?;
         let data_dir = config.get_data_dir().await?;
         let snapshot_reader = match SnapshotReader::new(&data_dir).await {
@@ -93,7 +93,7 @@ impl SyncState {
         })
     }
 
-    pub async fn status(&self) -> SyncStatus {
+    pub(crate) async fn status(&self) -> SyncStatus {
         SyncStatus {
             height: self.height.load(Ordering::SeqCst),
             syncing: self.syncing.load(Ordering::SeqCst) != 0,
@@ -101,7 +101,7 @@ impl SyncState {
         }
     }
 
-    pub async fn reset_to_height(&self, height: u64) -> Result<()> {
+    pub(crate) async fn reset_to_height(&self, height: u64) -> Result<()> {
         if self.syncing.load(Ordering::Relaxed) != SYNC_PAUSED {
             self.syncing.store(SYNC_WAIT_PAUSE, Ordering::Relaxed);
             loop {
@@ -134,7 +134,7 @@ impl SyncState {
         result
     }
 
-    pub async fn sync(self: Arc<Self>) {
+    pub(crate) async fn sync(self: Arc<Self>) {
         let self_clone = self.clone();
         let premine_utxos = loop {
             match self_clone.check_premine().await {
@@ -374,7 +374,7 @@ impl SyncState {
         let _ = crate::service::app::emit_event_to("main", "syncing_new_block", height);
     }
 
-    pub async fn cancel_sync(&self) {
+    pub(crate) async fn cancel_sync(&self) {
         self.cancel.store(1, Ordering::Relaxed);
         self.waker.notify_waiters();
 

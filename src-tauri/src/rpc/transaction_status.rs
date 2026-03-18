@@ -10,29 +10,29 @@ use crate::service::get_state;
 use crate::wallet::sync::SyncState;
 
 #[derive(Debug, Serialize)]
-pub struct TransactionStatus {
+pub(crate) struct TransactionStatus {
     tx_id: String,
     status: TransactionStatusEnum,
 }
 
 #[derive(Debug, Serialize)]
-pub enum TransactionStatusEnum {
+pub(crate) enum TransactionStatusEnum {
     Pending,
     // Proving,
     // Composing,
 }
-pub async fn get_pending_transaction() -> Result<ErasedJson, RestError> {
+pub(crate) async fn get_pending_transaction() -> Result<ErasedJson, RestError> {
     Ok(ErasedJson::pretty(
         WalletRpcImpl::pending_transactions().await?,
     ))
 }
 
-pub async fn forget_tx(Path(id): Path<String>) -> Result<ErasedJson, RestError> {
+pub(crate) async fn forget_tx(Path(id): Path<String>) -> Result<ErasedJson, RestError> {
     WalletRpcImpl::forget_tx(id).await?;
     Ok(ErasedJson::pretty(true))
 }
 
-pub trait TransactionStatusRpc {
+pub(crate) trait TransactionStatusRpc {
     async fn pending_transactions() -> Result<Vec<TransactionStatus>, RestError> {
         let wallet = &get_state::<Arc<SyncState>>().wallet;
         let txs = wallet.get_pending_transactions().await?;

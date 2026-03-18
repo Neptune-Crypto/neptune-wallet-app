@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::sync::Mutex;
 
 /// A guard for a state value.
-pub struct State<'r, T: Send + Sync + 'static>(&'r T);
+pub(crate) struct State<'r, T: Send + Sync + 'static>(&'r T);
 
 impl<'r, T: Send + Sync + 'static> State<'r, T> {
     /// Retrieve a borrow to the underlying value with a lifetime of `'r`.
@@ -14,7 +14,7 @@ impl<'r, T: Send + Sync + 'static> State<'r, T> {
     /// [`std::ops::Deref`] with a [`std::ops::Deref::Target`] of `T`.
     #[inline(always)]
     #[allow(unused)]
-    pub fn inner(&self) -> &'r T {
+    pub(crate) fn inner(&self) -> &'r T {
         self.0
     }
 }
@@ -81,7 +81,7 @@ type TypeIdMap = HashMap<TypeId, Pin<Box<dyn Any + Sync + Send>>, BuildHasherDef
 
 /// The Tauri state manager.
 #[derive(Debug)]
-pub struct StateManager {
+pub(crate) struct StateManager {
     map: Mutex<TypeIdMap>,
 }
 
@@ -126,13 +126,13 @@ impl StateManager {
     }
 
     /// Gets the state associated with the specified type.
-    pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
+    pub(crate) fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
         self.try_get()
             .unwrap_or_else(|| panic!("state not found for type {}", std::any::type_name::<T>()))
     }
 
     /// Gets the state associated with the specified type.
-    pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
+    pub(crate) fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
         let map = self.map.lock().unwrap();
         let type_id = TypeId::of::<T>();
         let ptr = map.get(&type_id)?;

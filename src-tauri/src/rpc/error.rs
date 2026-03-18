@@ -4,7 +4,7 @@ use axum::response::Response;
 
 /// An enum of error handlers for the REST API server.
 #[derive(Debug)]
-pub struct RestError(pub String);
+pub(crate) struct RestError(pub(crate) String);
 
 impl IntoResponse for RestError {
     fn into_response(self) -> Response {

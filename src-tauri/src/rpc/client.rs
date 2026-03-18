@@ -5,12 +5,12 @@ use super::SendToAddressParams;
 use crate::config;
 use crate::wallet::balance::WalletHistory;
 
-pub struct RestRpcClient {
+pub(crate) struct RestRpcClient {
     client: reqwest::Client,
 }
 
 impl RestRpcClient {
-    pub fn new(token: String) -> Self {
+    pub(crate) fn new(token: String) -> Self {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
             "Authorization",
@@ -27,7 +27,7 @@ impl RestRpcClient {
         format!("http://localhost:{}", config::consts::RPC_PORT)
     }
 
-    pub async fn history(&self) -> Result<Vec<WalletHistory>> {
+    pub(crate) async fn history(&self) -> Result<Vec<WalletHistory>> {
         let url = format!("{}/rpc/wallet/history", Self::api_url());
 
         let resp = self.client.get(url).send().await?.json().await?;
@@ -35,7 +35,7 @@ impl RestRpcClient {
         Ok(resp)
     }
 
-    pub async fn send(&self, params: &SendToAddressParams) -> Result<String> {
+    pub(crate) async fn send(&self, params: &SendToAddressParams) -> Result<String> {
         let url = format!("{}/rpc/send", Self::api_url());
 
         let resp = self

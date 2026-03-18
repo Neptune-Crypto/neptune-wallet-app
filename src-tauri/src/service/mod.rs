@@ -1,18 +1,18 @@
-pub mod app;
-pub mod state;
+pub(crate) mod app;
+pub(crate) mod state;
 
 use once_cell::sync::Lazy;
 
-pub static STATE_MANAGER: Lazy<state::StateManager> = Lazy::new(state::StateManager::new);
+pub(crate) static STATE_MANAGER: Lazy<state::StateManager> = Lazy::new(state::StateManager::new);
 
-pub fn manage<T: Send + Sync + 'static>(value: T) -> Option<state::State<'static, T>> {
+pub(crate) fn manage<T: Send + Sync + 'static>(value: T) -> Option<state::State<'static, T>> {
     if !STATE_MANAGER.set(value) {
         return Some(STATE_MANAGER.get());
     }
     None
 }
 
-pub fn manage_or_replace<T: Send + Sync + 'static>(value: T) {
+pub(crate) fn manage_or_replace<T: Send + Sync + 'static>(value: T) {
     unsafe {
         STATE_MANAGER.unmanage::<T>();
     }
@@ -20,14 +20,14 @@ pub fn manage_or_replace<T: Send + Sync + 'static>(value: T) {
 }
 
 #[allow(unused)]
-pub fn unmanage<T: Send + Sync + 'static>() -> Option<T> {
+pub(crate) fn unmanage<T: Send + Sync + 'static>() -> Option<T> {
     unsafe { STATE_MANAGER.unmanage() }
 }
 
-pub fn get_state<T: Send + Sync + 'static>() -> state::State<'static, T> {
+pub(crate) fn get_state<T: Send + Sync + 'static>() -> state::State<'static, T> {
     STATE_MANAGER.get()
 }
 
-pub fn try_get_state<T: Send + Sync + 'static>() -> Option<state::State<'static, T>> {
+pub(crate) fn try_get_state<T: Send + Sync + 'static>() -> Option<state::State<'static, T>> {
     STATE_MANAGER.try_get()
 }

@@ -17,7 +17,7 @@ use crate::wallet::wallet_file;
 
 type Result<T> = std::result::Result<T, String>;
 
-pub trait TauriCommandResultExt {
+pub(crate) trait TauriCommandResultExt {
     type Output;
 
     /// Converts any error into a string automatically for Tauri commands
@@ -34,7 +34,7 @@ impl<T> TauriCommandResultExt for std::result::Result<T, anyhow::Error> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn set_remote_rest(rest: String) -> Result<()> {
+pub(crate) async fn set_remote_rest(rest: String) -> Result<()> {
     let config = crate::service::get_state::<Arc<Config>>();
     config.set_remote_rest(&rest).await.into_tauri_result()?;
 
@@ -44,14 +44,14 @@ pub async fn set_remote_rest(rest: String) -> Result<()> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn get_remote_rest() -> Result<String> {
+pub(crate) async fn get_remote_rest() -> Result<String> {
     let config = crate::service::get_state::<Arc<Config>>();
     config.get_remote_rest().await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn set_network(network: String) -> Result<()> {
+pub(crate) async fn set_network(network: String) -> Result<()> {
     let network = Network::from_str(&network).map_err(|e| e.to_string())?;
     let config = crate::service::get_state::<Arc<Config>>();
     config.set_network(network).await.into_tauri_result()?;
@@ -64,14 +64,14 @@ pub async fn set_network(network: String) -> Result<()> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn get_network() -> Result<String> {
+pub(crate) async fn get_network() -> Result<String> {
     let config = crate::service::get_state::<Arc<Config>>();
     Ok(config.get_network().await.into_tauri_result()?.to_string())
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn set_disk_cache(enabled: bool) -> Result<()> {
+pub(crate) async fn set_disk_cache(enabled: bool) -> Result<()> {
     let config = crate::service::get_state::<Arc<Config>>();
     config.set_disk_cache(enabled).await.into_tauri_result()?;
     Ok(())
@@ -79,13 +79,13 @@ pub async fn set_disk_cache(enabled: bool) -> Result<()> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn get_disk_cache() -> Result<bool> {
+pub(crate) async fn get_disk_cache() -> Result<bool> {
     let config = crate::service::get_state::<Arc<Config>>();
     config.get_disk_cache().await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn add_wallet(
+pub(crate) async fn add_wallet(
     name: String,
     mnemonic: String,
     num_keys: u64,
@@ -120,7 +120,7 @@ pub async fn add_wallet(
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn remove_wallet(id: i64) -> Result<()> {
+pub(crate) async fn remove_wallet(id: i64) -> Result<()> {
     let config = crate::service::get_state::<Arc<Config>>();
     config.remove_wallet(id).await.into_tauri_result()?;
     wallet_file::delete_wallet(config.as_ref(), id)
@@ -131,7 +131,7 @@ pub async fn remove_wallet(id: i64) -> Result<()> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn export_wallet(password: String, id: i64) -> Result<Vec<String>> {
+pub(crate) async fn export_wallet(password: String, id: i64) -> Result<Vec<String>> {
     let config = crate::service::get_state::<Arc<Config>>();
     let config_password = config.password.lock().await.clone();
     if config_password.is_none() {
@@ -149,20 +149,20 @@ pub async fn export_wallet(password: String, id: i64) -> Result<Vec<String>> {
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn get_wallets() -> Result<Vec<WalletData>> {
+pub(crate) async fn get_wallets() -> Result<Vec<WalletData>> {
     let config = crate::service::get_state::<Arc<Config>>();
     config.get_wallets().await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn get_wallet_id() -> Result<i64> {
+pub(crate) async fn get_wallet_id() -> Result<i64> {
     let config = crate::service::get_state::<Arc<Config>>();
     config.get_wallet_id().await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn set_wallet_id(id: i64) -> Result<()> {
+pub(crate) async fn set_wallet_id(id: i64) -> Result<()> {
     let config = crate::service::get_state::<Arc<Config>>();
     if id >= 0 {
         config.set_wallet_id(id).await.into_tauri_result()?;
@@ -181,14 +181,14 @@ pub async fn set_wallet_id(id: i64) -> Result<()> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn wallet_address(index: u64) -> Result<String> {
+pub(crate) async fn wallet_address(index: u64) -> Result<String> {
     let state = crate::service::get_state::<Arc<SyncState>>();
     state.wallet.get_address(index).await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn input_password(password: String) -> Result<()> {
+pub(crate) async fn input_password(password: String) -> Result<()> {
     let config = crate::service::get_state::<Arc<Config>>();
     config
         .decrypt_config(password.as_str())
@@ -199,7 +199,7 @@ pub async fn input_password(password: String) -> Result<()> {
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn set_password(old_password: String, password: String) -> Result<()> {
+pub(crate) async fn set_password(old_password: String, password: String) -> Result<()> {
     let config = crate::service::get_state::<Arc<Config>>();
     config
         .set_password(&old_password, password.as_str())
@@ -210,13 +210,13 @@ pub async fn set_password(old_password: String, password: String) -> Result<()> 
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn has_password() -> Result<bool> {
+pub(crate) async fn has_password() -> Result<bool> {
     let config = crate::service::get_state::<Arc<Config>>();
     config.has_password().await.map_err(|e| e.to_string())
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub async fn try_password() -> Result<bool> {
+pub(crate) async fn try_password() -> Result<bool> {
     let config = crate::service::get_state::<Arc<Config>>();
     if config.password.lock().await.is_some() {
         return Ok(true);
@@ -226,7 +226,7 @@ pub async fn try_password() -> Result<bool> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn reset_to_height(height: u64) -> Result<()> {
+pub(crate) async fn reset_to_height(height: u64) -> Result<()> {
     let state = crate::service::get_state::<Arc<SyncState>>();
     state.reset_to_height(height).await.into_tauri_result()?;
     Ok(())
@@ -234,7 +234,7 @@ pub async fn reset_to_height(height: u64) -> Result<()> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn snapshot_dir() -> Result<String> {
+pub(crate) async fn snapshot_dir() -> Result<String> {
     let config = crate::service::get_state::<Arc<Config>>();
     let data_dir = config.get_data_dir().await.into_tauri_result()?;
 
@@ -243,7 +243,7 @@ pub async fn snapshot_dir() -> Result<String> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn generate_snapshot_file(
+pub(crate) async fn generate_snapshot_file(
     path: String,
     start_height: u64,
     end_height: u64,
@@ -262,7 +262,7 @@ pub async fn generate_snapshot_file(
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn list_cache() -> Result<Vec<BlockCacheFile>> {
+pub(crate) async fn list_cache() -> Result<Vec<BlockCacheFile>> {
     let config = crate::service::get_state::<Arc<Config>>();
     let network = config.get_network().await.into_tauri_result()?;
     let data_dir = config.get_data_dir().await.into_tauri_result()?;
@@ -281,7 +281,7 @@ pub async fn list_cache() -> Result<Vec<BlockCacheFile>> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
-pub async fn delete_cache(path: String) -> Result<()> {
+pub(crate) async fn delete_cache(path: String) -> Result<()> {
     let path = PathBuf::from(path);
     PersistBlockCache::delete_block_file(path)
         .await

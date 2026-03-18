@@ -68,7 +68,7 @@ struct HistoryArgs {
     global: GlobalArgs,
 }
 
-pub async fn run() {
+pub(crate) async fn run() {
     let cli = WalletCli::parse();
 
     match cli {

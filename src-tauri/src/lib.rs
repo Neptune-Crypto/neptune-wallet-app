@@ -11,20 +11,20 @@ mod config;
 mod gui;
 mod logger;
 mod os;
-pub mod prover;
+pub(crate) mod prover;
 mod rpc;
-pub mod rpc_client;
+pub(crate) mod rpc_client;
 mod service;
 #[cfg(feature = "gui")]
 mod session_store;
-pub mod wallet;
-pub use neptune_cash;
+pub(crate) mod wallet;
+pub(crate) use neptune_cash;
 
 #[cfg(test)]
 pub(crate) mod tests;
 
 #[cfg(feature = "gui")]
-pub fn add_commands<R: tauri::Runtime>(app: tauri::Builder<R>) -> tauri::Builder<R> {
+pub(crate) fn add_commands<R: tauri::Runtime>(app: tauri::Builder<R>) -> tauri::Builder<R> {
     app.invoke_handler(tauri::generate_handler![
         command::commands::add_wallet,
         command::commands::delete_cache,

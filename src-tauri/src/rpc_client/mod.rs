@@ -28,21 +28,21 @@ use crate::wallet::wallet_block::WalletBlock;
 
 static NODE_RPC_CLIENT: Lazy<NodeRpcClient> = Lazy::new(|| NodeRpcClient::new(""));
 
-pub fn node_rpc_client() -> &'static NodeRpcClient {
+pub(crate) fn node_rpc_client() -> &'static NodeRpcClient {
     &NODE_RPC_CLIENT
 }
 
-pub struct NodeRpcClient {
+pub(crate) struct NodeRpcClient {
     rest_server: AtomicPtr<HttpClient>,
 }
 
 #[derive(Debug, Serialize, Clone)]
-pub struct BroadcastTx<'a> {
-    pub transaction: &'a Transaction,
+pub(crate) struct BroadcastTx<'a> {
+    pub(crate) transaction: &'a Transaction,
 }
 
 impl NodeRpcClient {
-    pub fn new(rest_server: &str) -> Self {
+    pub(crate) fn new(rest_server: &str) -> Self {
         let client = HttpClient::new(rest_server);
         Self {
             rest_server: AtomicPtr::new(Box::into_raw(Box::new(client))),
@@ -53,7 +53,7 @@ impl NodeRpcClient {
         (unsafe { &*self.rest_server.load(Ordering::Relaxed) }) as _
     }
 
-    pub fn set_rest_server(&self, rest: String) {
+    pub(crate) fn set_rest_server(&self, rest: String) {
         let client = HttpClient::new(rest);
         self.rest_server.store(
             Box::into_raw(Box::new(client)),
@@ -83,7 +83,7 @@ impl NodeRpcClient {
         Ok(block)
     }
 
-    pub async fn get_tip_header(&self) -> Result<BlockHeader> {
+    pub(crate) async fn get_tip_header(&self) -> Result<BlockHeader> {
         debug!("request: get_tip_header");
         let client = self.rest_server();
 
@@ -93,7 +93,7 @@ impl NodeRpcClient {
         Ok(header)
     }
 
-    pub async fn get_block_header(
+    pub(crate) async fn get_block_header(
         &self,
         block_selector: BlockSelector,
     ) -> Result<Option<BlockHeader>> {
@@ -112,7 +112,7 @@ impl NodeRpcClient {
         Ok(header)
     }
 
-    pub async fn is_block_canonical(&self, digest: Digest) -> Result<bool> {
+    pub(crate) async fn is_block_canonical(&self, digest: Digest) -> Result<bool> {
         debug!("request: is_block_canonical, {digest:x}");
         let client = self.rest_server();
 
@@ -161,7 +161,7 @@ impl NodeRpcClient {
         Ok(blocks)
     }
 
-    pub async fn broadcast_transaction(&self, tx: Transaction) -> Result<String, BroadcastError> {
+    pub(crate) async fn broadcast_transaction(&self, tx: Transaction) -> Result<String, BroadcastError> {
         debug!("request: broadcast_transaction, with txid: {}", tx.txid());
 
         let client = self.rest_server();
@@ -183,7 +183,7 @@ impl NodeRpcClient {
     /// Get mutator set witness data required to restore the wallet's mutator
     /// set membership proofs, without leaking more privacy than what the
     /// publication of a transaction would.
-    pub async fn restore_msmps(
+    pub(crate) async fn restore_msmps(
         &self,
         request: Vec<AbsoluteIndexSet>,
     ) -> Result<ResponseMsMembershipProofPrivacyPreserving> {
@@ -216,7 +216,7 @@ impl NodeRpcClient {
 }
 
 #[derive(Error, Debug)]
-pub enum BroadcastError {
+pub(crate) enum BroadcastError {
     #[error("proof machine is busy")]
     Busy,
     #[error("Connection timeout")]

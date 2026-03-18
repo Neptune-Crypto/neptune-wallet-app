@@ -17,11 +17,11 @@ use crate::rpc_client;
 
 impl super::WalletState {
     // txid, amount
-    pub async fn get_pending_transactions(&self) -> Result<Vec<String>> {
+    pub(crate) async fn get_pending_transactions(&self) -> Result<Vec<String>> {
         self.updater.get_pending_transaction_ids().await
     }
 
-    pub async fn forget_tx(&self, txid: &str) -> Result<()> {
+    pub(crate) async fn forget_tx(&self, txid: &str) -> Result<()> {
         self.updater.delete_transaction(txid).await
     }
 }
@@ -61,20 +61,20 @@ sqlx_migrator::sqlite_migration!(
     )]
 );
 
-pub struct TransactionUpdater {
+pub(crate) struct TransactionUpdater {
     pool: SqlitePool,
 }
 
 // upgrade transaction after new block
 impl TransactionUpdater {
-    pub async fn new(pool: SqlitePool) -> anyhow::Result<Self> {
+    pub(crate) async fn new(pool: SqlitePool) -> anyhow::Result<Self> {
         let updater = Self { pool };
 
         updater.migrate_tables().await?;
         Ok(updater)
     }
 
-    pub async fn migrate_tables(&self) -> anyhow::Result<()> {
+    pub(crate) async fn migrate_tables(&self) -> anyhow::Result<()> {
         let mut migrator = Migrator::default();
         // Adding migration can fail if another migration with same app and name and different values gets added
         // Adding migrations add its parents, replaces and not before as well
@@ -88,7 +88,7 @@ impl TransactionUpdater {
         Ok(())
     }
 
-    pub async fn update_transactions(&self, wallet_state: &WalletState) {
+    pub(crate) async fn update_transactions(&self, wallet_state: &WalletState) {
         info!("Updating transactions");
         let mut tx = match self.pool.acquire().await {
             Ok(conn) => conn,
@@ -181,7 +181,7 @@ impl TransactionUpdater {
         Ok(transaction_details)
     }
 
-    pub async fn add_transaction(
+    pub(crate) async fn add_transaction(
         &self,
         tx_id: String,
         detail: TransactionDetails,
@@ -223,7 +223,7 @@ impl TransactionUpdater {
         Ok(())
     }
 
-    pub async fn get_pending_transactions(
+    pub(crate) async fn get_pending_transactions(
         &self,
         tx: &mut SqliteConnection,
     ) -> Result<Vec<(String, TransactionDetails, Vec<i64>)>> {
@@ -252,7 +252,7 @@ impl TransactionUpdater {
         Ok(result)
     }
 
-    pub async fn delete_transaction(&self, tx_id: &str) -> Result<()> {
+    pub(crate) async fn delete_transaction(&self, tx_id: &str) -> Result<()> {
         let mut conn = self.pool.acquire().await?;
 
         sqlx::query("DELETE FROM wallet_state_pending WHERE id = ?")
@@ -268,7 +268,7 @@ impl TransactionUpdater {
         Ok(())
     }
 
-    pub async fn get_pending_transaction_ids(&self) -> Result<Vec<String>> {
+    pub(crate) async fn get_pending_transaction_ids(&self) -> Result<Vec<String>> {
         let mut conn = self.pool.acquire().await?;
 
         let transactions = sqlx::query("SELECT id FROM wallet_state_pending WHERE finished = 0")
@@ -282,7 +282,7 @@ impl TransactionUpdater {
     }
 
     // returns all spent utxos database index
-    pub async fn get_pending_spent_utxos(&self) -> Result<Vec<i64>> {
+    pub(crate) async fn get_pending_spent_utxos(&self) -> Result<Vec<i64>> {
         let mut conn = self.pool.acquire().await?;
 
         let spent_utxos =
@@ -297,7 +297,7 @@ impl TransactionUpdater {
     }
 
     // remove pending and returns transaction id
-    pub async fn try_remove_pending_by_utxo_id(
+    pub(crate) async fn try_remove_pending_by_utxo_id(
         &self,
         tx: &mut SqliteConnection,
         id: i64,
@@ -327,7 +327,7 @@ impl TransactionUpdater {
         Ok(remove)
     }
 
-    pub async fn try_clean_pending_by_utxo(
+    pub(crate) async fn try_clean_pending_by_utxo(
         &self,
         tx: &mut SqliteConnection,
         utxoid: Vec<i64>,

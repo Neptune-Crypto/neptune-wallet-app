@@ -7,14 +7,14 @@ use tauri_plugin_dialog::DialogExt;
 
 #[cfg(feature = "gui")]
 #[derive(Debug, Serialize)]
-pub struct BuildInfo {
-    pub time: String,
-    pub commit: String,
+pub(crate) struct BuildInfo {
+    pub(crate) time: String,
+    pub(crate) commit: String,
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg(feature = "gui")]
-pub fn get_build_info() -> BuildInfo {
+pub(crate) fn get_build_info() -> BuildInfo {
     let commit = env!("git_commit").to_string();
     let time = env!("build_time").to_string();
 
@@ -22,14 +22,14 @@ pub fn get_build_info() -> BuildInfo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateInfo {
-    pub version: String,
-    pub url: String,
+pub(crate) struct UpdateInfo {
+    pub(crate) version: String,
+    pub(crate) url: String,
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg(feature = "gui")]
-pub async fn update_info() -> Result<UpdateInfo, String> {
+pub(crate) async fn update_info() -> Result<UpdateInfo, String> {
     let resp = reqwest::get(
         "https://raw.githubusercontent.com/VxBlocks/vxb_neptune_wallet/refs/heads/main/update.json",
     )
@@ -43,7 +43,7 @@ pub async fn update_info() -> Result<UpdateInfo, String> {
 }
 
 #[cfg(all(feature = "gui", desktop))]
-pub fn error_dialog(app: &tauri::AppHandle, message: &str) {
+pub(crate) fn error_dialog(app: &tauri::AppHandle, message: &str) {
     use tauri_plugin_dialog::MessageDialogButtons;
 
     app.dialog()
@@ -55,7 +55,7 @@ pub fn error_dialog(app: &tauri::AppHandle, message: &str) {
 }
 
 #[cfg(feature = "gui")]
-pub fn emit_event_to<I, S>(target: I, event: &str, payload: S) -> anyhow::Result<()>
+pub(crate) fn emit_event_to<I, S>(target: I, event: &str, payload: S) -> anyhow::Result<()>
 where
     I: Into<tauri::EventTarget>,
     S: Serialize + Clone,
@@ -66,6 +66,6 @@ where
 }
 
 #[cfg(not(feature = "gui"))]
-pub fn emit_event_to<I, S>(_target: I, _event: &str, _payload: S) -> anyhow::Result<()> {
+pub(crate) fn emit_event_to<I, S>(_target: I, _event: &str, _payload: S) -> anyhow::Result<()> {
     Ok(())
 }

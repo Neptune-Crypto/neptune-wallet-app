@@ -1,8 +1,8 @@
-pub mod commands;
+pub(crate) mod commands;
 
-pub type Result<T> = std::result::Result<T, String>;
+pub(crate) type Result<T> = std::result::Result<T, String>;
 
-pub trait TauriCommandResultExt {
+pub(crate) trait TauriCommandResultExt {
     type Output;
 
     /// Converts any error into a string automatically for Tauri commands

@@ -6,7 +6,7 @@ use aes_gcm::Aes256Gcm;
 use aes_gcm::KeyInit;
 use anyhow::Result;
 
-pub fn aes_decode(key: &[u8], cipher_text: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn aes_decode(key: &[u8], cipher_text: &[u8]) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new_from_slice(key)?;
     if cipher_text.len() < 12 {
         return Err(anyhow::anyhow!("cipher text too short"));
@@ -21,7 +21,7 @@ pub fn aes_decode(key: &[u8], cipher_text: &[u8]) -> Result<Vec<u8>> {
     Ok(plaintext)
 }
 
-pub fn aes_encode(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn aes_encode(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new_from_slice(key)?;
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
     let cipher_text = cipher
@@ -33,7 +33,7 @@ pub fn aes_encode(key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
     Ok(output)
 }
 
-pub fn generate_aes_256_key() -> Vec<u8> {
+pub(crate) fn generate_aes_256_key() -> Vec<u8> {
     let key = Aes256Gcm::generate_key(OsRng);
     key.to_vec()
 }

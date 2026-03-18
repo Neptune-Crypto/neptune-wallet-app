@@ -5,7 +5,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 impl super::WalletState {
-    pub async fn get_balance(&self) -> Result<NativeCurrencyAmount> {
+    pub(crate) async fn get_balance(&self) -> Result<NativeCurrencyAmount> {
         let utxos = self.get_utxos().await?;
 
         let now = Timestamp::now();
@@ -21,7 +21,7 @@ impl super::WalletState {
         Ok(NativeCurrencyAmount::from_nau(balance))
     }
 
-    pub async fn get_balance_history(&self) -> Result<Vec<WalletHistory>> {
+    pub(crate) async fn get_balance_history(&self) -> Result<Vec<WalletHistory>> {
         let utxos = self.get_utxos().await?;
         let mut history = Vec::new();
         for utxo in utxos {
@@ -57,7 +57,7 @@ impl super::WalletState {
         Ok(history)
     }
 
-    pub async fn get_all_balance(&self) -> Result<(NativeCurrencyAmount, NativeCurrencyAmount)> {
+    pub(crate) async fn get_all_balance(&self) -> Result<(NativeCurrencyAmount, NativeCurrencyAmount)> {
         let utxos = self.get_utxos().await?;
         let now = Timestamp::now();
 
@@ -82,11 +82,11 @@ impl super::WalletState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct WalletHistory {
-    pub amount: String,
-    pub timestamp: Timestamp,
-    pub height: u64,
-    pub index: u64,
-    pub release_date: Option<Timestamp>,
-    pub txid: Option<String>,
+pub(crate) struct WalletHistory {
+    pub(crate) amount: String,
+    pub(crate) timestamp: Timestamp,
+    pub(crate) height: u64,
+    pub(crate) index: u64,
+    pub(crate) release_date: Option<Timestamp>,
+    pub(crate) txid: Option<String>,
 }

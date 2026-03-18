@@ -12,13 +12,13 @@ use tracing::*;
 mod proof_collection;
 mod single_proof;
 
-pub struct ProofBuilder {
+pub(crate) struct ProofBuilder {
     gobble_fee: Option<NativeCurrencyAmount>,
     network: Network,
 }
 
 impl ProofBuilder {
-    pub fn new(gobble_fee: Option<NativeCurrencyAmount>, network: Network) -> Self {
+    pub(crate) fn new(gobble_fee: Option<NativeCurrencyAmount>, network: Network) -> Self {
         Self {
             gobble_fee,
             network,

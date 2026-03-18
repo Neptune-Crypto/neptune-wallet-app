@@ -8,14 +8,14 @@ use neptune_cash::api::export::SpendingKey;
 use rayon::prelude::*;
 
 impl super::WalletState {
-    pub async fn get_address(&self, index: u64) -> Result<String> {
+    pub(crate) async fn get_address(&self, index: u64) -> Result<String> {
         let symmetric_key = self.key.nth_generation_spending_key(index);
         let spending_key = SpendingKey::from(symmetric_key);
 
         spending_key.to_address().to_bech32m(self.network)
     }
 
-    pub fn get_known_spending_keys(&self) -> Vec<SpendingKey> {
+    pub(crate) fn get_known_spending_keys(&self) -> Vec<SpendingKey> {
         let spending_keys = self.get_future_generation_spending_keys(Range {
             start: 0,
             end: self.num_generation_spending_keys() + 1,
@@ -36,19 +36,19 @@ impl super::WalletState {
             .collect()
     }
 
-    pub fn num_symmetric_keys(&self) -> u64 {
+    pub(crate) fn num_symmetric_keys(&self) -> u64 {
         self.num_symmetric_keys.load(Ordering::Relaxed)
     }
 
-    pub fn num_generation_spending_keys(&self) -> u64 {
+    pub(crate) fn num_generation_spending_keys(&self) -> u64 {
         self.num_generation_spending_keys.load(Ordering::Relaxed)
     }
 
-    pub fn num_future_keys(&self) -> u64 {
+    pub(crate) fn num_future_keys(&self) -> u64 {
         self.num_future_keys.load(Ordering::Relaxed)
     }
 
-    pub fn get_future_symmetric_keys(&self, range: Range<u64>) -> Vec<(u64, Arc<SpendingKey>)> {
+    pub(crate) fn get_future_symmetric_keys(&self, range: Range<u64>) -> Vec<(u64, Arc<SpendingKey>)> {
         let key = &self.key;
         (range.start..range.end)
             .into_par_iter()
@@ -63,7 +63,7 @@ impl super::WalletState {
             .collect()
     }
 
-    pub fn get_future_generation_spending_keys(
+    pub(crate) fn get_future_generation_spending_keys(
         &self,
         range: Range<u64>,
     ) -> Vec<(u64, Arc<SpendingKey>)> {

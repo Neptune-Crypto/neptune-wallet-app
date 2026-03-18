@@ -53,12 +53,12 @@ sqlx_migrator::sqlite_migration!(
 );
 
 #[derive(Debug, Clone)]
-pub struct PersisStore {
+pub(crate) struct PersisStore {
     db: SqlitePool,
 }
 
 impl PersisStore {
-    pub async fn new(data_dir: &Path) -> anyhow::Result<Self> {
+    pub(crate) async fn new(data_dir: &Path) -> anyhow::Result<Self> {
         let db_path = data_dir.join("store.db");
 
         let options = sqlx::sqlite::SqliteConnectOptions::new()
@@ -88,7 +88,7 @@ impl PersisStore {
         Ok(())
     }
 
-    pub async fn execute(&self, query: &str) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    pub(crate) async fn execute(&self, query: &str) -> Result<Vec<serde_json::Value>, sqlx::Error> {
         let res = sqlx::query(query).fetch_all(&self.db).await?;
         let json = res
             .into_iter()

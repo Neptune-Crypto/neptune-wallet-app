@@ -42,7 +42,7 @@ struct Payload {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub(crate) fn run() {
     #[cfg(all(desktop, target_os = "linux"))]
     std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
 

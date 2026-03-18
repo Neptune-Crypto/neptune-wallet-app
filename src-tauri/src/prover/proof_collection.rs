@@ -17,7 +17,7 @@ use tracing::debug;
 use tracing::info;
 
 impl super::ProofBuilder {
-    pub fn produce_proof_collection(
+    pub(crate) fn produce_proof_collection(
         primitive_witness: &PrimitiveWitness,
     ) -> Result<ProofCollection> {
         let (

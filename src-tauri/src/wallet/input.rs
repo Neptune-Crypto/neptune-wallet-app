@@ -22,7 +22,7 @@ use super::UtxoRecoveryData;
 use crate::rpc_client;
 
 #[derive(Default)]
-pub enum InputSelectionRule {
+pub(crate) enum InputSelectionRule {
     Minimum,
     Maximum,
     #[default]
@@ -47,7 +47,7 @@ impl FromStr for InputSelectionRule {
 }
 
 impl InputSelectionRule {
-    pub fn apply(&self, mut utxos: Vec<UtxoDbData>) -> Vec<UtxoDbData> {
+    pub(crate) fn apply(&self, mut utxos: Vec<UtxoDbData>) -> Vec<UtxoDbData> {
         match self {
             InputSelectionRule::Minimum => utxos.sort_by(|a, b| {
                 a.recovery_data
@@ -72,7 +72,7 @@ impl InputSelectionRule {
 }
 
 impl super::WalletState {
-    pub async fn create_input(
+    pub(crate) async fn create_input(
         &self,
         outputs: &[(ReceivingAddress, NativeCurrencyAmount)],
         fee: NativeCurrencyAmount,
@@ -163,7 +163,7 @@ impl super::WalletState {
     }
 
     /// Returns triple (list of unlocked UTXOs, tip mutator set, tip height)
-    pub async fn unlock_utxos(
+    pub(crate) async fn unlock_utxos(
         &self,
         utxos: Vec<UtxoRecoveryData>,
     ) -> anyhow::Result<(Vec<UnlockedUtxo>, MutatorSetAccumulator, BlockHeight)> {
@@ -224,13 +224,13 @@ impl super::WalletState {
 
     // returns Some(SpendingKey) if the utxo can be unlocked by one of the known
     // wallet keys.
-    pub fn find_spending_key_for_utxo(&self, utxo: &Utxo) -> Option<SpendingKey> {
+    pub(crate) fn find_spending_key_for_utxo(&self, utxo: &Utxo) -> Option<SpendingKey> {
         self.get_known_spending_keys()
             .into_iter()
             .find(|k| k.lock_script_hash() == utxo.lock_script_hash())
     }
 
-    pub async fn get_recovery_data_from_utxo(&self, utxo: &Utxo) -> Result<UtxoRecoveryData> {
+    pub(crate) async fn get_recovery_data_from_utxo(&self, utxo: &Utxo) -> Result<UtxoRecoveryData> {
         let digest = Tip5::hash(utxo);
         let db_data = self.get_utxo_db_data(&digest).await?;
         match db_data {
