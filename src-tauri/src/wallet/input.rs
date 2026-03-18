@@ -84,7 +84,10 @@ impl super::WalletState {
         MutatorSetAccumulator,
         BlockHeight,
     )> {
-        let mut utxos = self.get_unspent_utxos().await?;
+        let mut utxos = {
+            let mut tx = self.pool.begin().await?;
+            self.get_unspent_utxos(&mut tx).await?
+        };
         trace!("Num unspent utxos (not mined): {}", utxos.len());
 
         let pending_utxos = self.updater.get_pending_spent_utxos().await?;

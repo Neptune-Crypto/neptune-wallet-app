@@ -20,6 +20,9 @@ mod session_store;
 pub mod wallet;
 pub use neptune_cash;
 
+#[cfg(test)]
+pub(crate) mod tests;
+
 #[cfg(feature = "gui")]
 pub fn add_commands<R: tauri::Runtime>(app: tauri::Builder<R>) -> tauri::Builder<R> {
     app.invoke_handler(tauri::generate_handler![

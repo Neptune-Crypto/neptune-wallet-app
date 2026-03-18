@@ -125,8 +125,20 @@ pub trait WalletRpc {
     }
     async fn avaliable_utxos() -> Result<Vec<Utxo>, RestError> {
         let wallet = &get_state::<Arc<SyncState>>().wallet;
-        let mut utxos = wallet.get_unspent_utxos().await?;
+        let mut utxos = {
+            let mut tx = wallet
+                .pool
+                .begin()
+                .await
+                .map_err(|e| RestError(e.to_string()))?;
+            wallet
+                .get_unspent_utxos(&mut tx)
+                .await
+                .map_err(|e| RestError(e.to_string()))?
+        };
+
         utxos.sort_by_key(|v| v.recovery_data.utxo.get_native_currency_amount());
+
         let now = Timestamp::now();
         let utxos = utxos
             .into_iter()

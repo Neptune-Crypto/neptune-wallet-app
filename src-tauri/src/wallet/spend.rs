@@ -124,7 +124,7 @@ impl super::WalletState {
         );
 
         let txid = rpc_client::node_rpc_client()
-            .broadcast_transaction(&transaction)
+            .broadcast_transaction(transaction.clone())
             .await?;
 
         let _ = crate::service::app::emit_event_to(

@@ -175,7 +175,7 @@ impl TransactionUpdater {
             .await?;
 
         let _new_id = rpc_client::node_rpc_client()
-            .broadcast_transaction(&transaction)
+            .broadcast_transaction(transaction)
             .await?;
 
         Ok(transaction_details)

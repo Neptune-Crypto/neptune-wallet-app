@@ -14,6 +14,7 @@ use sqlx_migrator::Migrate;
 use sqlx_migrator::Migrator;
 use sqlx_migrator::Plan;
 use tracing::info;
+use tracing::trace;
 
 use super::UtxoRecoveryData;
 use super::WalletState;
@@ -306,6 +307,8 @@ impl WalletState {
     ) -> Result<()> {
         let tip = Tip { height, digest };
 
+        trace!("Setting tip to: ({height}, {digest:x})");
+
         let value_db = serde_json::to_string(&tip)?;
         sqlx::query("INSERT INTO wallet_state_keys (id, value) VALUES ('tip', ?) ON CONFLICT(id) DO UPDATE SET value = ?")
             .bind(&value_db)
@@ -322,6 +325,7 @@ impl WalletState {
         match row {
             Ok(row) => {
                 let tip: Tip = serde_json::from_str(&row.get::<String, _>(0))?;
+                trace!("Got tip from database: ({}, {:x})", tip.height, tip.digest);
                 Ok(Some((tip.height, tip.digest)))
             }
             Err(sqlx::Error::RowNotFound) => Ok(None),
@@ -428,10 +432,9 @@ impl WalletState {
         }
     }
 
-    pub async fn get_unspent_utxos(&self) -> Result<Vec<UtxoDbData>> {
-        let mut conn = self.pool.acquire().await?;
+    pub async fn get_unspent_utxos(&self, tx: &mut SqliteConnection) -> Result<Vec<UtxoDbData>> {
         let rows = sqlx::query("SELECT * FROM wallet_state_utxos WHERE spent_in_block IS NULL")
-            .fetch_all(&mut *conn)
+            .fetch_all(&mut *tx)
             .await?;
 
         let mut utxos: Vec<UtxoDbData> = Vec::new();
@@ -461,7 +464,7 @@ impl WalletState {
         Ok(utxos)
     }
 
-    pub async fn add_expected_utxo(&self, utxo: Vec<ExpectedUtxoData>) -> Result<()> {
+    pub(crate) async fn add_expected_utxo(&self, utxo: Vec<ExpectedUtxoData>) -> Result<()> {
         let mut tx = self.pool.begin().await?;
 
         for expedted in utxo {
@@ -472,7 +475,7 @@ impl WalletState {
         Ok(())
     }
 
-    pub async fn expected_utxos(&self) -> Result<Vec<ExpectedUtxoData>> {
+    pub(crate) async fn expected_utxos(&self) -> Result<Vec<ExpectedUtxoData>> {
         let mut conn = self.pool.acquire().await?;
         let rows = sqlx::query("SELECT * FROM wallet_state_expected_utxos")
             .fetch_all(&mut *conn)
@@ -566,8 +569,8 @@ impl WalletState {
         Ok(())
     }
 
-    // reorganize to the fork point
-    pub async fn reorganize_to_height(
+    // Roll back state to a block defined by a height and a block hash.
+    pub async fn roll_back(
         &self,
         tx: &mut SqliteConnection,
         height: u64,

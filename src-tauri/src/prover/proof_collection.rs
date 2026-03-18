@@ -90,10 +90,10 @@ impl super::ProofBuilder {
             .enumerate()
         {
             debug!("proving type script number {i}: {}", tsaw.program.hash());
-            let input = [txk_mast_hash, salted_inputs_hash, salted_outputs_hash]
+            let input: Vec<_> = [txk_mast_hash, salted_inputs_hash, salted_outputs_hash]
                 .into_iter()
                 .flat_map(|d| d.reversed().values())
-                .collect_vec();
+                .collect();
             let claim = Claim::new(tsaw.program.hash()).with_input(input);
 
             let type_script_halt =

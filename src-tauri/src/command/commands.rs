@@ -97,10 +97,8 @@ pub async fn add_wallet(
     //wallet is new, set start height to tip
     if is_new {
         let tip = rpc_client::node_rpc_client()
-            .get_tip_info()
+            .get_tip_header()
             .await
-            .into_tauri_result()?
-            .context("tip not found")
             .into_tauri_result()?;
         start_height = tip.height.into();
     }

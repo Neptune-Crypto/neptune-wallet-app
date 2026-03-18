@@ -6,8 +6,12 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
+use neptune_cash::api::export::Network;
+use neptune_cash::api::export::SpendingKey;
 use neptune_cash::api::export::Timestamp;
 use neptune_cash::protocol::consensus::block::Block;
+use neptune_cash::state::wallet::expected_utxo::ExpectedUtxo;
+use neptune_cash::state::wallet::expected_utxo::UtxoNotifier;
 use neptune_cash::util_types::mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
 use serde::Serialize;
 use tokio::select;
@@ -21,13 +25,14 @@ use super::fake_archival_state::SnapshotReader;
 use super::WalletState;
 use crate::config::Config;
 use crate::wallet::block_cache::BlockCacheImpl;
+use crate::wallet::wallet_state_table::ExpectedUtxoData;
 
 const SYNC_STOPPED: i8 = 0;
 const SYNC_SYNCING: i8 = 1;
 const SYNC_PAUSED: i8 = 2;
 const SYNC_WAIT_PAUSE: i8 = 3;
 
-pub const SYNC_BLOCK_BATCH_SIZE: u64 = 50;
+pub const SYNC_BLOCK_BATCH_SIZE: u64 = 100;
 pub struct SyncState {
     height: AtomicU64,
     updated_to_tip: AtomicI8,
@@ -115,9 +120,7 @@ impl SyncState {
                 .await
                 .context("failed to get block by height")?
                 .context("block not found")?;
-            self.wallet
-                .reorganize_to_height(&mut tx, height, block.hash())
-                .await?;
+            self.wallet.roll_back(&mut tx, height, block.hash).await?;
             tx.commit().await?;
             self.fake_archival_state.reset_to_height(height).await?;
             self.height.store(height + 1, Ordering::Relaxed);
@@ -133,6 +136,23 @@ impl SyncState {
 
     pub async fn sync(self: Arc<Self>) {
         let self_clone = self.clone();
+        let premine_utxos = loop {
+            match self_clone.check_premine().await {
+                Ok(utxos) => break utxos,
+                Err(e) => {
+                    error!("sync error: {:?}", e);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+            }
+        };
+
+        if !premine_utxos.is_empty() {
+            self.wallet
+                .add_expected_utxo(premine_utxos)
+                .await
+                .expect("Must be able to add new expected UTXO for genesis block");
+        }
+
         let task = tokio::spawn(async move {
             while let Err(e) = self_clone.sync_inner().await {
                 error!("sync error: {:?}", e);
@@ -147,9 +167,10 @@ impl SyncState {
         let start = self.wallet.start_height().await?;
         debug!("start set to: {start}");
 
+        let network = self.wallet.network;
         let mut previous_mutator_set_accumulator = match start {
             0 => MutatorSetAccumulator::default(),
-            1 => Block::genesis(self.wallet.network).mutator_set_accumulator_after()?,
+            1 => Block::genesis(network).mutator_set_accumulator_after()?,
             _ => {
                 let context = format!(
                     "Prev block does not exist. Could not get block with height {}",
@@ -238,7 +259,9 @@ impl SyncState {
         let current_height = self.height.load(Ordering::Relaxed);
         info!("syncing block {current_height}");
 
-        if current_height > 0 && (current_height - 1).is_multiple_of(SYNC_BLOCK_BATCH_SIZE) {
+        // Attempt to always have all blocks downloaded, before they need to be
+        // processed.
+        if current_height > 0 && (current_height - 12).is_multiple_of(SYNC_BLOCK_BATCH_SIZE) {
             debug!("prepare blocks: {}", current_height);
             self.fake_archival_state
                 .prepare(current_height, SYNC_BLOCK_BATCH_SIZE)
@@ -364,5 +387,101 @@ impl SyncState {
                 }
             };
         }
+    }
+
+    /// Return premine UTXOs, if genesis block hasn't already been checked.
+    async fn check_premine(&self) -> Result<Vec<ExpectedUtxoData>> {
+        // Do some heuristics to attempt to only do this check once per wallet.
+        let start = self.wallet.start_height().await?;
+        let utxos = if 0 == start && self.wallet.expected_utxos().await?.is_empty() {
+            let premine_keys = self.wallet.get_known_spending_keys();
+            Self::check_premine_inner(self.wallet.network, &premine_keys)
+        } else {
+            vec![]
+        };
+
+        Ok(utxos)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn check_premine_for_tests(
+        network: Network,
+        premine_keys: &[SpendingKey],
+    ) -> Vec<ExpectedUtxoData> {
+        Self::check_premine_inner(network, premine_keys)
+    }
+
+    fn check_premine_inner(
+        network: Network,
+        premine_keys: &[SpendingKey],
+    ) -> Vec<ExpectedUtxoData> {
+        let mut our_premine_utxos = vec![];
+        debug!("Populating state with premine UTXOs. This should only happen once");
+        let mut id = 0;
+        let network_launch = network.launch_date();
+        for premine_key in premine_keys {
+            let own_receiving_address = premine_key.to_address();
+            for utxo in Block::premine_utxos() {
+                if utxo.lock_script_hash() == own_receiving_address.lock_script_hash() {
+                    let txid = Block::genesis(network)
+                        .body()
+                        .transaction_kernel()
+                        .txid()
+                        .to_string();
+                    let expected_utxo = ExpectedUtxo::new(
+                        utxo,
+                        Block::premine_sender_randomness(network),
+                        premine_key.privacy_preimage(),
+                        UtxoNotifier::Premine,
+                    );
+                    let expected = ExpectedUtxoData {
+                        id,
+                        txid,
+                        expected_utxo,
+                        timestamp: network_launch,
+                    };
+                    our_premine_utxos.push(expected);
+                }
+
+                id += 1;
+            }
+        }
+
+        our_premine_utxos
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use neptune_cash::api::export::NativeCurrencyAmount;
+    use neptune_cash::api::export::WalletEntropy;
+
+    use super::*;
+
+    #[test]
+    fn identifies_devnet_premine_utxo() {
+        let network = Network::Main;
+        let devnet_wallet = WalletEntropy::devnet_wallet();
+        let premine_key = devnet_wallet.nth_generation_spending_key(0);
+        let utxos = SyncState::check_premine_inner(network, &[premine_key.into()]);
+        assert_eq!(
+            1,
+            utxos.len(),
+            "devnet wallet must have exactly one premine UTXO"
+        );
+        assert_eq!(
+            NativeCurrencyAmount::coins(20),
+            utxos[0].expected_utxo.utxo.get_native_currency_amount(),
+            "devnet's premine UTXO must be 20 NPT"
+        );
+
+        assert!(
+            Block::genesis(network)
+                .body()
+                .transaction_kernel()
+                .outputs
+                .contains(&utxos[0].expected_utxo.addition_record),
+            "Wallet's premine addition record must agree with that in genesis block."
+        );
     }
 }
