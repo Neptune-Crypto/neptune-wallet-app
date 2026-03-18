@@ -199,9 +199,9 @@ impl WalletState {
             .collect::<std::collections::HashMap<_, _>>();
 
         debug!("iterate addition records");
-        let mut num_aocl_leafs = previous_mutator_set_accumulator.aocl.num_leafs();
+        let num_aocl_leafs = previous_mutator_set_accumulator.aocl.num_leafs();
         let mut gusser_preimage = None;
-        for addition_record in &addition_records {
+        for (num_aocl_leafs, addition_record) in (num_aocl_leafs..).zip(addition_records.iter()) {
             if let Some(incoming_utxo) = incoming.get(addition_record) {
                 let r = incoming_utxo_recovery_data_from_incomming_utxo(
                     incoming_utxo.clone(),
@@ -233,8 +233,6 @@ impl WalletState {
                     gusser_preimage = Some(incoming_utxo.receiver_preimage);
                 }
             }
-
-            num_aocl_leafs += 1;
         }
 
         debug!("append utxos");

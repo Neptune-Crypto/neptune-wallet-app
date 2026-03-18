@@ -4,6 +4,7 @@ coverage
 dist
 target
 debug
+src-tauri/gen/
 
 # Ignore all HTML files:
 **/*.html
