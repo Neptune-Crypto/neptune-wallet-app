@@ -4,40 +4,62 @@ import { ExecutionDbHistory, ExecutionHistory } from "@/database/types/localhist
 import { notifications } from "@mantine/notifications";
 
 export async function addContactAddress({ contact }: { contact: Contact }): Promise<boolean> {
-  let success = false;
+  const sql = `
+  INSERT INTO contacts (aliasName, address, type, remark, createdTime)
+  VALUES (?, ?, ?, ?, ?)
+  `;
+
+  const params = [
+    contact.aliasName,
+    contact.address,
+    contact.type,
+    contact.remark,
+    contact.createdTime,
+  ];
+
   try {
-    let sql = `INSERT INTO contacts (aliasName, address, type, remark, createdTime) VALUES ('${contact.aliasName}','${contact.address}','${contact.type}','${contact.remark}',${contact.createdTime})`;
-    await persist_store_execute(sql);
-    success = true;
+    await persist_store_execute(sql, params);
+    return true;
   } catch (error) {
+    console.error("Failed to insert contact:", error);
     throw error;
   }
-  return success;
 }
 
 export async function deleteContactAddress({ address }: { address: string }): Promise<boolean> {
-  let success = false;
+  const sql = `
+  DELETE FROM contacts WHERE address = ?
+  `;
+
+  const params = [address];
+
   try {
-    let sql = `DELETE FROM contacts WHERE address = '${address}'`;
-    await persist_store_execute(sql);
-    success = true;
+    await persist_store_execute(sql, params);
+    return true;
   } catch (error) {
+    console.error("Failed to delete contact:", error);
     throw error;
   }
-  return success;
 }
 
 export async function getContactList(): Promise<Contact[]> {
-  let sql = `SELECT * FROM contacts`;
+  const sql = `
+  SELECT * FROM contacts
+  `;
+
+  const params: string[] = [];
+
   let contactList = [] as Contact[];
   try {
-    let req = await persist_store_execute(sql);
+    let req = await persist_store_execute(sql, params);
     if (req && req.length > 0) {
       contactList = req as unknown as Contact[];
     }
   } catch (error) {
+    console.error("Failed to get contact list:", error);
     throw error;
   }
+
   return contactList;
 }
 
@@ -46,12 +68,15 @@ export async function getExecutionHistory({
 }: {
   addressId: number;
 }): Promise<ExecutionHistory[]> {
-  let sql = `SELECT * FROM execution_history 
-WHERE addressId = '${addressId}'
-ORDER BY timestamp DESC`;
+  const sql = `
+  SELECT * FROM execution_history WHERE addressId = ? ORDER BY timestamp DESC
+  `;
+
+  const params = [addressId];
+
   let historys = [] as ExecutionHistory[];
   try {
-    let req = await persist_store_execute(sql);
+    let req = await persist_store_execute(sql, params);
     let list = req as unknown as ExecutionDbHistory[];
     list.map((item) => {
       historys.push({
@@ -70,62 +95,72 @@ ORDER BY timestamp DESC`;
       });
     });
   } catch (error) {
+    console.error("Failed to get execution history:", error);
     throw error;
   }
+
   return historys;
 }
 
 export async function addExecutionHistory({ localHistory }: { localHistory: ExecutionHistory }) {
-  let sql = `INSERT INTO execution_history (
-    txid, 
-    timestamp, 
-    height, 
-    addressId, 
-    address, 
-    fee, 
-    priorityFee, 
-    status,  
+  const sql = `
+  INSERT INTO execution_history (
+    txid,
+    timestamp,
+    height,
+    addressId,
+    address,
+    fee,
+    priorityFee,
+    status,
     batchOutput
-) VALUES (
-    '${localHistory.txid}', 
-    ${localHistory.timestamp}, 
-    ${localHistory.height}, 
-    ${localHistory.addressId}, 
-    '${localHistory.address}', 
-    '${localHistory.fee}', 
-    '${localHistory.priorityFee}',   
-    '${localHistory.outputs.length > 0 ? JSON.stringify(localHistory.outputs) : ""}',  
-    '${localHistory.batchOutput.length > 0 ? JSON.stringify(localHistory.batchOutput) : ""}'
-);`;
-  let success = false;
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const params = [
+    localHistory.txid,
+    localHistory.timestamp,
+    localHistory.height,
+    localHistory.addressId,
+    localHistory.address,
+    localHistory.fee,
+    localHistory.priorityFee,
+    localHistory.outputs.length > 0 ? JSON.stringify(localHistory.outputs) : "",
+    localHistory.batchOutput.length > 0 ? JSON.stringify(localHistory.batchOutput) : "",
+  ];
+
   try {
-    await persist_store_execute(sql);
-    success = true;
+    await persist_store_execute(sql, params);
+    return true;
   } catch (error: any) {
-    console.log(error);
+    console.log("Failed to insert execution history:", error);
     notifications.show({
       position: "top-right",
       message: error,
       color: "red",
       title: "Error",
     });
+    return false;
   }
-  return success;
 }
 
 export async function deleteExecutionHistory({ txid }: { txid: string }): Promise<boolean> {
-  let sql = `DELETE FROM execution_history WHERE txid = '${txid}'`;
-  let success = false;
+  const sql = `
+  DELETE FROM execution_history WHERE txid = ?
+  `;
+
+  const params = [txid];
   try {
-    await persist_store_execute(sql);
-    success = true;
+    await persist_store_execute(sql, params);
+    return true;
   } catch (error: any) {
+    console.log("Failed to delete execution history element:", error);
     notifications.show({
       position: "top-right",
       message: error,
       color: "red",
       title: "Error",
     });
+    return false;
   }
-  return success;
 }

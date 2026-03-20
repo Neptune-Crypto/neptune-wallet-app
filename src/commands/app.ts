@@ -4,8 +4,8 @@ export async function run_rpc_server() {
   await invoke("run_rpc_server", {});
 }
 
-export async function persist_store_execute(sql: string): Promise<[{}]> {
-  return await invoke("persist_store_execute", { sql });
+export async function persist_store_execute(sql: string, params: any[] = []): Promise<any> {
+  return await invoke("persist_store_execute", { sql, params });
 }
 
 export async function snapshot_dir(): Promise<string> {

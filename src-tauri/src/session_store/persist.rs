@@ -88,8 +88,20 @@ impl PersisStore {
         Ok(())
     }
 
-    pub(crate) async fn execute(&self, query: &str) -> Result<Vec<serde_json::Value>, sqlx::Error> {
-        let res = sqlx::query(query).fetch_all(&self.db).await?;
+    pub(crate) async fn execute(&self, query: &str, params: Vec<serde_json::Value>) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+        let mut query = sqlx::query::<sqlx::Sqlite>(query);
+
+        for val in params {
+            query = match val {
+                serde_json::Value::String(s) => query.bind(s),
+                serde_json::Value::Number(n) => query.bind(n.as_f64().unwrap_or(0.0)),
+                serde_json::Value::Bool(b) => query.bind(b),
+                serde_json::Value::Null => query.bind(None::<String>),
+                _ => query.bind(val.to_string()),
+            };
+        }
+
+        let res = query.fetch_all(&self.db).await?;
         let json = res
             .into_iter()
             .map(|row| {

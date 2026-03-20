@@ -1,3 +1,5 @@
+use sqlx::Sqlite;
+
 use super::persist::PersisStore;
 use super::Memstore;
 
@@ -22,7 +24,9 @@ pub(crate) async fn session_store_del(key: String) -> Option<String> {
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub(crate) async fn persist_store_execute(sql: String) -> Result<Vec<serde_json::Value>, String> {
+pub(crate) async fn persist_store_execute(sql: String, params: Vec<serde_json::Value>) -> Result<Vec<serde_json::Value>, String> {
     let store = crate::service::get_state::<PersisStore>();
-    store.execute(&sql).await.map_err(|e| e.to_string())
+
+    store.execute(&sql, params).await.map_err(|e| e.to_string())
 }
+
