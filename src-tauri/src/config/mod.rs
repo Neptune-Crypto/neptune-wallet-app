@@ -146,7 +146,7 @@ impl Config {
         Ok(self
             .get_data::<String>(key)
             .await?
-            .unwrap_or("https://nptwallet.vxb.ai".to_string()))
+            .unwrap_or("https://wallet.neptunefundamentals.org".to_string()))
     }
 
     pub(crate) async fn decrypt_config(&self, password: &str) -> Result<()> {
