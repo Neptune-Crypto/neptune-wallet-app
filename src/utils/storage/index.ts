@@ -1,14 +1,16 @@
-import { persist_store_execute } from "@/commands/app";
+import {
+  add_contact_address_execute,
+  add_execution_history_execute,
+  delete_contact_address_execute,
+  delete_execution_history_execute,
+  get_contact_list_execute,
+  get_execution_history_execute,
+} from "@/commands/app";
 import { Contact } from "@/database/types/contact";
 import { ExecutionDbHistory, ExecutionHistory } from "@/database/types/localhistory";
 import { notifications } from "@mantine/notifications";
 
 export async function addContactAddress({ contact }: { contact: Contact }): Promise<boolean> {
-  const sql = `
-  INSERT INTO contacts (aliasName, address, type, remark, createdTime)
-  VALUES (?, ?, ?, ?, ?)
-  `;
-
   const params = [
     contact.aliasName,
     contact.address,
@@ -18,7 +20,7 @@ export async function addContactAddress({ contact }: { contact: Contact }): Prom
   ];
 
   try {
-    await persist_store_execute(sql, params);
+    await add_contact_address_execute(params);
     return true;
   } catch (error) {
     console.error("Failed to insert contact:", error);
@@ -27,14 +29,10 @@ export async function addContactAddress({ contact }: { contact: Contact }): Prom
 }
 
 export async function deleteContactAddress({ address }: { address: string }): Promise<boolean> {
-  const sql = `
-  DELETE FROM contacts WHERE address = ?
-  `;
-
   const params = [address];
 
   try {
-    await persist_store_execute(sql, params);
+    await delete_contact_address_execute(params);
     return true;
   } catch (error) {
     console.error("Failed to delete contact:", error);
@@ -43,15 +41,9 @@ export async function deleteContactAddress({ address }: { address: string }): Pr
 }
 
 export async function getContactList(): Promise<Contact[]> {
-  const sql = `
-  SELECT * FROM contacts
-  `;
-
-  const params: string[] = [];
-
   let contactList = [] as Contact[];
   try {
-    let req = await persist_store_execute(sql, params);
+    let req = await get_contact_list_execute();
     if (req && req.length > 0) {
       contactList = req as unknown as Contact[];
     }
@@ -68,15 +60,11 @@ export async function getExecutionHistory({
 }: {
   addressId: number;
 }): Promise<ExecutionHistory[]> {
-  const sql = `
-  SELECT * FROM execution_history WHERE addressId = ? ORDER BY timestamp DESC
-  `;
-
   const params = [addressId];
 
   let historys = [] as ExecutionHistory[];
   try {
-    let req = await persist_store_execute(sql, params);
+    let req = await get_execution_history_execute(params);
     let list = req as unknown as ExecutionDbHistory[];
     list.map((item) => {
       historys.push({
@@ -103,20 +91,6 @@ export async function getExecutionHistory({
 }
 
 export async function addExecutionHistory({ localHistory }: { localHistory: ExecutionHistory }) {
-  const sql = `
-  INSERT INTO execution_history (
-    txid,
-    timestamp,
-    height,
-    addressId,
-    address,
-    fee,
-    priorityFee,
-    status,
-    batchOutput
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-
   const params = [
     localHistory.txid,
     localHistory.timestamp,
@@ -130,7 +104,7 @@ export async function addExecutionHistory({ localHistory }: { localHistory: Exec
   ];
 
   try {
-    await persist_store_execute(sql, params);
+    await add_execution_history_execute(params);
     return true;
   } catch (error: any) {
     console.log("Failed to insert execution history:", error);
@@ -145,13 +119,9 @@ export async function addExecutionHistory({ localHistory }: { localHistory: Exec
 }
 
 export async function deleteExecutionHistory({ txid }: { txid: string }): Promise<boolean> {
-  const sql = `
-  DELETE FROM execution_history WHERE txid = ?
-  `;
-
   const params = [txid];
   try {
-    await persist_store_execute(sql, params);
+    await delete_execution_history_execute(params);
     return true;
   } catch (error: any) {
     console.log("Failed to delete execution history element:", error);

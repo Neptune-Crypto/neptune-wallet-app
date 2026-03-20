@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use itertools::Itertools;
 use sqlx::Column;
 use sqlx::Row;
 use sqlx::SqlitePool;
@@ -88,7 +89,36 @@ impl PersisStore {
         Ok(())
     }
 
-    pub(crate) async fn execute(&self, query: &str, params: Vec<serde_json::Value>) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+    pub(crate) async fn execute(
+        &self,
+        query: &str,
+        params: Vec<serde_json::Value>,
+        read_only: bool,
+    ) -> Result<Vec<serde_json::Value>, sqlx::Error> {
+        let query = query.trim();
+
+        if query.split(';').filter(|s| !s.is_empty()).count() > 1 {
+            return Err(sqlx::Error::InvalidArgument(
+                "Multiple SQL statements are not allowed".to_string(),
+            ));
+        }
+
+        let legal_commands = if read_only {
+            vec!["SELECT"]
+        } else {
+            vec!["SELECT", "INSERT", "DELETE"]
+        };
+
+        let starts_with_legal_value = legal_commands
+            .iter()
+            .any(|command| query.to_ascii_uppercase().starts_with(command));
+        if !starts_with_legal_value {
+            return Err(sqlx::Error::InvalidArgument(format!(
+                "This executor only allows for the use of these commands: [{}]",
+                legal_commands.iter().join(",")
+            )));
+        }
+
         let mut query = sqlx::query::<sqlx::Sqlite>(query);
 
         for val in params {
