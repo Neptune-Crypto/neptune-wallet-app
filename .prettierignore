@@ -5,6 +5,7 @@ dist
 target
 debug
 src-tauri/gen/
+src-tauri/target-analyzer/
 leveldb-sys/target-analyzer/.rustc_info.json
 
 # Ignore all HTML files:
