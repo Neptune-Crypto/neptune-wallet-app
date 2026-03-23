@@ -11,8 +11,6 @@ import {
   IconLicense,
   IconLockCog,
   IconPlugConnected,
-  IconRotate,
-  IconTrashX,
   IconWorld,
 } from "@tabler/icons-react";
 import CopyedIcon from "../../../components/copyed-icon";
@@ -25,7 +23,7 @@ import { get_disk_cache, set_disk_cache, set_network } from "@/commands/config";
 import EditRemoteIcon from "./edit-remote-icon";
 import ResetPasswordIcon from "./reset-password-icon";
 import { snapshot_dir } from "@/commands/app";
-import { openPath } from "@tauri-apps/plugin-opener";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import ResyncIcon from "./resync-icon";
 import TrashDiskIcon from "./trash-disk-icon";
 
@@ -216,7 +214,7 @@ export default function SettingList() {
             size={18}
             style={{ cursor: "pointer" }}
             onClick={async () => {
-              await openPath(dataDir);
+              await revealItemInDir(dataDir);
             }}
           />
         }

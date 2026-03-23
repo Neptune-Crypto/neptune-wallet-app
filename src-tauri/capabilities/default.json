@@ -1,0 +1,50 @@
+{
+  "identifier": "default",
+  "description": "Hardened permissions for local app data access only",
+  "local": true,
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "dialog:default",
+    "clipboard-manager:default",
+    "clipboard-manager:allow-write-text",
+    "core:window:allow-start-dragging",
+    "core:window:allow-close",
+    "core:window:allow-center",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-set-size",
+    "core:window:allow-set-focus",
+    "core:window:allow-is-maximized",
+    "core:window:allow-toggle-maximize",
+
+    "fs:default",
+    {
+      "identifier": "fs:allow-app-write-recursive",
+      "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
+    },
+    {
+      "identifier": "fs:allow-app-read-recursive",
+      "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
+    },
+    {
+      "identifier": "fs:allow-exists",
+      "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
+    },
+
+    "opener:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/*" }]
+    },
+    {
+      "identifier": "opener:allow-reveal-item-in-dir",
+      "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
+    }
+  ]
+}
