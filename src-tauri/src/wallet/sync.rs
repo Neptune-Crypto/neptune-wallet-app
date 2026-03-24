@@ -261,7 +261,7 @@ impl SyncState {
 
         // Attempt to always have all blocks downloaded, before they need to be
         // processed.
-        if current_height > 0 && (current_height - 12).is_multiple_of(SYNC_BLOCK_BATCH_SIZE) {
+        if current_height > 13 && (current_height - 12).is_multiple_of(SYNC_BLOCK_BATCH_SIZE) {
             debug!("prepare blocks: {}", current_height);
             self.fake_archival_state
                 .prepare(current_height, SYNC_BLOCK_BATCH_SIZE)
