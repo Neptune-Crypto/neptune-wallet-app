@@ -51,8 +51,8 @@ impl super::WalletState {
             "stmi: step 1. get change key.",
         );
 
-        // obtain next unused symmetric key for change utxo
         let change_key = {
+            // TODO: Improve privacy by avoiding the reuse of symmetric keys.
             let symmetric_key = self.key.nth_symmetric_key(0);
             let spending_key = SpendingKey::Symmetric(symmetric_key);
             // self.set_num_symmetric_keys(self.num_symmetric_keys() + 1)

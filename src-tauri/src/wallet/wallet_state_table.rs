@@ -507,51 +507,6 @@ impl WalletState {
         Ok(())
     }
 
-    //  add raw hash key; NOTE: this is unsafe, should only be called when syncing blocks
-    pub(crate) async fn add_raw_hash_key(
-        &self,
-        tx: &mut SqliteConnection,
-        key: Digest,
-    ) -> Result<()> {
-        let key_hex = key.to_hex();
-        sqlx::query(
-            "INSERT INTO wallet_state_raw_hash_keys (key) VALUES (?) ON CONFLICT DO NOTHING",
-        )
-        .bind(&key_hex)
-        .execute(&mut *tx)
-        .await?;
-
-        let old_ptr = self.know_raw_hash_keys.load(Ordering::Acquire);
-        if old_ptr.is_null() {
-            let new_vec = Box::into_raw(Box::new(vec![key]));
-            self.know_raw_hash_keys.store(new_vec, Ordering::Release);
-        } else {
-            let vec_ref = unsafe { &mut *old_ptr };
-            if !vec_ref.contains(&key) {
-                vec_ref.push(key);
-            }
-        }
-
-        Ok(())
-    }
-
-    pub(crate) async fn init_raw_hash_keys(&self) -> Result<()> {
-        let mut conn = self.pool.acquire().await?;
-        let rows = sqlx::query("SELECT * FROM wallet_state_raw_hash_keys")
-            .fetch_all(&mut *conn)
-            .await?;
-        let mut keys: Vec<Digest> = Vec::with_capacity(rows.len());
-        for row in rows {
-            let key = Digest::try_from_hex(row.get::<String, _>("key"))?;
-            keys.push(key);
-        }
-
-        let new_vec = Box::into_raw(Box::new(keys));
-        self.know_raw_hash_keys.store(new_vec, Ordering::Release);
-
-        Ok(())
-    }
-
     // Roll back state to a block defined by a height and a block hash.
     pub(crate) async fn roll_back(
         &self,
@@ -629,28 +584,5 @@ mod tests {
                 .unwrap(),
             2
         );
-
-        let mut tx = wallet_state.pool.begin().await.unwrap();
-
-        wallet_state
-            .add_raw_hash_key(&mut tx, Digest::try_from_hex("ded35bd6d93a222591ad88ebaea3ecc63598b30b18851231b50980557989734e362f5494404feb0e").unwrap())
-            .await
-            .unwrap();
-
-        println!("add 1");
-
-        wallet_state
-            .add_raw_hash_key(&mut tx, Digest::try_from_hex("ded35bd6d93a222591ad88ebaea3ecc63598b30b18851231b50980557989734e362f5494404feb0e").unwrap())
-            .await
-            .unwrap();
-
-        tx.commit().await.unwrap();
-        println!("add 2");
-
-        // assert!(wallet_state.get_known_raw_hash_keys().len() == 1);
-
-        wallet_state.init_raw_hash_keys().await.unwrap();
-
-        // assert!(wallet_state.get_known_raw_hash_keys().len() == 1);
     }
 }

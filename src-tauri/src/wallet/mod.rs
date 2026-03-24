@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::ptr::null_mut;
 use std::range::Range;
-use std::sync::atomic::AtomicPtr;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
@@ -65,7 +63,6 @@ pub(crate) struct WalletState {
     num_future_keys: AtomicU64,
     pub(crate) pool: Pool<Sqlite>,
     updater: TransactionUpdater,
-    know_raw_hash_keys: AtomicPtr<Vec<Digest>>,
     key_cache: key_cache::KeyCache,
     id: i64,
     spend_lock: tokio::sync::Mutex<()>,
@@ -128,7 +125,6 @@ impl WalletState {
             num_future_keys: AtomicU64::new(num_future_keys),
             pool: pool.clone(),
             updater,
-            know_raw_hash_keys: AtomicPtr::new(null_mut()),
             key_cache: key_cache::KeyCache::new(),
             id: wallet_config.id,
             spend_lock: tokio::sync::Mutex::new(()),
@@ -142,11 +138,6 @@ impl WalletState {
         state
             .num_symmetric_keys
             .store(state.get_num_symmetric_keys().await?, Ordering::Relaxed);
-
-        state
-            .init_raw_hash_keys()
-            .await
-            .context("init_raw_hash_keys")?;
 
         debug!("Wallet state initialized");
 
@@ -204,7 +195,6 @@ impl WalletState {
 
         debug!("iterate addition records");
         let num_aocl_leafs = previous_mutator_set_accumulator.aocl.num_leafs();
-        let mut gusser_preimage = None;
         for (num_aocl_leafs, addition_record) in (num_aocl_leafs..).zip(addition_records.iter()) {
             if let Some(incoming_utxo) = incoming.get(addition_record) {
                 let r = incoming_utxo_recovery_data_from_incomming_utxo(
@@ -232,10 +222,6 @@ impl WalletState {
                 );
 
                 recovery_datas.push(r);
-
-                if incoming_utxo.is_guesser_fee {
-                    gusser_preimage = Some(incoming_utxo.receiver_preimage);
-                }
             }
         }
 
@@ -262,11 +248,6 @@ impl WalletState {
         }
 
         self.append_utxos(&mut tx, db_datas).await?;
-
-        if let Some(key) = gusser_preimage {
-            debug!("add guesser preimage to raw hash keys");
-            self.add_raw_hash_key(&mut tx, key).await?;
-        }
 
         debug!("scan for spent utxos");
         let spents = self.scan_for_spent_utxos(&mut tx, block).await?;
@@ -361,11 +342,14 @@ impl WalletState {
         self.set_num_symmetric_keys(self.num_symmetric_keys())
             .await?;
 
-        let own_guesser_key = self.key.guesser_fee_key();
+        let (own_guesser_address, guesser_key_preimage) = {
+            let own_guesser_key = self.key.guesser_fee_key();
+            (own_guesser_key.to_address(), own_guesser_key.receiver_preimage())
+        };
         let was_guessed_by_us = block
             .kernel
             .header
-            .was_guessed_by(&own_guesser_key.to_address().into());
+            .was_guessed_by(&own_guesser_address.into());
 
         let gusser_incoming_utxos = if was_guessed_by_us {
             let sender_randomness = block.hash;
@@ -377,7 +361,7 @@ impl WalletState {
                 .map(|utxo| IncomingUtxo {
                     utxo,
                     sender_randomness,
-                    receiver_preimage: own_guesser_key.receiver_preimage(),
+                    receiver_preimage: guesser_key_preimage,
                     is_guesser_fee: true,
                 })
                 .collect_vec()
@@ -501,16 +485,6 @@ fn incoming_utxo_recovery_data_from_incomming_utxo(
     }
 }
 
-impl Drop for WalletState {
-    fn drop(&mut self) {
-        let ptr = self.know_raw_hash_keys.load(Ordering::Acquire);
-        if !ptr.is_null() {
-            unsafe {
-                let _ = Box::from_raw(ptr);
-            }
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
