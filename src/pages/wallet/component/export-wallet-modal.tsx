@@ -173,22 +173,6 @@ export default function ExportWalletModal(props: Props) {
               <Button variant="default" fullWidth disabled={!value} onClick={close}>
                 Close
               </Button>
-              <Button
-                fullWidth
-                variant="light"
-                disabled={!value}
-                onClick={() => {
-                  navigator.clipboard.writeText(value);
-                  notifications.show({
-                    position: "top-right",
-                    message: "Copied to clipboard",
-                    color: "green",
-                    title: "Success",
-                  });
-                }}
-              >
-                Copy to clipboard
-              </Button>
             </Flex>
           ) : (
             <Button fullWidth variant="light" disabled={!value} onClick={exportWallet}>
