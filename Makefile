@@ -8,8 +8,11 @@ format:
 happy: clippy format test
 
 install:
+	yarn install
 	task build
 
 test:
+	yarn install
+	yarn test
 	cargo nextest --manifest-path src-tauri/Cargo.toml r
 	RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path src-tauri/Cargo.toml --no-deps --workspace --document-private-items

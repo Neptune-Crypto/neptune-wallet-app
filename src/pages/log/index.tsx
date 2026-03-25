@@ -32,8 +32,8 @@ export default function LogPage() {
   const viewport = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () =>
-    viewport.current!.scrollTo({
-      top: viewport.current!.scrollHeight,
+    viewport.current?.scrollTo({
+      top: viewport.current.scrollHeight,
       behavior: "smooth",
     });
 

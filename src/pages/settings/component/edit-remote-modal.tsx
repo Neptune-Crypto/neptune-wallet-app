@@ -1,6 +1,7 @@
 import { set_rest_url } from "@/commands/config";
 import { useAppDispatch } from "@/store/hooks";
 import { querySettingActionData } from "@/store/settings/settings-slice";
+import { isValidUrl } from "@/utils/common";
 import { Button, Flex, FocusTrap, Modal, TextInput } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
@@ -19,19 +20,6 @@ export default function EditRemoteModal({
   useEffect(() => {
     setNewValue(value);
   }, [value]);
-
-  function isValidUrl(urlString: string) {
-    const pattern = new RegExp(
-      "^(https?:\\/\\/)?" +
-        "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" +
-        "((\\d{1,3}\\.){3}\\d{1,3}))" +
-        "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" +
-        "(\\?[;&a-z\\d%_.~+=-]*)?" +
-        "(\\#[-a-z\\d_]*)?$",
-      "i"
-    );
-    return pattern.test(urlString);
-  }
 
   async function handleUpdate() {
     if (newValue != "") {
