@@ -62,13 +62,12 @@ impl<'a> MakeWriter<'a> for MemoryLogger {
     }
 }
 
-pub(crate) fn setup_logger(level: Option<String>) -> anyhow::Result<()> {
+pub(crate) fn setup_logger(level: Option<String>, max_lines: usize) -> anyhow::Result<()> {
     let target_filter = build_target_filter(&level.unwrap_or("info".to_string()));
     let (filter, reload_handle) = reload::Layer::new(target_filter);
     let _ = LOG_HANDLER.set(Mutex::new(reload_handle));
 
     let fmt = {
-        let max_lines = 1000;
         let _ = LOGS.set(Mutex::new(VecDeque::with_capacity(max_lines)));
         let logger = MemoryLogger::new(max_lines);
         fmt::Layer::default().with_writer(logger)
