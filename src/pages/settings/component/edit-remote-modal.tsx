@@ -64,7 +64,7 @@ export default function EditRemoteModal({
       <Flex direction="column" gap={16}>
         <TextInput
           label="Remote Rest"
-          placeholder="Enter remote rest url"
+          placeholder="Remote rest url, with protocol (either https:// or http://)"
           value={newValue}
           onChange={(e) => setNewValue(e.target.value.trim())}
         />
@@ -73,7 +73,7 @@ export default function EditRemoteModal({
             variant="default"
             w={"40%"}
             onClick={() => {
-              setNewValue("https://nptwallet.neptunefundamentals.org");
+              setNewValue("https://wallet.neptunefundamentals.org");
             }}
           >
             Restore default

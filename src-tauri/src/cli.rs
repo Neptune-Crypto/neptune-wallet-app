@@ -202,7 +202,7 @@ async fn snapshot(args: SnapshotArgs) -> Result<()> {
     crate::rpc_client::node_rpc_client().set_rest_server(
         args.global
             .rpc
-            .unwrap_or("https://nptwallet.neptunefundamentals.org".to_string()),
+            .unwrap_or("https://wallet.neptunefundamentals.org".to_string()),
     );
 
     generate_snapshot(
