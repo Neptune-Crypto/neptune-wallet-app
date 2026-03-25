@@ -52,6 +52,11 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: yarn lint
 
+      - name: Verify yarn.lock
+        # Only run on one OS to save time
+        if: matrix.platform == 'ubuntu-latest'
+        run: yarn install --frozen-lockfile
+
       - name: frontend tests
         if: matrix.platform == 'ubuntu-latest'
         run: yarn test

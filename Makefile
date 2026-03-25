@@ -14,6 +14,7 @@ install:
 test:
 	yarn install
 	yarn check
+	yarn install --frozen-lockfile
 	yarn test
 	cargo nextest --manifest-path src-tauri/Cargo.toml r
 	RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path src-tauri/Cargo.toml --no-deps --workspace --document-private-items
