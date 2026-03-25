@@ -37,3 +37,12 @@ export function bigNumberDiv(a: any, b: any) {
 }
 
 export const sleep_milliseconds = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export function isValidUrl(urlString: string) {
+  try {
+    new URL(urlString);
+    return true;
+  } catch (err) {
+    return false;
+  }
+}

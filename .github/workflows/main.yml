@@ -52,6 +52,10 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: yarn lint
 
+      - name: frontend tests
+        if: matrix.platform == 'ubuntu-latest'
+        run: yarn test
+
       - name: rust fmt
         # Only run on one OS to save time
         if: matrix.platform == 'ubuntu-latest'
