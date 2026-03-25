@@ -71,20 +71,6 @@ sqlx_migrator::sqlite_migration!(
     )]
 );
 
-struct CreateWalletStateKnownRawHashKeysMigration;
-sqlx_migrator::sqlite_migration!(
-    CreateWalletStateKnownRawHashKeysMigration,
-    "wallet_state",
-    "create_wallet_state_raw_hash_keys",
-    sqlx_migrator::vec_box![],
-    sqlx_migrator::vec_box![(
-        "CREATE TABLE wallet_state_raw_hash_keys (
-            key TEXT PRIMARY KEY
-        )",
-        "DROP TABLE wallet_state_raw_hash_keys"
-    )]
-);
-
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct UtxoDbData {
     pub(crate) id: i64,
@@ -218,7 +204,6 @@ impl WalletState {
         migrator.add_migration(Box::new(CreateWalletStateNumKeysMigration))?;
         migrator.add_migration(Box::new(CreateWalletStateUtxosMigration))?;
         migrator.add_migration(Box::new(CreateWalletStateExpectedUtxoMigration))?;
-        migrator.add_migration(Box::new(CreateWalletStateKnownRawHashKeysMigration))?;
 
         let mut conn = self.pool.acquire().await?;
         // use apply all to apply all pending migration

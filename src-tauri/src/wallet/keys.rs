@@ -28,12 +28,7 @@ impl super::WalletState {
         });
         let symmetric_keys = symmetric_keys.iter().map(|v| *v.1.deref());
 
-        // let raw_hash_keys = self.get_known_raw_hash_keys();
-
-        spending_keys
-            .chain(symmetric_keys)
-            // .chain(raw_hash_keys)
-            .collect()
+        spending_keys.chain(symmetric_keys).collect()
     }
 
     pub(crate) fn num_symmetric_keys(&self) -> u64 {
