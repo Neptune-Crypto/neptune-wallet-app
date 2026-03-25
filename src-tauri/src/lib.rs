@@ -22,6 +22,9 @@ pub(crate) mod wallet;
 #[cfg(test)]
 pub(crate) mod tests;
 
+/// The maximum number of log lines shown
+const MAX_NUM_LINES_IN_LOG: usize = 20_000;
+
 #[cfg(feature = "gui")]
 pub(crate) fn add_commands<R: tauri::Runtime>(app: tauri::Builder<R>) -> tauri::Builder<R> {
     app.invoke_handler(tauri::generate_handler![
@@ -91,7 +94,7 @@ pub fn run() {
             .build()
             .unwrap();
         rt.block_on(async {
-            crate::logger::setup_logger(None).unwrap();
+            crate::logger::setup_logger(None, MAX_NUM_LINES_IN_LOG).unwrap();
             cli::run().await;
         })
     }

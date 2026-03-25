@@ -26,6 +26,7 @@ use crate::rpc::commands::get_server_url;
 #[cfg(desktop)]
 use crate::rpc::commands::stop_rpc_server;
 use crate::session_store::Memstore;
+use crate::MAX_NUM_LINES_IN_LOG;
 
 #[cfg(desktop)]
 const MENU_ITEM_QUIT: &str = "Quit";
@@ -82,7 +83,7 @@ pub(crate) fn run() {
                     .set_rest_server(config.get_remote_rest().await.unwrap());
 
                 let level = config.get_log_level().await.unwrap();
-                crate::logger::setup_logger(level).unwrap();
+                crate::logger::setup_logger(level, MAX_NUM_LINES_IN_LOG).unwrap();
                 config
             });
 
