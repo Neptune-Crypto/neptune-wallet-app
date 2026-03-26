@@ -24,11 +24,12 @@ tauri = { version = "2", features = [
 ], optional = true }
 
 tauri-plugin-clipboard-manager = { version = "2", optional = true }
+tauri-plugin-dialog = { version = "2", optional = true }
+tauri-plugin-fs = { version = "2" }
 tauri-plugin-single-instance = { version = "2", optional = true }
 tauri-plugin-shell = { version = "2", optional = true }
-tauri-plugin-dialog = { version = "2", optional = true }
 tauri-plugin-opener = { version = "2", optional = true }
-tauri-plugin-fs = { version = "2" }
+tauri-plugin-updater = "2.10.0"
 
 aes-gcm = "0.10.3"
 anyhow = { version = "1.0", features = ["backtrace"] }
@@ -63,6 +64,7 @@ tower-http = { version = "0.6.2", features = ["cors", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["std", "env-filter", "time", "fmt"] }
 zstd = "0.13.3"
+tauri-plugin-process = "2"
 
 [dev-dependencies]
 tracing-test = "0.2"

@@ -1,9 +1,11 @@
 import "@mantine/core/styles.css";
+import { ModalsProvider } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import "./app.css";
 import { ViewPort } from "./components/base/ViewPort";
+import { UpdateHandler } from "./components/UpdateHandler"; // Path to the new component
 import WindowTitlebarCard from "./components/windowTitlebarCard";
 import { SYNC_FINISH_EVENT, SYNC_HEIGHT_EVENT, SYNC_SENT_STATUS_EVENT } from "./constant";
 import { checkHasUpdateVersion, queryAboutInfo } from "./store/about/about-slice";
@@ -28,10 +30,13 @@ function App() {
   }
   return (
     <>
-      <WindowTitlebarCard />
-      <NotificationCard />
-      <InitApp />
-      <ViewPort />
+      <ModalsProvider>
+        <WindowTitlebarCard />
+        <UpdateHandler /> {/* This handles the update logic */}
+        <NotificationCard />
+        <InitApp />
+        <ViewPort />
+      </ModalsProvider>
     </>
   );
 }

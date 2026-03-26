@@ -7,6 +7,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "category": "Finance",
     "icon": [
@@ -29,7 +30,15 @@
   "productName": "NeptuneWallet",
   "mainBinaryName": "NeptuneWallet",
   "identifier": "org.neptunefundamentals.wallet",
-  "plugins": {},
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM1NEIyN0YzMzE1MjlFRTgKUldUb25sSXg4eWRMeGJrWUNFLzErSXprK1h5alFFbmFoN2FhMmR0d0h2OW4rRnV3OXJtYVlJeXUK",
+      "endpoints": [
+        "https://github.com/Neptune-Crypto/neptune-wallet-app/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "app": {
     "withGlobalTauri": false,
     "security": {

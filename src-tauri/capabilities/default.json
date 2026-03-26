@@ -21,7 +21,8 @@
     "core:window:allow-set-focus",
     "core:window:allow-is-maximized",
     "core:window:allow-toggle-maximize",
-
+    "updater:default",
+    "process:allow-restart",
     "fs:default",
     {
       "identifier": "fs:allow-app-write-recursive",
@@ -39,15 +40,19 @@
       "identifier": "fs:allow-read-dir",
       "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
     },
-
     "opener:default",
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://github.com/*" }]
+      "allow": [
+        {
+          "url": "https://github.com/Neptune-Crypto/neptune-wallet-app/*"
+        }
+      ]
     },
     {
       "identifier": "opener:allow-reveal-item-in-dir",
       "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
-    }
+    },
+    "process:default"
   ]
 }
