@@ -47,6 +47,14 @@ pub(crate) fn run() {
     #[cfg(all(desktop, target_os = "linux"))]
     std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
 
+    #[cfg(all(desktop, target_os = "linux"))]
+    {
+        // Force local VFS to prevent D-Bus deadlocks in AppImages on modern Linux
+        if std::env::var("APPIMAGE").is_ok() {
+            std::env::set_var("GIO_USE_VFS", "local");
+        }
+    }
+
     info!("Starting Neptune Cash");
 
     let builder = tauri::Builder::default();
