@@ -65,7 +65,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          RUSTFLAGS: ${{ matrix.platform == 'ubuntu-latest' && '-C link-arg=-fuse-ld=lld' || '' }}
+          RUSTFLAGS: >-
+            ${{ matrix.platform == 'ubuntu-latest' && '-C link-arg=-fuse-ld=lld' || '' }}
+            ${{ matrix.platform == 'windows-latest' && '-C link-args=/STACK:8388608' || '' }}
         with:
           tagName: v__VERSION__
           releaseName: "Neptune Wallet v__VERSION__"
