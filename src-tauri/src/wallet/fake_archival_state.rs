@@ -51,6 +51,10 @@ impl FakeArchivalState {
 
     pub(crate) async fn prepare(&self, first_block: u64, batch_size: u64) -> Result<()> {
         let last_block = first_block + batch_size - 1;
+
+        // Genesis block is always available don't attempt to prepare it.
+        let first_block = if first_block == 0 { 1 } else { first_block };
+
         if self.block_cache.is_persist()
             && self.block_cache.has_block_by_height(first_block).await?
             && self.block_cache.has_block_by_height(last_block).await?
