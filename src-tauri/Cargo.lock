@@ -4559,7 +4559,7 @@ dependencies = [
 
 [[package]]
 name = "neptune-wallet"
-version = "2.2.5"
+version = "2.2.6"
 dependencies = [
  "aes-gcm",
  "anyhow",
