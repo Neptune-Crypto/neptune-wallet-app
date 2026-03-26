@@ -6,7 +6,7 @@ on:
   pull_request:
   push:
     tags:
-      - 'v[0-9]+\.[0-9]+\.[0-9]+(-.+)?'
+      - "v*.*.*"
 
 # Cancel in-progress builds if you push a new tag fix quickly
 concurrency:
