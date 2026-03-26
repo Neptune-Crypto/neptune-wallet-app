@@ -55,10 +55,6 @@ chmod +x ./src-tauri/target/release/bundle/appimage/NeptuneWallet_<version>_amd6
 ./src-tauri/target/release/bundle/appimage/NeptuneWallet_<version>_amd64.AppImage
 ```
 
-NOTE: windows version can only be built on linux with cargo-xwin.
-
-NOTE: android version can be compiled now, but the frontend is not ready, you can only use android app on tablet or landscape mode.
-
 ### Self-hosted server
 
 The wallet use a patched version of `neptune-core` to support rest api.

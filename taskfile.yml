@@ -4,26 +4,32 @@ tasks:
   build:
     cmds:
       - task: build-macos
-      - cmd: yarn tauri build
-        platforms: [linux]
-      - task: build-windows-cross
+      - task: build-linux
+      - task: build-windows
 
-  dev:
-    cmds:
-      - task: dev-release
-
-  build-windows-cross:
+  build-linux:
     platforms: [linux]
     cmds:
-      - yarn tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc
+      - yarn tauri build
+
+  build-windows:
+    platforms: [windows]
+    cmds:
+      - yarn tauri build
 
   build-macos:
     platforms: [darwin]
     cmds:
       - yarn tauri build --target universal-apple-darwin
 
+  dev:
+    cmds:
+      - task: dev-release
+
   dev-release:
     cmds:
       - yarn tauri dev --release --features dev-release
 
-  open: open ~/Library/Application\ Support/ai.vxb.neptune.wallet
+  open:
+    platforms: [darwin]
+    cmd: open ~/Library/Application\ Support/org.neptunefundamentals.wallet
