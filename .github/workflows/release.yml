@@ -84,6 +84,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # ⚡️ Use LLD for faster linking on Linux
           RUSTFLAGS: ${{ matrix.platform == 'ubuntu-latest' && '-C link-arg=-fuse-ld=lld' || '' }}
         with:
