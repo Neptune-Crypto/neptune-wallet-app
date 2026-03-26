@@ -87,7 +87,7 @@ jobs:
           # ⚡️ Use LLD for faster linking on Linux
           RUSTFLAGS: ${{ matrix.platform == 'ubuntu-latest' && '-C link-arg=-fuse-ld=lld' || '' }}
         with:
-          tagName: v__VERSION__ # This replaces __VERSION__ with the version in your tauri.conf.json
+          tagName: v__VERSION__
           releaseName: "Neptune Wallet v__VERSION__"
           releaseBody: "Automated release from GitHub Actions."
           releaseDraft: true
