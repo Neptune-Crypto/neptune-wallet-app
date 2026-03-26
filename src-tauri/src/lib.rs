@@ -23,7 +23,7 @@ pub(crate) mod wallet;
 pub(crate) mod tests;
 
 /// The maximum number of log lines shown
-const MAX_NUM_LINES_IN_LOG: usize = 20_000;
+const MAX_NUM_LINES_IN_LOG: usize = 5_000;
 
 #[cfg(feature = "gui")]
 pub(crate) fn add_commands<R: tauri::Runtime>(app: tauri::Builder<R>) -> tauri::Builder<R> {
