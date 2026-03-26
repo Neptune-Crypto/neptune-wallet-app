@@ -171,7 +171,9 @@ impl WalletState {
         if let Some((luca_height, luca_digest)) =
             self.find_rollback_luca(block).await.context("check fork")?
         {
-            info!("reorganize_to_height: {luca_height} {luca_digest:x}");
+            info!(
+                "Fork detected! Reorganizing: reorganize_to_height: {luca_height} {luca_digest:x}"
+            );
             self.roll_back(&mut tx, luca_height, luca_digest)
                 .await
                 .context("reorganize_to_height")?;
@@ -298,7 +300,12 @@ impl WalletState {
             self.updater.update_transactions(self).await;
         }
 
-        info!("sync finished: {}", height);
+        if height.is_multiple_of(20) {
+            info!("sync finished: {}", height);
+        } else {
+            debug!("sync finished: {}", height);
+        }
+
         Ok(None)
     }
 
