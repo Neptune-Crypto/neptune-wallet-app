@@ -10,7 +10,7 @@ use rand::distr::SampleString;
 ///
 /// If this is not done, parallel execution of unit tests will fail as they each
 /// hold a lock on the database.
-fn unit_test_dir() -> PathBuf {
+pub(crate) fn unit_test_dir() -> PathBuf {
     let mut rng = rand::rng();
     let user = env::var("USER").unwrap_or_else(|_| "default".to_string());
     let pid = std::process::id();

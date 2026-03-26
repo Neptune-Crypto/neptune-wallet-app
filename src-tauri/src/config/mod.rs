@@ -4,12 +4,15 @@ use std::str::FromStr;
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
+use neptune_cash::api::export::Digest;
 use neptune_cash::api::export::Network;
+use neptune_cash::api::export::Tip5;
 use neptune_cash::application::config::data_directory::DataDirectory;
+use neptune_cash::prelude::triton_vm::prelude::BFieldCodec;
+use neptune_cash::prelude::triton_vm::prelude::BFieldElement;
+use neptune_cash::prelude::twenty_first::bfe_array;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use sha2::Digest;
-use sha2::Sha256;
 use sqlx::Row;
 use sqlx::SqlitePool;
 use tokio::sync::Mutex;
@@ -161,8 +164,8 @@ impl Config {
                 }
             }
             _ => {
-                let encrypt_key = hash(password);
-                let decrypted = crate::rpc::tls::aes::aes_decode(&encrypt_key, &pass_test)
+                let symmetric_key = hash_to_secret_key(password);
+                let decrypted = crate::rpc::tls::aes::aes_decode(&symmetric_key, &pass_test)
                     .context("cant decode db")?;
                 if decrypted != PASSWORD_TEST.as_bytes() {
                     return Err(anyhow!("password is wrong"));
@@ -204,7 +207,7 @@ impl Config {
                     .await?;
             }
             _ => {
-                let encrypt_key = hash(password);
+                let encrypt_key = hash_to_secret_key(password);
                 let encrypted = tls::aes::aes_encode(&encrypt_key, PASSWORD_TEST.as_bytes())?;
                 self.set_data::<Vec<u8>>(PASSWORD_TEST_KEY, &encrypted)
                     .await?;
@@ -232,7 +235,7 @@ impl Config {
                         .await
                         .context("cant write to db")?;
                 } else {
-                    let encrypt_key = hash(v);
+                    let encrypt_key = hash_to_secret_key(v);
                     let encrypted = tls::aes::aes_encode(&encrypt_key, &secret_key)?;
                     self.set_data::<Vec<u8>>("secret_key", &encrypted)
                         .await
@@ -251,7 +254,7 @@ impl Config {
     // secret_key is encoded with the password, it will be changed when the password is changed
     // it is not stable to use it as the key to decrypt the wallet secret, but can be used to validate access via rpc
     pub(crate) async fn get_secret_key(&self) -> Result<Vec<u8>> {
-        let value = self
+        let encrypted_secret = self
             .get_data::<Vec<u8>>("secret_key")
             .await
             .context("cant read db")?
@@ -265,25 +268,26 @@ impl Config {
             .ok_or(anyhow!("no password set!"))?
             .as_str()
         {
-            "" => Ok(value),
+            "" => Ok(encrypted_secret),
             str => {
-                let encrypt_key = hash(str);
-                let decrypted =
-                    tls::aes::aes_decode(&encrypt_key, &value).context("decode secret key")?;
+                let symmetric_key = hash_to_secret_key(str);
+                let decrypted = tls::aes::aes_decode(&symmetric_key, &encrypted_secret)
+                    .context("decode secret key")?;
                 Ok(decrypted)
             }
         }
     }
 
     async fn get_decrypt_key(&self) -> Result<Vec<u8>> {
-        let secret_key = self.get_secret_key().await.context("get secret key")?;
+        let symmetric_key = self.get_secret_key().await.context("get secret key")?;
 
         let encoded = self
             .get_data::<Vec<u8>>("wallet_secret")
             .await?
             .context("wallet secret not set")?;
 
-        let decoded = tls::aes::aes_decode(&secret_key, &encoded).context("decode decrypt_key")?;
+        let decoded =
+            tls::aes::aes_decode(&symmetric_key, &encoded).context("decode decrypt_key")?;
         Ok(decoded)
     }
 
@@ -311,9 +315,66 @@ impl Config {
     }
 }
 
-pub(crate) fn hash(str: &str) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.update(str);
-    let result = hasher.finalize();
-    result.to_vec()
+/// Returns a 256-bit secret key derived from the string through hashing.
+fn hash_to_secret_key(str: &str) -> Vec<u8> {
+    const NUM_ROUNDS: usize = 100;
+    let salt = Digest::new(bfe_array![
+        0xECA2F4D64CA79464u64,
+        0x2B13424E6F75CAF4u64,
+        0u64,
+        0u64,
+        0u64
+    ]);
+
+    let input = BFieldCodec::encode(&str.as_bytes().to_vec());
+    let input = Tip5::hash(&input);
+    let mut state = Tip5::hash_pair(input, Tip5::hash(&salt));
+    for _ in 0..NUM_ROUNDS {
+        state = Tip5::hash_pair(input, state);
+    }
+
+    let state = state.values();
+    let key256_bits = state
+        .into_iter()
+        .flat_map(|elem| elem.value().to_be_bytes())
+        .take(32);
+
+    key256_bits.collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+    use tracing_test::traced_test;
+
+    use super::*;
+    use crate::tests::unit_test_dir;
+
+    #[tokio::test]
+    #[traced_test]
+    async fn mnemonic_roundtrip() {
+        const PASSWORD: &str = "Once upon a midnight dreary";
+        let config_path = unit_test_dir();
+        let config = Config::new(&config_path).await.unwrap();
+
+        config.set_password("", PASSWORD).await.unwrap();
+        assert!(config.decrypt_config(PASSWORD).await.is_ok());
+
+        let devnet_mnemonic = vec![
+            "margin", "quality", "divorce", "tuition", "notable", "squirrel", "park", "jar", "end",
+            "beauty", "attend", "cliff", "media", "letter", "private", "decline", "absurd",
+            "uniform",
+        ]
+        .into_iter()
+        .map(|x| x.to_string())
+        .collect_vec();
+
+        let secret = config
+            .mnemonic_to_secret(devnet_mnemonic.clone())
+            .await
+            .unwrap();
+        let mnemonic_again = config.secret_to_mnemonic(secret).await.unwrap();
+
+        assert_eq!(devnet_mnemonic, mnemonic_again);
+    }
 }
