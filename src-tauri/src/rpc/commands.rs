@@ -52,7 +52,7 @@ pub(crate) async fn run_rpc_server() -> Result<()> {
     })
 }
 
-pub(crate) async fn start_rpc_server_inner() -> Result<()> {
+async fn start_rpc_server_inner() -> Result<()> {
     let mut rpc_handler = super::RPC_CLOSER.lock().await;
     if let Some(handler) = rpc_handler.deref() {
         if !handler.is_finished() {

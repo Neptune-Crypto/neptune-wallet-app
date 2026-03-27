@@ -57,6 +57,9 @@ impl Config {
 
         config.set_data_dir(data_dir).await?;
 
+        let log_level = std::env::var("RUST_LOG").unwrap_or("INFO".to_string());
+        let _ = config.set_log_level(&log_level).await;
+
         Ok(config)
     }
 

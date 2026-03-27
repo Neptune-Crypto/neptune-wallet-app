@@ -58,7 +58,7 @@ pub(crate) fn run() {
     info!("Starting Neptune Cash");
 
     let builder = tauri::Builder::default();
-    let builder = super::add_commands(builder);
+    let builder = super::add_commands_middleware(builder);
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
@@ -94,6 +94,7 @@ pub(crate) fn run() {
 
                 let level = config.get_log_level().await.unwrap();
                 crate::logger::setup_logger(level, MAX_NUM_LINES_IN_LOG).unwrap();
+
                 config
             });
 
