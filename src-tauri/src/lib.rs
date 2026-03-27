@@ -91,7 +91,7 @@ pub(crate) fn add_commands_middleware<R: tauri::Runtime>(
     app: tauri::Builder<R>,
 ) -> tauri::Builder<R> {
     app.invoke_handler(|invoke: tauri::ipc::Invoke<R>| {
-        let cmd_name = invoke.message.command().to_string();
+        let cmd_name = invoke.message.command();
 
         let debug = std::env::var("DEBUG").is_ok();
 
@@ -105,19 +105,7 @@ pub(crate) fn add_commands_middleware<R: tauri::Runtime>(
             }
         }
 
-        let ret = add_commands(invoke);
-
-        // Also log status of command
-        if cmd_name != "get_logs" {
-            if debug {
-                println!("{cmd_name}: {ret}");
-                tracing::info!("{cmd_name}: {ret}");
-            } else {
-                tracing::debug!("{cmd_name}: {ret}");
-            }
-        }
-
-        ret
+        add_commands(invoke)
     })
 }
 
