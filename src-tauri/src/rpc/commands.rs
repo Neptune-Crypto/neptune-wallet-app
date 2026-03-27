@@ -60,6 +60,7 @@ async fn start_rpc_server_inner() -> Result<()> {
 
     if let Some(handler) = rpc_handler.deref() {
         if !handler.is_finished() {
+            // Don't change error message, as it's seen by frontend.
             return Err("rpc server is already running".to_string());
         };
         rpc_handler
