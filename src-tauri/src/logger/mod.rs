@@ -41,6 +41,11 @@ impl Write for MemoryLogger {
         #[cfg(any(feature = "dev-release", not(feature = "gui"), debug_assertions))]
         std::io::stdout().write_all(buf)?;
 
+        let debug = std::env::var("DEBUG").is_ok();
+        if debug {
+            std::io::stdout().write_all(buf)?;
+        }
+
         let mut logs = unsafe { LOGS.get_unchecked() }.lock().unwrap();
         logs.push_back(log_entry);
         while logs.len() > self.max_lines {
