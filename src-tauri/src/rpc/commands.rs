@@ -43,6 +43,13 @@ pub(crate) async fn get_token() -> Result<String> {
     Ok(hex::encode(public))
 }
 
+/// Command to start the RPC server, after the central secret key material,
+/// including password, has been set.
+///
+/// Initializes a new SyncState.
+///
+/// # Panics
+/// - If no secret material or password has set yet.
 #[cfg_attr(feature = "gui", tauri::command)]
 pub(crate) async fn run_rpc_server() -> Result<()> {
     start_rpc_server_inner().await.map_err(|e| {

@@ -1,5 +1,6 @@
 import { set_password } from "@/commands/password";
 import { addWallet } from "@/commands/wallet";
+import { startRunRpcServer } from "@/store/auth/auth-slice";
 import { useAppDispatch } from "@/store/hooks";
 import { useMnemonic, useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
 import { setMnemonic, setOneTimePassword } from "@/store/wallet/wallet-slice";
@@ -121,6 +122,7 @@ export default function ConfirmSecret(props: Props) {
     try {
       await set_password("", oneTimePassword);
       await addWallet(walletName, mnemonic, 25, 0, true);
+      dispatch(startRunRpcServer());
       dispatch(setMnemonic(""));
       dispatch(setOneTimePassword(""));
       nextStep();
