@@ -26,8 +26,8 @@ pub(crate) mod tests;
 const MAX_NUM_LINES_IN_LOG: usize = 5_000;
 
 #[cfg(feature = "gui")]
-pub(crate) fn add_commands<R: tauri::Runtime>(app: tauri::Builder<R>) -> tauri::Builder<R> {
-    app.invoke_handler(tauri::generate_handler![
+fn add_commands<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
+    let handler: fn(tauri::ipc::Invoke<R>) -> bool = tauri::generate_handler![
         command::commands::add_wallet,
         command::commands::delete_cache,
         command::commands::export_wallet,
@@ -81,7 +81,25 @@ pub(crate) fn add_commands<R: tauri::Runtime>(app: tauri::Builder<R>) -> tauri::
         session_store::command::session_store_set,
         service::app::get_build_info,
         service::app::update_info,
-    ])
+    ];
+
+    (handler)(invoke)
+}
+
+#[cfg(feature = "gui")]
+pub(crate) fn add_commands_middleware<R: tauri::Runtime>(
+    app: tauri::Builder<R>,
+) -> tauri::Builder<R> {
+    app.invoke_handler(|invoke: tauri::ipc::Invoke<R>| {
+        let cmd_name = invoke.message.command();
+
+        // `get_logs` is too noisy here. Just ignore it.
+        if cmd_name != "get_logs" {
+            tracing::debug!("Executing command: '{cmd_name}'");
+        }
+
+        add_commands(invoke)
+    })
 }
 
 pub fn run() {

@@ -15,10 +15,12 @@ use futures::lock::Mutex;
 use neptune_cash::api::export::Network;
 use serde::Serialize;
 use sqlx::prelude::*;
+use sqlx::sqlite::SqliteJournalMode;
 use sqlx_migrator::Info;
 use sqlx_migrator::Migrate;
 use sqlx_migrator::Migrator;
 use sqlx_migrator::Plan;
+use tracing::trace;
 
 use crate::wallet::wallet_block::WalletBlock;
 
@@ -63,30 +65,39 @@ impl PersistBlockCache {
     const BLOCK_FILE_EXT: &str = "block";
     pub(crate) async fn new(data_dir: &Path, network: Network, cache_size: usize) -> Result<Self> {
         let block_dir = data_dir.join(format!("{}_block", network));
+        trace!("block_dir: {}", block_dir.to_string_lossy());
 
         if !block_dir.exists() {
+            trace!("Creating block_dir");
             std::fs::create_dir_all(&block_dir)
                 .map_err(|err| anyhow::anyhow!("Could not create block directory: {err}"))?;
+            trace!("Created block_dir");
         }
         let database = block_dir.join("block.db");
         let pool = {
             let options = sqlx::sqlite::SqliteConnectOptions::new()
                 .filename(database)
-                .create_if_missing(true);
+                .create_if_missing(true)
+                .journal_mode(SqliteJournalMode::Wal);
 
+            trace!("Connecting to SQLite");
             sqlx::SqlitePool::connect_with(options)
                 .await
                 .map_err(|err| anyhow::anyhow!("Could not connect to database: {err}"))?
         };
 
+        trace!("Preparing SQL migration");
         let mut migrator = Migrator::default();
         // Adding migration can fail if another migration with same app and name and different values gets added
         // Adding migrations add its parents, replaces and not before as well
         migrator.add_migration(Box::new(CreateBlockCacheMigration))?;
         migrator.add_migration(Box::new(CreateBlockCacheIndexMigration))?;
 
+        trace!("Acquiring connection");
         let mut conn = pool.acquire().await?;
+
         // use apply all to apply all pending migration
+        trace!("Running migrations");
         migrator.run(&mut *conn, &Plan::apply_all()).await?;
 
         Ok(PersistBlockCache {

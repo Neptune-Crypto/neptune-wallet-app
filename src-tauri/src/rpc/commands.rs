@@ -52,10 +52,15 @@ pub(crate) async fn run_rpc_server() -> Result<()> {
     })
 }
 
-pub(crate) async fn start_rpc_server_inner() -> Result<()> {
+async fn start_rpc_server_inner() -> Result<()> {
+    trace!("Starting RPC server");
+
     let mut rpc_handler = super::RPC_CLOSER.lock().await;
+    trace!("Got handler");
+
     if let Some(handler) = rpc_handler.deref() {
         if !handler.is_finished() {
+            // Don't change error message, as it's seen by frontend.
             return Err("rpc server is already running".to_string());
         };
         rpc_handler
@@ -66,18 +71,27 @@ pub(crate) async fn start_rpc_server_inner() -> Result<()> {
             .into_tauri_result()?;
     }
     drop(rpc_handler);
+    trace!("Dropped handler");
 
     if let Some(old) = crate::service::try_get_state::<Arc<SyncState>>() {
+        trace!("Got existing sync state");
         old.cancel_sync().await;
     }
 
     let config = crate::service::get_state::<Arc<Config>>();
+    trace!("Got config state");
 
     let sync_state = Arc::new(SyncState::new(&config).await.into_tauri_result()?);
+    trace!("Created sync state");
+
     crate::service::manage_or_replace(sync_state.clone());
+    trace!("Called manage_or_replace to set sync state");
+
     sync_state.sync().await;
+    trace!("sync() completed");
 
     super::start_rpc_server().await.into_tauri_result()?;
+    trace!("Called start_rpc_server");
 
     Ok(())
 }
