@@ -93,16 +93,9 @@ pub(crate) fn add_commands_middleware<R: tauri::Runtime>(
     app.invoke_handler(|invoke: tauri::ipc::Invoke<R>| {
         let cmd_name = invoke.message.command();
 
-        let debug = std::env::var("DEBUG").is_ok();
-
         // `get_logs` is too noisy here. Just ignore it.
         if cmd_name != "get_logs" {
-            if debug {
-                println!("Executing command: '{cmd_name}'");
-                tracing::info!("Executing command: '{cmd_name}'");
-            } else {
-                tracing::debug!("Executing command: '{cmd_name}'");
-            }
+            tracing::debug!("Executing command: '{cmd_name}'");
         }
 
         add_commands(invoke)

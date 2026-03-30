@@ -38,10 +38,11 @@ impl Write for MemoryLogger {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let log_entry = buf.to_owned();
 
-        #[cfg(any(feature = "dev-release", not(feature = "gui"), debug_assertions))]
-        std::io::stdout().write_all(buf)?;
-
-        let debug = std::env::var("DEBUG").is_ok();
+        let debug = cfg!(any(
+            feature = "dev-release",
+            not(feature = "gui"),
+            debug_assertions
+        )) || std::env::var("DEBUG").is_ok();
         if debug {
             std::io::stdout().write_all(buf)?;
         }
