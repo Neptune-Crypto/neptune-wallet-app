@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context;
 use neptune_cash::api::export::Network;
@@ -182,7 +183,13 @@ pub(crate) async fn set_wallet_id(id: i64) -> Result<()> {
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
 pub(crate) async fn wallet_address(index: u64) -> Result<String> {
-    let state = crate::service::get_state::<Arc<SyncState>>();
+    let state = crate::service::try_get_state_repeated::<Arc<SyncState>>(
+        10,
+        Duration::from_millis(300),
+        "wallet_address",
+    )
+    .await;
+    let state = state.expect("State fetch of 'Arc<SyncState>' for wallet_address must work.");
     state.wallet.get_address(index).await.into_tauri_result()
 }
 
@@ -227,7 +234,13 @@ pub(crate) async fn try_password() -> Result<bool> {
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
 pub(crate) async fn reset_to_height(height: u64) -> Result<()> {
-    let state = crate::service::get_state::<Arc<SyncState>>();
+    let state = crate::service::try_get_state_repeated::<Arc<SyncState>>(
+        10,
+        Duration::from_millis(300),
+        "reset_to_height",
+    )
+    .await;
+    let state = state.expect("State fetch of 'Arc<SyncState>' for reset_to_height must work.");
     state.reset_to_height(height).await.into_tauri_result()?;
     Ok(())
 }
@@ -267,7 +280,14 @@ pub(crate) async fn list_cache() -> Result<Vec<BlockCacheFile>> {
     let network = config.get_network().await.into_tauri_result()?;
     let data_dir = config.get_data_dir().await.into_tauri_result()?;
     let mut files = PersistBlockCache::list_cache_files(&data_dir).into_tauri_result()?;
-    let sync_state = crate::service::get_state::<Arc<SyncState>>().status().await;
+    let sync_state = crate::service::try_get_state_repeated::<Arc<SyncState>>(
+        10,
+        Duration::from_millis(300),
+        "list_cache",
+    )
+    .await;
+    let sync_state = sync_state.expect("State fetch of 'Arc<SyncState>' for list_cache must work.");
+    let sync_state = sync_state.status().await;
 
     files.retain(|file| {
         if file.network == network.to_string() && file.range.1 > sync_state.height as i64 {
