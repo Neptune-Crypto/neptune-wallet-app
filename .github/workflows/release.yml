@@ -3,7 +3,6 @@ name: "Release"
 # This task will run whenever you push a git tag that looks like a version
 # like "v1.0.0" or "v0.2.3-beta1"
 on:
-  pull_request:
   push:
     tags:
       - "v*.*.*"
