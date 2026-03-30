@@ -22,7 +22,7 @@ Refer to [neptune-wallet-core](https://github.com/Neptune-Crypto/neptune-core) f
   - `gui` gui entrypoint
 - `leveldb-sys` leveldb stub since we dont use it and it is not compatible with cargo-xwin
 
-### Build locally, on an Ubuntu machine
+### Run in development mode, on a Debian/Ubuntu system
 
 ```bash
  # Install task
@@ -44,16 +44,13 @@ yarn install
 # Install system dependencies
 sudo apt install libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev libfuse2 librsvg2-dev libwebkit2gtk-4.1-dev build-essential
 
-# Build binaries
-task build
+# Open in dev mode
+yarn tauri dev
 ```
 
-Run the newly built appimage
-
-```bash
-chmod +x ./src-tauri/target/release/bundle/appimage/NeptuneWallet_<version>_amd64.AppImage
-./src-tauri/target/release/bundle/appimage/NeptuneWallet_<version>_amd64.AppImage
-```
+To compile release binaries, use `task build`. You may have to remove the public
+keys from `tauri.conf.json` before this works fully though. Otherwise you'll
+likely get an error message that the binaries could not be signed.
 
 ### Self-hosted server
 
