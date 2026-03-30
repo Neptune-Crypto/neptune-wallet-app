@@ -86,6 +86,7 @@ impl PersistBlockCache {
                 .map_err(|err| anyhow::anyhow!("Could not connect to database: {err}"))?
         };
 
+        trace!("Preparing SQL migration");
         let mut migrator = Migrator::default();
         // Adding migration can fail if another migration with same app and name and different values gets added
         // Adding migrations add its parents, replaces and not before as well
