@@ -125,7 +125,9 @@ impl NodeRpcClient {
             from_height != 0,
             "Cannot request genesis block from server. It must be produced locally."
         );
-        debug!("request: request_block_by_height_range, from_height: {from_height}; batch_size: {batch_size}");
+        debug!(
+            "request: request_block_by_height_range, from_height: {from_height}; batch_size: {batch_size}"
+        );
         let client = self.rest_server();
         let from_height: BlockHeight = from_height.into();
         let to_height: BlockHeight = (from_height + batch_size.try_into().unwrap())

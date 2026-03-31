@@ -4,9 +4,9 @@ resolver = "2"
 
 [package]
 name = "neptune-wallet"
-version = "2.3.11"
-description = "A light weight wallet for Neptune Cash"
-authors = ["you"]
+version = "3.0.0"
+description = "A lightweight wallet for Neptune Cash"
+authors = ["vxblocks", "Triton Software AG"]
 edition = "2021"
 
 [lib]

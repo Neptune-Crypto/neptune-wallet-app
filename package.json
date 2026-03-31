@@ -1,7 +1,7 @@
 {
   "name": "neptune-wallet",
   "private": true,
-  "version": "2.3.11",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite dev",
