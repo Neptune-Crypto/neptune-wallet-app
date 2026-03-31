@@ -4,6 +4,8 @@ use serde::Serialize;
 use tauri::Emitter;
 #[cfg(all(feature = "gui", desktop))]
 use tauri_plugin_dialog::DialogExt;
+#[cfg(feature = "gui")]
+use tracing::trace;
 
 #[cfg(feature = "gui")]
 #[derive(Debug, Serialize)]
@@ -27,16 +29,39 @@ pub(crate) struct UpdateInfo {
     pub(crate) url: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    html_url: String,
+}
+
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg(feature = "gui")]
 pub(crate) async fn update_info() -> Result<UpdateInfo, String> {
-    // TODO: Can be used to inform users of new updates, if desired.
-    let dummy_update_info = UpdateInfo {
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        url: String::default(),
+    let url = "https://api.github.com/repos/Neptune-Crypto/neptune-wallet-app/releases/latest";
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .get(url)
+        .header("User-Agent", "NeptuneCrypto/NeptuneWallet")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    trace!("Response from update info on GitHub was: {}", resp.status());
+
+    let resp = resp
+        .json::<GitHubRelease>()
+        .await
+        .map_err(|e| e.to_string())?;
+    trace!("Decoded response of release info");
+
+    let update_info = UpdateInfo {
+        // Return '3.0.0', not 'v3.0.0' as tag usually is.
+        version: resp.tag_name.trim_start_matches('v').to_string(),
+        url: resp.html_url,
     };
 
-    Ok(dummy_update_info)
+    Ok(update_info)
 }
 
 #[cfg(all(feature = "gui", desktop))]

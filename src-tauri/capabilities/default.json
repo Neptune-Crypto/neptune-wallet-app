@@ -50,6 +50,14 @@
       ]
     },
     {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://api.github.com/repos/Neptune-Crypto/neptune-wallet-app/releases/latest"
+        }
+      ]
+    },
+    {
       "identifier": "opener:allow-reveal-item-in-dir",
       "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
     },
