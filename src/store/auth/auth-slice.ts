@@ -3,6 +3,10 @@ import { has_password, try_password } from "@/commands/password";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { AuthData, AuthState } from "../types";
 
+export const _test_internals = {
+  startRpcLogic,
+};
+
 const initialState: AuthState = {
   startRpcServer: false,
   data: {
@@ -59,23 +63,37 @@ export const checkAuthPassword = createAsyncThunk<{
   return { hasPassword, hasAuth };
 });
 
+/**
+ * Logic to start the RPC server, with dependency injection to allow mocking.
+ */
+async function startRpcLogic(
+  runRpc: typeof run_rpc_server,
+  logger = console
+): Promise<{ data: boolean }> {
+  let startRpcServer = false;
+
+  try {
+    await runRpc();
+    startRpcServer = true;
+  } catch (error) {
+    if (String(error).includes("rpc server is already running")) {
+      startRpcServer = true;
+    } else {
+      // Only log errors other than the "already running" error.
+      logger.log(error);
+    }
+  }
+
+  return { data: startRpcServer };
+}
+
 export const startRunRpcServer = createAsyncThunk<{ data: boolean }>(
   "/api/auth/startRunRpcServer",
   async () => {
-    let startRpcServer = false;
-    try {
-      await run_rpc_server();
-      startRpcServer = true;
-    } catch (error) {
-      console.log(error);
-      if (error == "error start rpc: rpc server is already running") {
-        startRpcServer = true;
-      }
-    }
-
-    return { data: startRpcServer };
+    return startRpcLogic(run_rpc_server);
   }
 );
+
 export const {} = authSlice.actions;
 
 export default authSlice.reducer;
