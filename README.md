@@ -54,9 +54,9 @@ likely get an error message that the binaries could not be signed.
 
 ### Self-hosted server
 
-The wallet use a patched version of `neptune-core` to support rest api.
+The wallet uses the standard version of `neptune-core` to support rest api.
 
-To run a self hosted server, you need to:
+To run a self hosted server, you can:
 
 ```bash
 git clone https://github.com/Neptune-Crypto/neptune-core
