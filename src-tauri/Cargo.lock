@@ -50,6 +50,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
 dependencies = [
  "cfg-if",
+ "getrandom 0.3.4",
  "once_cell",
  "version_check",
  "zerocopy",
@@ -1087,9 +1088,9 @@ checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
 name = "convert_case"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baaaa0ecca5b51987b9423ccdc971514dd8b0bb7b4060b983d3664dad3f1f89f"
+checksum = "db05ffb6856bf0ecdf6367558a76a0e8a77b1713044eb92845c692100ed50190"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -4471,9 +4472,7 @@ dependencies = [
 
 [[package]]
 name = "neptune-cash"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17f25169fb6aac506bd66fb8496f234771f80fef13ef9e19692461d9f170b51a"
+version = "0.9.0"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -4530,15 +4529,14 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "tracing-test",
+ "tracing-throttle",
  "whoami 2.1.1",
  "zeroize",
 ]
 
 [[package]]
 name = "neptune-rpc-client"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5275f652246abf0daac54c07e0748e9efed1d15d24335b98dca1466ba6c0367"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "neptune-cash",
@@ -4548,11 +4546,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-rpc-macros"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bed47cf0084eca7b090387ee2d8cfeb6ff6950bb7139db7caac8de9f5126f78d"
+version = "0.9.0"
 dependencies = [
- "convert_case 0.8.0",
+ "convert_case 0.9.0",
  "quote",
  "syn 2.0.117",
 ]
@@ -8744,6 +8740,19 @@ checksum = "ad06847b7afb65c7866a36664b75c40b895e318cea4f71299f013fb22965329d"
 dependencies = [
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "tracing-throttle"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e4e430251f5ca8f86ea941286923dc2e91be7ca95fec777d75ee8ae1c493f64"
+dependencies = [
+ "ahash",
+ "dashmap",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

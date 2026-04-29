@@ -151,7 +151,7 @@ impl super::WalletState {
         Ok(transaction)
     }
 
-    pub(crate) async fn generate_tx_outputs(
+    async fn generate_tx_outputs(
         &self,
         outputs: impl IntoIterator<Item = (ReceivingAddress, NativeCurrencyAmount)>,
         owned_utxo_notify_medium: UtxoNotificationMedium,
@@ -181,14 +181,14 @@ impl super::WalletState {
         tx_outputs.into()
     }
 
-    pub(crate) fn can_unlock(&self, utxo: &Utxo) -> bool {
+    fn can_unlock(&self, utxo: &Utxo) -> bool {
         self.get_known_spending_keys()
             .iter()
             .find(|k| k.lock_script_hash() == utxo.lock_script_hash())
             .is_some()
     }
 
-    pub(crate) fn auto_outputs(
+    fn auto_outputs(
         &self,
         address: ReceivingAddress,
         amount: NativeCurrencyAmount,
@@ -224,7 +224,7 @@ impl super::WalletState {
     }
 
     #[expect(clippy::too_many_arguments)]
-    pub(crate) async fn create_transaction_with_prover_capability(
+    async fn create_transaction_with_prover_capability(
         &self,
         mut tx_outputs: TxOutputList,
         tx_inputs: Vec<UnlockedUtxo>,
@@ -284,7 +284,7 @@ impl super::WalletState {
     /// with claiming it later on.
     //
     // "Later on" meaning: as an [ExpectedUtxo].
-    pub(crate) async fn create_change_output(
+    async fn create_change_output(
         &self,
         change_amount: NativeCurrencyAmount,
         change_key: SpendingKey,
