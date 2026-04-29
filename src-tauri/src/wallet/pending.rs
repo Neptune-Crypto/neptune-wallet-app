@@ -145,8 +145,9 @@ impl TransactionUpdater {
             recovery_data_list.push(recovery_data);
         }
 
+        let rpc_client = rpc_client::node_rpc_client();
         let (unlocked_new, tip_mutator_set_accumulator, tip_header) =
-            wallet_state.unlock_utxos(recovery_data_list).await?;
+            wallet_state.unlock_utxos(recovery_data_list, rpc_client).await?;
 
         for tx_output in tx_outputs.iter_mut() {
             let new_sender_randomness = wallet_state

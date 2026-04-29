@@ -29,6 +29,7 @@ use super::input::InputSelectionRule;
 use crate::prover::ProofBuilder;
 use crate::rpc_client;
 use crate::rpc_client::BroadcastError;
+use crate::rpc_client::NodeRpcClient;
 use crate::wallet::wallet_state_table::ExpectedUtxoData;
 
 impl super::WalletState {
@@ -40,6 +41,7 @@ impl super::WalletState {
         rule: InputSelectionRule,
         must_include_utxos: Vec<i64>,
         accept_lustration: bool,
+        rpc_client: &NodeRpcClient
     ) -> anyhow::Result<Transaction, SendError> {
         let _spend_guard = self.spend_lock.lock().await;
         let now = Timestamp::now();
@@ -70,7 +72,7 @@ impl super::WalletState {
         );
 
         let (tx_inputs, db_ids, tip_msa, tip_header) = self
-            .create_input(&outputs, fee, rule, must_include_utxos)
+            .create_input(&outputs, fee, rule, must_include_utxos, rpc_client)
             .await?;
 
         let tx_outputs = self

@@ -19,7 +19,7 @@ use tracing::trace;
 
 use super::wallet_state_table::UtxoDbData;
 use super::UtxoRecoveryData;
-use crate::rpc_client;
+use crate::rpc_client::NodeRpcClient;
 
 #[derive(Default)]
 pub(crate) enum InputSelectionRule {
@@ -78,6 +78,7 @@ impl super::WalletState {
         fee: NativeCurrencyAmount,
         rule: InputSelectionRule,
         must_include_inputs: Vec<i64>,
+        rpc_client: &NodeRpcClient
     ) -> anyhow::Result<(
         Vec<UnlockedUtxo>,
         Vec<i64>,
@@ -149,7 +150,7 @@ impl super::WalletState {
         }
 
         trace!("Selected a total of {} inputs", inputs.len());
-        let (inputs, tip_msa, tip_header) = self.unlock_utxos(inputs).await?;
+        let (inputs, tip_msa, tip_header) = self.unlock_utxos(inputs, rpc_client).await?;
         trace!("Managed to unlock {} inputs", inputs.len());
 
         trace!("Inputs length is: {}", inputs.len());
@@ -166,6 +167,7 @@ impl super::WalletState {
     pub(crate) async fn unlock_utxos(
         &self,
         utxos: Vec<UtxoRecoveryData>,
+        rpc_client: &NodeRpcClient
     ) -> anyhow::Result<(Vec<UnlockedUtxo>, MutatorSetAccumulator, BlockHeader)> {
         let mut index_sets = Vec::with_capacity(utxos.len());
 
@@ -183,7 +185,7 @@ impl super::WalletState {
 
         let (msmps_recovery_data, tip_header) = loop {
             trace!("Requesting {} ms membership proofs", index_sets.len());
-            let msmps_recovery_data = rpc_client::node_rpc_client()
+            let msmps_recovery_data = rpc_client
                 .restore_msmps(index_sets.clone())
                 .await?;
             trace!(
@@ -191,7 +193,7 @@ impl super::WalletState {
                 msmps_recovery_data.membership_proofs.len()
             );
 
-            let tip_header = rpc_client::node_rpc_client().get_tip_header().await?;
+            let tip_header = rpc_client.get_tip_header().await?;
 
             if tip_header.height == msmps_recovery_data.tip_height {
                 break (msmps_recovery_data, tip_header);

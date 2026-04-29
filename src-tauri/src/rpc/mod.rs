@@ -40,6 +40,7 @@ use transaction_status::get_pending_transaction;
 
 use crate::config::consts::RPC_PORT;
 use crate::config::Config;
+use crate::rpc_client;
 use crate::service::get_state;
 use crate::wallet::balance::WalletHistory;
 use crate::wallet::sync::SyncState;
@@ -191,6 +192,8 @@ pub(crate) trait WalletRpc {
             InputSelectionRule::default()
         };
 
+        let rpc_client = rpc_client::node_rpc_client();
+
         let tx = wallet
             .send_to_address(
                 outputs,
@@ -199,6 +202,7 @@ pub(crate) trait WalletRpc {
                 rule,
                 params.inputs,
                 params.accept_lustrations,
+                rpc_client,
             )
             .await
             .map_err(|e| anyhow!("{}", e))?;
