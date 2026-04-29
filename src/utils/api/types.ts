@@ -2,6 +2,7 @@ export interface SendTransactionParam {
   outputs: Output[];
   fee: string;
   inputs: number[];
+  accept_lustrations: boolean;
 }
 
 export interface SendTransactionResponse {

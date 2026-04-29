@@ -145,13 +145,13 @@ impl TransactionUpdater {
             recovery_data_list.push(recovery_data);
         }
 
-        let (unlocked_new, tip_mutator_set_accumulator, tip_height) =
+        let (unlocked_new, tip_mutator_set_accumulator, tip_header) =
             wallet_state.unlock_utxos(recovery_data_list).await?;
 
         for tx_output in tx_outputs.iter_mut() {
             let new_sender_randomness = wallet_state
                 .key
-                .generate_sender_randomness(tip_height, tx_output.receiver_digest());
+                .generate_sender_randomness(tip_header.height, tx_output.receiver_digest());
             tx_output.set_sender_randomness(new_sender_randomness);
         }
 
