@@ -22,6 +22,7 @@ import {
   NumberInput,
   ScrollArea,
   Stack,
+  Switch,
   Text,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
@@ -50,6 +51,8 @@ export default function BatchTranferPage() {
     },
   ] as SendInputItem[]);
   const [fee, setFee] = useState<string>("0.5");
+
+  const [accept_lustrations, setLustrationAcceptance] = useState<boolean>(false);
 
   const latestBlock = useLatestBlock();
   const currentWalletID = useCurrentWalledId();
@@ -136,6 +139,7 @@ export default function BatchTranferPage() {
       fee: fee.toString(),
       input_rule: "maximum",
       inputs: selectedInputs,
+      accept_lustrations,
     } as SendTransactionParam;
 
     dispatch(
@@ -166,7 +170,7 @@ export default function BatchTranferPage() {
         amount: "",
       },
     ] as SendInputItem[]);
-    (setFee("0.5"), setSelectedInputs([]));
+    (setFee("0.5"), setSelectedInputs([]), setLustrationAcceptance(false));
   }
   return (
     <ScrollArea w={"100%"} h={"calc(100vh - 12px)"} scrollbarSize={8}>
@@ -286,6 +290,22 @@ export default function BatchTranferPage() {
             required
             placeholder="Input fee to send"
             hideControls
+          />
+        </Flex>
+
+        <Flex direction={"column"} style={{ marginTop: "16px" }}>
+          <Switch
+            label="Accept Lustrations"
+            labelPosition="left"
+            size="md"
+            checked={accept_lustrations}
+            onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
+            styles={{
+              label: {
+                fontSize: "16px",
+                fontWeight: "bold",
+              },
+            }}
           />
         </Flex>
 

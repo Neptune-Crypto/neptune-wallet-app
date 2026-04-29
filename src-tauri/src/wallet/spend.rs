@@ -1,9 +1,11 @@
 use itertools::Itertools;
+use neptune_cash::api::export::Announcement;
 use neptune_cash::api::export::Timestamp;
 use neptune_cash::api::export::TransactionDetails;
 use neptune_cash::api::export::TransactionProof;
 use neptune_cash::api::export::TxProvingCapability;
 use neptune_cash::prelude::tasm_lib::prelude::Digest;
+use neptune_cash::protocol::consensus::block::block_header::BlockHeader;
 use neptune_cash::protocol::consensus::block::block_height::BlockHeight;
 use neptune_cash::protocol::consensus::transaction::primitive_witness::PrimitiveWitness;
 use neptune_cash::protocol::consensus::transaction::utxo::Utxo;
@@ -37,6 +39,7 @@ impl super::WalletState {
         fee: NativeCurrencyAmount,
         rule: InputSelectionRule,
         must_include_utxos: Vec<i64>,
+        accept_lustration: bool,
     ) -> anyhow::Result<Transaction, SendError> {
         let _spend_guard = self.spend_lock.lock().await;
         let now = Timestamp::now();
@@ -66,7 +69,7 @@ impl super::WalletState {
             "stmi: step 2. generate outputs.",
         );
 
-        let (tx_inputs, db_ids, tip_msa, tip_height) = self
+        let (tx_inputs, db_ids, tip_msa, tip_header) = self
             .create_input(&outputs, fee, rule, must_include_utxos)
             .await?;
 
@@ -75,7 +78,7 @@ impl super::WalletState {
                 outputs.clone(),
                 owned_utxo_notification_medium,
                 unowned_utxo_notification_medium,
-                tip_height,
+                tip_header.height,
             )
             .await;
 
@@ -93,7 +96,7 @@ impl super::WalletState {
                 now,
                 tx_proving_capability,
                 tip_msa,
-                tip_height,
+                tip_header,
             )
             .await
         {
@@ -103,6 +106,18 @@ impl super::WalletState {
                 return Err(e.into());
             }
         };
+
+        if transaction_details.contains_lustrations() && !accept_lustration {
+            let lustration_status = tip_header
+                .pow
+                .lustration_status()
+                .expect("If transaction requires lustration, lustration status must be set.");
+            return Err(SendError::RequiresLustration(LustrationError(format!(
+                "All inputs with AOCL ranges at or below {} must lustration. \
+                 You must accept lustrations before making this transaction.",
+                lustration_status.max_lustrating_aocl_leaf_index
+            ))));
+        }
 
         let _ = crate::service::app::emit_event_to(
             "main",
@@ -151,7 +166,7 @@ impl super::WalletState {
         Ok(transaction)
     }
 
-    pub(crate) async fn generate_tx_outputs(
+    async fn generate_tx_outputs(
         &self,
         outputs: impl IntoIterator<Item = (ReceivingAddress, NativeCurrencyAmount)>,
         owned_utxo_notify_medium: UtxoNotificationMedium,
@@ -181,14 +196,14 @@ impl super::WalletState {
         tx_outputs.into()
     }
 
-    pub(crate) fn can_unlock(&self, utxo: &Utxo) -> bool {
+    fn can_unlock(&self, utxo: &Utxo) -> bool {
         self.get_known_spending_keys()
             .iter()
             .find(|k| k.lock_script_hash() == utxo.lock_script_hash())
             .is_some()
     }
 
-    pub(crate) fn auto_outputs(
+    fn auto_outputs(
         &self,
         address: ReceivingAddress,
         amount: NativeCurrencyAmount,
@@ -224,7 +239,7 @@ impl super::WalletState {
     }
 
     #[expect(clippy::too_many_arguments)]
-    pub(crate) async fn create_transaction_with_prover_capability(
+    async fn create_transaction_with_prover_capability(
         &self,
         mut tx_outputs: TxOutputList,
         tx_inputs: Vec<UnlockedUtxo>,
@@ -234,7 +249,7 @@ impl super::WalletState {
         timestamp: Timestamp,
         prover_capability: TxProvingCapability,
         tip_msa: MutatorSetAccumulator,
-        tip_height: BlockHeight,
+        tip_header: BlockHeader,
     ) -> anyhow::Result<(Transaction, TransactionDetails, Option<TxOutput>)> {
         // 1. create/add change output if necessary.
         let total_spend = tx_outputs.total_native_coins() + fee;
@@ -252,14 +267,19 @@ impl super::WalletState {
             })?;
 
             let change_utxo = self
-                .create_change_output(amount, change_key, change_utxo_notify_medium, tip_height)
+                .create_change_output(
+                    amount,
+                    change_key,
+                    change_utxo_notify_medium,
+                    tip_header.height,
+                )
                 .await?;
             tx_outputs.push(change_utxo.clone());
             maybe_change_output = Some(change_utxo);
         }
 
-        let transaction_details = TransactionDetails::new_without_coinbase(
-            tx_inputs,
+        let mut transaction_details = TransactionDetails::new_without_coinbase(
+            tx_inputs.clone(),
             tx_outputs.to_owned(),
             fee,
             timestamp,
@@ -267,9 +287,12 @@ impl super::WalletState {
             self.network,
         );
 
-        // note: if this task is cancelled, the proving job will continue
-        // because TritonVmJobOptions::cancel_job_rx is None.
-        // see how compose_task handles cancellation in mine_loop.
+        // if lustration is required create those here
+        if let Ok(lustration_status) = tip_header.pow.lustration_status() {
+            let lustrations = Announcement::lustration_announcements(lustration_status, &tx_inputs);
+
+            transaction_details = transaction_details.with_announcements(lustrations);
+        }
 
         // 2. Create the transaction
         let transaction = self
@@ -284,7 +307,7 @@ impl super::WalletState {
     /// with claiming it later on.
     //
     // "Later on" meaning: as an [ExpectedUtxo].
-    pub(crate) async fn create_change_output(
+    async fn create_change_output(
         &self,
         change_amount: NativeCurrencyAmount,
         change_key: SpendingKey,
@@ -409,9 +432,15 @@ impl super::WalletState {
 }
 
 #[derive(Debug, Error)]
+#[error("Lustration is required for this transaction: {0}")]
+pub struct LustrationError(pub String);
+
+#[derive(Debug, Error)]
 pub(crate) enum SendError {
     #[error(transparent)]
     Proof(#[from] anyhow::Error),
     #[error(transparent)]
     Broadcast(#[from] BroadcastError),
+    #[error(transparent)]
+    RequiresLustration(#[from] LustrationError),
 }

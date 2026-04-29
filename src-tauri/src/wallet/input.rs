@@ -4,13 +4,13 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use neptune_cash::api::export::BlockHeight;
 use neptune_cash::api::export::NativeCurrencyAmount;
 use neptune_cash::api::export::ReceivingAddress;
 use neptune_cash::api::export::SpendingKey;
 use neptune_cash::api::export::Timestamp;
 use neptune_cash::api::export::Tip5;
 use neptune_cash::api::export::Utxo;
+use neptune_cash::protocol::consensus::block::block_header::BlockHeader;
 use neptune_cash::state::wallet::unlocked_utxo::UnlockedUtxo;
 use neptune_cash::util_types::mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
 use neptune_cash::util_types::mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
@@ -82,7 +82,7 @@ impl super::WalletState {
         Vec<UnlockedUtxo>,
         Vec<i64>,
         MutatorSetAccumulator,
-        BlockHeight,
+        BlockHeader,
     )> {
         let mut utxos = {
             let mut tx = self.pool.begin().await?;
@@ -149,7 +149,7 @@ impl super::WalletState {
         }
 
         trace!("Selected a total of {} inputs", inputs.len());
-        let (inputs, tip_msa, tip_height) = self.unlock_utxos(inputs).await?;
+        let (inputs, tip_msa, tip_header) = self.unlock_utxos(inputs).await?;
         trace!("Managed to unlock {} inputs", inputs.len());
 
         trace!("Inputs length is: {}", inputs.len());
@@ -159,14 +159,14 @@ impl super::WalletState {
             "Inputs and db_idxs must have the same length"
         );
 
-        Ok((inputs, db_idxs, tip_msa, tip_height))
+        Ok((inputs, db_idxs, tip_msa, tip_header))
     }
 
-    /// Returns triple (list of unlocked UTXOs, tip mutator set, tip height)
+    /// Returns triple  (list of unlocked UTXOs, tip mutator set, tip header)
     pub(crate) async fn unlock_utxos(
         &self,
         utxos: Vec<UtxoRecoveryData>,
-    ) -> anyhow::Result<(Vec<UnlockedUtxo>, MutatorSetAccumulator, BlockHeight)> {
+    ) -> anyhow::Result<(Vec<UnlockedUtxo>, MutatorSetAccumulator, BlockHeader)> {
         let mut index_sets = Vec::with_capacity(utxos.len());
 
         for utxo in &utxos {
@@ -181,14 +181,22 @@ impl super::WalletState {
             index_sets.push(index_set);
         }
 
-        trace!("Requesting {} ms membership proofs", index_sets.len());
-        let msmps_recovery_data = rpc_client::node_rpc_client()
-            .restore_msmps(index_sets)
-            .await?;
-        trace!(
-            "Received {} ms membership proofs",
-            msmps_recovery_data.membership_proofs.len()
-        );
+        let (msmps_recovery_data, tip_header) = loop {
+            trace!("Requesting {} ms membership proofs", index_sets.len());
+            let msmps_recovery_data = rpc_client::node_rpc_client()
+                .restore_msmps(index_sets.clone())
+                .await?;
+            trace!(
+                "Received {} ms membership proofs",
+                msmps_recovery_data.membership_proofs.len()
+            );
+
+            let tip_header = rpc_client::node_rpc_client().get_tip_header().await?;
+
+            if tip_header.height == msmps_recovery_data.tip_height {
+                break (msmps_recovery_data, tip_header);
+            }
+        };
 
         let mut unlocked = Vec::with_capacity(utxos.len());
         for (recovery_data, utxo) in msmps_recovery_data.membership_proofs.into_iter().zip(utxos) {
@@ -215,11 +223,7 @@ impl super::WalletState {
             ));
         }
 
-        Ok((
-            unlocked,
-            msmps_recovery_data.tip_mutator_set,
-            msmps_recovery_data.tip_height,
-        ))
+        Ok((unlocked, msmps_recovery_data.tip_mutator_set, tip_header))
     }
 
     // returns Some(SpendingKey) if the utxo can be unlocked by one of the known

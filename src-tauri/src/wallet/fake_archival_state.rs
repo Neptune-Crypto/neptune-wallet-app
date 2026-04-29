@@ -471,6 +471,8 @@ mod tests {
     #[traced_test]
     #[tokio::test]
     async fn test_snapshot_write_read() {
+        // Requires main net server running on localhost, with rpc modules:
+        // "wallet" and "network".
         rpc_client::node_rpc_client().set_rest_server("http://127.0.0.1:9797".to_string());
 
         let temp_snapshot_file_path = snapshot_dir_path().await;

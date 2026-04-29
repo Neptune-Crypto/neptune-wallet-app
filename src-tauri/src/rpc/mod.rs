@@ -162,6 +162,11 @@ pub(crate) trait WalletRpc {
         Ok(utxos)
     }
     async fn send_to_address(params: SendToAddressParams) -> Result<SendResponse, RestError> {
+        trace!(
+            "Sending to address: Accept lustrations: {}",
+            params.accept_lustrations
+        );
+
         let mut outputs = Vec::with_capacity(params.outputs.len());
 
         let wallet = &get_state::<Arc<SyncState>>().wallet;
@@ -187,7 +192,14 @@ pub(crate) trait WalletRpc {
         };
 
         let tx = wallet
-            .send_to_address(outputs, utxo_notification_media, fee, rule, params.inputs)
+            .send_to_address(
+                outputs,
+                utxo_notification_media,
+                fee,
+                rule,
+                params.inputs,
+                params.accept_lustrations,
+            )
             .await
             .map_err(|e| anyhow!("{}", e))?;
 
@@ -359,6 +371,7 @@ pub(crate) struct SendToAddressParams {
     pub(crate) input_rule: Option<String>,
     #[serde(default)]
     pub(crate) inputs: Vec<i64>,
+    pub(crate) accept_lustrations: bool,
 }
 
 #[derive(Serialize, Deserialize)]
