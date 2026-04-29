@@ -4472,7 +4472,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-cash"
-version = "0.9.0"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b041f038c5bf75563eac0a07c93127d161706218d72d2fc5cf62cf92e0fabab6"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -4536,7 +4538,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-rpc-client"
-version = "0.9.0"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c920963a46b9822233b198f13a4def7069dfe7230f67819f62d3b3fe47bbde2"
 dependencies = [
  "async-trait",
  "neptune-cash",
@@ -4546,7 +4550,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-rpc-macros"
-version = "0.9.0"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1689a2852eb2336a32afed0d5d407080801c5c445be21362ce8d49efa2afe2ef"
 dependencies = [
  "convert_case 0.9.0",
  "quote",
