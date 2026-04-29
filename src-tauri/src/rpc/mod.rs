@@ -162,7 +162,10 @@ pub(crate) trait WalletRpc {
         Ok(utxos)
     }
     async fn send_to_address(params: SendToAddressParams) -> Result<SendResponse, RestError> {
-        trace!("Sending to address: Accept lustrations: {}", params.accept_lustrations);
+        trace!(
+            "Sending to address: Accept lustrations: {}",
+            params.accept_lustrations
+        );
 
         let mut outputs = Vec::with_capacity(params.outputs.len());
 

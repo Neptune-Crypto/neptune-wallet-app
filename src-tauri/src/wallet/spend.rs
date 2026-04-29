@@ -288,7 +288,7 @@ impl super::WalletState {
         );
 
         // if lustration is required create those here
-        if let Some(lustration_status) = tip_header.pow.lustration_status().ok() {
+        if let Ok(lustration_status) = tip_header.pow.lustration_status() {
             let lustrations = Announcement::lustration_announcements(lustration_status, &tx_inputs);
 
             transaction_details = transaction_details.with_announcements(lustrations);
