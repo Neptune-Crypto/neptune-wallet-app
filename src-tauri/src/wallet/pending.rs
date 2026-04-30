@@ -1,4 +1,5 @@
 use anyhow::Result;
+use neptune_cash::api::export::Announcement;
 use neptune_cash::api::export::Timestamp;
 use neptune_cash::api::export::TransactionDetails;
 use neptune_cash::api::export::TxProvingCapability;
@@ -161,7 +162,7 @@ impl TransactionUpdater {
             .update_new_generation_expected_utxos(&tx_id, timestamp, expected_utxo)
             .await?;
 
-        let transaction_details = TransactionDetails::new_without_coinbase(
+        let mut transaction_details = TransactionDetails::new_without_coinbase(
             unlocked_new,
             tx_outputs,
             fee,
@@ -169,6 +170,13 @@ impl TransactionUpdater {
             tip_mutator_set_accumulator,
             wallet_state.network,
         );
+
+        // if lustration is required create those here
+        if let Ok(lustration_status) = tip_header.pow.lustration_status() {
+            let lustrations = Announcement::lustration_announcements(lustration_status, &tx_inputs);
+
+            transaction_details = transaction_details.with_announcements(lustrations);
+        }
 
         let transaction = wallet_state
             .create_raw_transaction(&transaction_details, TxProvingCapability::ProofCollection)
