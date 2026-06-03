@@ -13,7 +13,9 @@
     "format": "prettier . --write .",
     "open": "node opendir.js",
     "build-mac": "zsh -c 'source appleid.env && tauri build --target universal-apple-darwin'",
-    "test": "tsx --test src/tests/*.ts"
+    "test": "tsx --test src/tests/*.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@mantine/charts": "^7.17.5",
@@ -49,6 +51,7 @@
     "swr": "^2.3.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tauri-apps/cli": "^2.8.4",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",

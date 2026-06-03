@@ -15,3 +15,10 @@ vite.config.ts.timestamp-*
 
 yarn-error.log
 *.snapshot
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

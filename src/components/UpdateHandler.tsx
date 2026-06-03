@@ -1,5 +1,6 @@
 import { Text } from "@mantine/core";
 import { modals } from "@mantine/modals";
+import { isTauri } from "@tauri-apps/api/core";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import { useEffect } from "react";
@@ -7,6 +8,12 @@ import { useEffect } from "react";
 export const UpdateHandler = () => {
   useEffect(() => {
     const checkForUpdates = async () => {
+      // Guard clause: bail out if we are in a normal browser (like Playwright)
+      if (!isTauri()) {
+        console.log("Running in browser, skipping Tauri update check.");
+        return;
+      }
+
       try {
         const update = await check();
 
