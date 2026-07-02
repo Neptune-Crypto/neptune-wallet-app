@@ -183,7 +183,9 @@ export default function WalletTable() {
       </Table.Td>
       <Table.Td>
         <Flex direction={"row"} gap={8} align={"center"}>
-          <Text>{ellipsis(element.address)}</Text>
+          <Text w={340} truncate>
+            {ellipsis(element.address)}
+          </Text>
           <CopyedIcon size={16} value={element.address} />
         </Flex>
       </Table.Td>
