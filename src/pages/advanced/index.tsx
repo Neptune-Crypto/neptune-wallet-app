@@ -1,6 +1,5 @@
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import { Tabs } from "@mantine/core";
-import { IconTimelineEventText } from "@tabler/icons-react";
 import { LogView } from "../log";
 
 // Advanced view. Hosts diagnostic tools as tabs; currently just the log viewer,
@@ -10,9 +9,7 @@ export default function AdvancedPage() {
     <WithTitlePageHeader title="Advanced">
       <Tabs defaultValue="log">
         <Tabs.List mb="md">
-          <Tabs.Tab value="log" leftSection={<IconTimelineEventText size={14} />}>
-            Log
-          </Tabs.Tab>
+          <Tabs.Tab value="log">Log</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="log">
           <LogView />

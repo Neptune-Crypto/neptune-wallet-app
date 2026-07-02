@@ -55,7 +55,7 @@ export function LogView() {
         </Button>
       </Flex>
       <ScrollArea
-        h={"calc(100vh - 180px)"}
+        h={"calc(100vh - 210px)"}
         scrollbarSize={8}
         viewportRef={viewport}
         onScrollPositionChange={handleScroll}
