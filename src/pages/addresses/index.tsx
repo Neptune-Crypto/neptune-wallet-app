@@ -186,7 +186,14 @@ export default function AddressesPage() {
 
     return (
       <ScrollArea h="calc(100vh - 220px)" type="auto" offsetScrollbars>
-        <Table verticalSpacing="sm" striped highlightOnHover layout="fixed" w="100%">
+        <Table
+          verticalSpacing="sm"
+          striped
+          highlightOnHover
+          layout="fixed"
+          w="100%"
+          styles={{ td: { verticalAlign: "top" } }}
+        >
           <Table.Thead
             style={{
               position: "sticky",
