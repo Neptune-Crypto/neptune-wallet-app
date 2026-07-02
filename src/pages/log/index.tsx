@@ -4,7 +4,13 @@ import { useLogs } from "@/store/log/hooks";
 import { queryLogMessages } from "@/store/log/log-slice";
 import { Button, Flex, ScrollArea } from "@mantine/core";
 import Ansi from "ansi-to-react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+
+// Memoized so an existing line is not re-parsed (ansi-to-react is not cheap) when
+// new lines arrive; only lines whose text actually changed re-render.
+const LogLine = memo(function LogLine({ line }: { line: string }) {
+  return <Ansi>{line}</Ansi>;
+});
 
 // The log viewer, rendered as a tab inside the Advanced view. It manages its own
 // polling and "Clear logs" action, and tails the latest output: it jumps to the
@@ -23,7 +29,7 @@ export function LogView() {
   useEffect(() => {
     const timerId = setInterval(() => {
       dispatch(queryLogMessages());
-    }, 100);
+    }, 1000);
     return () => clearInterval(timerId);
   }, [dispatch]);
 
@@ -72,7 +78,7 @@ export function LogView() {
           {logs &&
             logs.length > 0 &&
             logs.map((log, index) => {
-              return <Ansi key={index}>{log}</Ansi>;
+              return <LogLine key={index} line={log} />;
             })}
         </Flex>
       </ScrollArea>
