@@ -4,18 +4,21 @@ import {
   IconArrowBarToUp,
   IconDots,
   IconExchange,
+  IconPencil,
   IconTrash,
 } from "@tabler/icons-react";
 
 export default function ActionMenu({
   isCurrentWallet,
   switchWallet,
+  renameWallet,
   removeWallet,
   exportWallet,
   importRandomness,
 }: {
   isCurrentWallet: boolean;
   switchWallet: () => void;
+  renameWallet: () => void;
   removeWallet: () => void;
   exportWallet: () => void;
   importRandomness: () => void;
@@ -37,6 +40,10 @@ export default function ActionMenu({
           onClick={switchWallet}
         >
           <Text>Set as active</Text>
+        </Menu.Item>
+        <Menu.Divider />
+        <Menu.Item leftSection={<IconPencil size={14} />} onClick={renameWallet}>
+          <Text>Rename account</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item

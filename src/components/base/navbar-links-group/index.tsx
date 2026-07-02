@@ -35,15 +35,15 @@ export function LinksGroup({
       data-active={link.link === active || undefined}
       href={link.link}
       key={link.label}
-      onClick={(event) => event.preventDefault()}
+      onClick={(event) => {
+        // Navigate from anywhere on the full-width link, not just the label.
+        // The whole row shows hover/pointer styling, so the whole row must be clickable.
+        event.preventDefault();
+        changeActive(link.link);
+        navigate(link.link);
+      }}
     >
-      <Box
-        style={{ display: "flex", alignItems: "center" }}
-        onClick={() => {
-          changeActive(link.link);
-          navigate(link.link);
-        }}
-      >
+      <Box style={{ display: "flex", alignItems: "center" }}>
         {link.icon && <link.icon size={18} />}
         <Box ml="md">
           <Text fz={"md"} fw={500}>

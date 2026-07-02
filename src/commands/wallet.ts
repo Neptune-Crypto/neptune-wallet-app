@@ -38,6 +38,10 @@ export async function removeWallet(id: number) {
   await invoke("remove_wallet", { id });
 }
 
+export async function renameWallet(id: number, name: string) {
+  await invoke("rename_wallet", { id, name });
+}
+
 export async function getWalletAddress(index: number): Promise<string> {
   return await invoke("wallet_address", { index: index });
 }

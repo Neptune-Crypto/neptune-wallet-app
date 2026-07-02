@@ -1,4 +1,4 @@
-import { removeWallet, setCurrentWallet } from "@/commands/wallet";
+import { removeWallet, renameWallet, setCurrentWallet } from "@/commands/wallet";
 import CopyedIcon from "@/components/copyed-icon";
 import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
@@ -20,6 +20,7 @@ import {
   ScrollArea,
   Table,
   Text,
+  TextInput,
   useModalsStack,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
@@ -40,6 +41,9 @@ export default function WalletTable() {
 
   const [showExportWalletModal, setShowExportWalletModal] = useState(false);
   const [exportWalletData, setExportWalletData] = useState({} as Wallet);
+
+  const [renameWalletData, setRenameWalletData] = useState({} as Wallet);
+  const [renameValue, setRenameValue] = useState("");
 
   function amount_to_fixed(amount: string) {
     if (!amount) return "0";
@@ -84,7 +88,7 @@ export default function WalletTable() {
     } catch (error) {}
   }
 
-  const stack = useModalsStack(["delete-page", "export-page"]);
+  const stack = useModalsStack(["delete-page", "export-page", "rename-page"]);
   async function confirmRemoveWallet() {
     if (removeWalletData && removeWalletData.id) {
       try {
@@ -113,10 +117,43 @@ export default function WalletTable() {
     stack.closeAll();
   }
 
+  async function confirmRenameWallet() {
+    const name = renameValue.trim();
+    if (!renameWalletData || !renameWalletData.id || !name) {
+      return;
+    }
+    try {
+      await renameWallet(renameWalletData.id, name);
+      dispatch(queryWallets());
+      notifications.show({
+        position: "top-right",
+        color: "green",
+        title: "Account renamed",
+        message: 'Account renamed to "' + name + '"',
+      });
+    } catch (error: any) {
+      notifications.show({
+        position: "top-right",
+        color: "red",
+        title: "Failed to rename account",
+        message: error || "An error occurred while renaming the account.",
+      });
+    }
+    stack.closeAll();
+  }
+
   function onClickRemoveWallet(wallet: Wallet) {
     setRemoveWalletData(wallet);
     setTimeout(() => {
       stack.open("delete-page");
+    }, 200);
+  }
+
+  function onClickRenameWallet(wallet: Wallet) {
+    setRenameWalletData(wallet);
+    setRenameValue(wallet.name ?? "");
+    setTimeout(() => {
+      stack.open("rename-page");
     }, 200);
   }
 
@@ -178,6 +215,7 @@ export default function WalletTable() {
         <ActionMenu
           isCurrentWallet={currentWalletID == element.id}
           switchWallet={() => changeWallet(element)}
+          renameWallet={() => onClickRenameWallet(element)}
           removeWallet={() => {
             onClickRemoveWallet(element);
           }}
@@ -215,6 +253,31 @@ export default function WalletTable() {
             </Button>
             <Button onClick={() => confirmExportWallet()} color="red">
               Confirm
+            </Button>
+          </Group>
+        </Modal>
+
+        <Modal {...stack.register("rename-page")} title="Rename account">
+          <TextInput
+            data-autofocus
+            label="Account name"
+            placeholder="Enter a name for your wallet"
+            value={renameValue}
+            onChange={(event) => setRenameValue(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") confirmRenameWallet();
+            }}
+          />
+          <Group mt="lg" justify="flex-end">
+            <Button onClick={stack.closeAll} variant="default">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => confirmRenameWallet()}
+              variant="light"
+              disabled={!renameValue.trim()}
+            >
+              Save
             </Button>
           </Group>
         </Modal>

@@ -153,6 +153,16 @@ impl Config {
         Ok(())
     }
 
+    pub(crate) async fn update_wallet_name(&self, id: i64, name: &str) -> Result<()> {
+        let mut conn = self.db.acquire().await?;
+        sqlx::query("update wallets set name = ? where id = ?")
+            .bind(name)
+            .bind(id)
+            .execute(&mut *conn)
+            .await?;
+        Ok(())
+    }
+
     pub(crate) async fn mnemonic_to_secret(&self, mnemonic: Vec<String>) -> Result<Vec<u8>> {
         let phase = mnemonic.join(" ");
         let encoded =

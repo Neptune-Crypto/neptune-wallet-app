@@ -16,7 +16,9 @@ import { useBalanceData, useCurrentAddress, useCurrentWalledId } from "@/store/w
 import { Output, SendInputItem, SendTransactionParam } from "@/utils/api/types.ts";
 import {
   Alert,
+  Box,
   Button,
+  Divider,
   Flex,
   HoverCard,
   NumberInput,
@@ -25,13 +27,15 @@ import {
   Switch,
   Text,
 } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
-import { IconAddressBook, IconInfoCircle, IconPlus } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { IconAddressBook, IconAlertTriangle, IconInfoCircle, IconPlus } from "@tabler/icons-react";
+import { Fragment, useEffect, useState } from "react";
 
 import { useAvailableUtxos } from "@/store/history/hooks";
 import { queryCurrentWalletID, queryWalletBalance } from "@/store/wallet/wallet-slice.ts";
 import { bigNumberPlusToString } from "@/utils/common";
+import { ellipsis } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { useLocation } from "react-router-dom";
 import ContactModal from "./component/contact-modal";
@@ -130,6 +134,79 @@ export default function BatchTranferPage() {
       });
       return;
     }
+
+    // Require explicit confirmation before broadcasting the irreversible transaction.
+    const totalOut = sendInputs.reduce(
+      (sum, item) => bigNumberPlusToString(sum, item.amount.toString() || "0"),
+      "0"
+    );
+    const grandTotal = bigNumberPlusToString(totalOut, fee.toString() || "0");
+
+    modals.openConfirmModal({
+      title: "Confirm transaction",
+      centered: true,
+      size: "lg",
+      styles: {
+        header: { paddingBottom: 8 },
+        body: { paddingTop: 8 },
+      },
+      children: (
+        <Stack gap={12}>
+          <Flex align="center" gap={6}>
+            <IconAlertTriangle size={14} color="var(--mantine-color-orange-6)" />
+            <Text size="xs" c="orange.8" fw={500}>
+              This action is irreversible.
+            </Text>
+          </Flex>
+          <Box
+            style={{
+              display: "grid",
+              gridTemplateColumns: "auto 1fr",
+              columnGap: 16,
+              rowGap: 8,
+              alignItems: "center",
+            }}
+          >
+            {sendInputs.map((item, index) => (
+              <Fragment key={index}>
+                {index > 0 && <Divider style={{ gridColumn: "1 / -1" }} variant="dashed" />}
+                <Text size="sm" c="dimmed">
+                  {sendInputs.length > 1 ? `Recipient ${index + 1}` : "Recipient"}
+                </Text>
+                <Text size="sm" ta="right" style={{ whiteSpace: "nowrap" }}>
+                  {ellipsis(item.toAddress)}
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Amount
+                </Text>
+                <Text size="sm" ta="right" fw={600}>
+                  {item.amount} NPT
+                </Text>
+              </Fragment>
+            ))}
+            <Divider style={{ gridColumn: "1 / -1" }} />
+            <Text size="sm" c="dimmed">
+              Fee
+            </Text>
+            <Text size="sm" ta="right">
+              {fee} NPT
+            </Text>
+            <Text size="sm" c="dimmed">
+              Total (amount + fee)
+            </Text>
+            <Text size="sm" ta="right" fw={700}>
+              {grandTotal} NPT
+            </Text>
+          </Box>
+        </Stack>
+      ),
+      labels: { confirm: "Confirm & Send", cancel: "Cancel" },
+      confirmProps: { color: "green" },
+      onConfirm: () => sendTransaction(),
+    });
+  }
+
+  function sendTransaction() {
     let outputs = [] as Output[];
     sendInputs.forEach((item) => {
       outputs.push({ address: item.toAddress, amount: item.amount.toString() });

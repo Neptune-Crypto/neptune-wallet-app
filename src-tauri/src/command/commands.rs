@@ -134,6 +134,21 @@ pub(crate) async fn remove_wallet(id: i64) -> Result<()> {
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
+pub(crate) async fn rename_wallet(id: i64, name: String) -> Result<()> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err("Account name cannot be empty".to_string());
+    }
+    let config = crate::service::get_state::<Arc<Config>>();
+    config
+        .update_wallet_name(id, name)
+        .await
+        .into_tauri_result()?;
+    Ok(())
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+#[cfg_attr(not(feature = "gui"), allow(unused))]
 pub(crate) async fn export_wallet(password: String, id: i64) -> Result<Vec<String>> {
     let config = crate::service::get_state::<Arc<Config>>();
     let config_password = config.password.lock().await.clone();

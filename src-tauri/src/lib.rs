@@ -40,6 +40,7 @@ fn add_commands<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         command::commands::input_password,
         command::commands::list_cache,
         command::commands::remove_wallet,
+        command::commands::rename_wallet,
         command::commands::reset_to_height,
         command::commands::set_disk_cache,
         command::commands::set_network,

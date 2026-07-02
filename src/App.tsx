@@ -1,5 +1,4 @@
 import "@mantine/core/styles.css";
-import { ModalsProvider } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
@@ -30,13 +29,11 @@ function App() {
   }
   return (
     <>
-      <ModalsProvider>
-        <WindowTitlebarCard />
-        <UpdateHandler /> {/* This handles the update logic */}
-        <NotificationCard />
-        <InitApp />
-        <ViewPort />
-      </ModalsProvider>
+      <WindowTitlebarCard />
+      <UpdateHandler /> {/* This handles the update logic */}
+      <NotificationCard />
+      <InitApp />
+      <ViewPort />
     </>
   );
 }
