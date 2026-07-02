@@ -27,7 +27,9 @@ export default function TransferForm(props: Props) {
         }}
       />
       <Flex direction={"row"} justify={"space-between"} align={"center"}>
-        <Text style={{ fontSize: "16px", fontWeight: 600 }}>{`To Address # ${keyIndex + 1}`}</Text>
+        <Text style={{ fontSize: "16px", fontWeight: 600 }}>
+          {showRemove ? `Recipient ${keyIndex + 1}` : "Recipient"}
+        </Text>
         <Flex direction={"row"} gap={8} align={"center"}>
           <IconAddressBook
             style={{
@@ -68,6 +70,12 @@ export default function TransferForm(props: Props) {
           }}
           required
           hideControls
+          rightSection={
+            <Text size="sm" c="dimmed">
+              NPT
+            </Text>
+          }
+          rightSectionWidth={48}
         />
       </Flex>
     </Flex>

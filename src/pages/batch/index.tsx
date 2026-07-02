@@ -228,7 +228,6 @@ export default function BatchTranferPage() {
             </Text>
           </Flex>
         </Flex>
-        <Flex justify={"end"} direction={"row"}></Flex>
         <Flex direction={"column"} gap={16} style={{ marginTop: "8px" }}>
           {sendInputs &&
             sendInputs.length > 0 &&
@@ -289,6 +288,12 @@ export default function BatchTranferPage() {
             required
             placeholder="Enter fee"
             hideControls
+            rightSection={
+              <Text size="sm" c="dimmed">
+                NPT
+              </Text>
+            }
+            rightSectionWidth={48}
           />
         </Flex>
 
@@ -312,7 +317,8 @@ export default function BatchTranferPage() {
           <Flex justify={"center"} style={{ marginTop: "16px" }}>
             <Flex direction={"row"} gap={24}>
               <Button
-                variant={"light"}
+                variant="filled"
+                size="md"
                 disabled={checkButtonDisabled()}
                 loading={loading}
                 onClick={handleSendButtonClick}
