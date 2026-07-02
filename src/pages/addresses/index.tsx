@@ -46,11 +46,11 @@ export default function AddressesPage() {
 
   const ADDRESS_DESCRIPTIONS: Record<string, string> = {
     [generation_tab]:
-      "Generation addresses: Will not leak privacy if you reuse it and share it with multiple people.",
+      "The most private option. Safe to reuse and share with many people without weakening your privacy. Recommended for everyday use.",
     [ec_hybrid_tab]:
-      "EC hybrid addresses: It's recommended to only share each address with one other party. Otherwise, an attacker with a powerful quantum computer might expose (but not steal) your incoming transactions.",
+      "A shorter, more compact address. Share each one with a single person only: if the same address is reused more widely, an attacker with a powerful quantum computer could expose (but never steal) the payments sent to it.",
     [viewing_tab]:
-      "Viewing address: Only share each address with one other party. Anyone seeing one of your addresses can see anything that address has ever received.",
+      "Share each address with a single person only. Anyone who has one of these addresses can see everything it has ever received.",
   };
 
   const getQrPayload = (address: string) => `${uri_scheme_prefix}:${address.toUpperCase()}`;
