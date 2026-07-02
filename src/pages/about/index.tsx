@@ -17,7 +17,7 @@ export default function AboutPage() {
     dispatch(checkHasUpdateVersion());
   }, [dispatch]);
   return (
-    <WithTitlePageHeader title="Neptune wallet Service">
+    <WithTitlePageHeader title="Neptune Wallet service">
       <Table
         variant="vertical"
         layout="fixed"

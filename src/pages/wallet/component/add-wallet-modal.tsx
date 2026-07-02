@@ -42,8 +42,8 @@ export default function AddWalletModal({
           transitionTimingFunction="ease"
           fullWidth
           data={[
-            { label: "Create Account", value: "create" },
-            { label: "Import Account", value: "import" },
+            { label: "Create account", value: "create" },
+            { label: "Import account", value: "import" },
           ]}
         />
         {section === "create" && (

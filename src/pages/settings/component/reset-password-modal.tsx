@@ -53,7 +53,7 @@ export default function ResetPasswordModal({
     }
   }
   return (
-    <Modal opened={opened} onClose={close} title="Reset Password" centered>
+    <Modal opened={opened} onClose={close} title="Reset password" centered>
       <Flex direction="column" gap={16}>
         <Stack>
           <PasswordInput

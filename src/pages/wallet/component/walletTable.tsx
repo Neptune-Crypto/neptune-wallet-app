@@ -53,8 +53,8 @@ export default function WalletTable() {
       const id = notifications.show({
         position: "top-right",
         loading: true,
-        title: "Changing wallet",
-        message: "Change wallet to " + wallet.name,
+        title: "Changing account",
+        message: "Change account to " + wallet.name,
         autoClose: false,
         withCloseButton: false,
       });
@@ -64,9 +64,9 @@ export default function WalletTable() {
         id,
         position: "top-right",
         color: "green",
-        title: "Wallet changed",
+        title: "Account changed",
         autoClose: 2000,
-        message: "Change wallet to " + wallet.name,
+        message: "Change account to " + wallet.name,
         icon: <IconCheck size={18} />,
         loading: false,
         withCloseButton: true,
@@ -195,7 +195,7 @@ export default function WalletTable() {
         closeModal={() => setShowExportWalletModal(false)}
       />
       <Modal.Stack>
-        <Modal {...stack.register("delete-page")} title="Delete this acount?">
+        <Modal {...stack.register("delete-page")} title="Delete this account?">
           Are you sure you want to remove this account? You will lose control of this account after
           you remove it.
           <Group mt="lg" justify="flex-end">
@@ -208,7 +208,7 @@ export default function WalletTable() {
           </Group>
         </Modal>
 
-        <Modal {...stack.register("export-page")} title="Export Wallet">
+        <Modal {...stack.register("export-page")} title="Export account">
           <Group mt="lg" justify="flex-end">
             <Button onClick={stack.closeAll} variant="default">
               Cancel
@@ -222,7 +222,7 @@ export default function WalletTable() {
       <AddWalletModal opened={showAddWalletModal} onClose={() => setShowAddWalletModal(false)} />
       <Flex direction={"row"} justify={"space-between"} align={"center"}>
         <Text fz={24} fw={500}>
-          Account
+          Accounts
         </Text>
         <Button
           variant="light"

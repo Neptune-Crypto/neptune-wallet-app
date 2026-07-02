@@ -36,7 +36,7 @@ export default function ActionMenu({
           leftSection={<IconExchange size={14} />}
           onClick={switchWallet}
         >
-          <Text>Switch Wallet</Text>
+          <Text>Switch account</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item
@@ -44,7 +44,7 @@ export default function ActionMenu({
           leftSection={<IconTrash size={14} />}
           onClick={removeWallet}
         >
-          <Text>Remove Wallet</Text>
+          <Text>Remove account</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item
@@ -52,11 +52,11 @@ export default function ActionMenu({
           onClick={importRandomness}
           disabled={!isCurrentWallet}
         >
-          <Text>Import Randomness</Text>
+          <Text>Import randomness</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item leftSection={<IconArrowBarToUp size={14} />} onClick={exportWallet}>
-          <Text>Export Wallet</Text>
+          <Text>Export account</Text>
         </Menu.Item>
       </Menu.Dropdown>
     </Menu>

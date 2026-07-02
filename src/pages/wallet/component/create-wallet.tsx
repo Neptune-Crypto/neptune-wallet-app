@@ -45,7 +45,7 @@ export default function CreateWallet({
       onCreated();
       notifications.show({
         position: "top-right",
-        message: "Wallet created successfully!",
+        message: "Account created successfully!",
         color: "green",
         title: "Success",
       });
@@ -53,7 +53,7 @@ export default function CreateWallet({
       console.log(error);
       notifications.show({
         position: "top-right",
-        message: error ?? "Add wallet failed!",
+        message: error ?? "Failed to create account",
         color: "red",
         title: "Error",
       });
@@ -64,14 +64,14 @@ export default function CreateWallet({
     <Flex direction={"column"} gap={8} style={{ minHeight: "200px", marginTop: "8px" }}>
       <TextInput
         data-autofocus
-        label="Wallet Name"
+        label="Account name"
         value={name}
         onChange={(event) => setName(event.target.value)}
-        placeholder="Enter a name for your wallet"
+        placeholder="Enter a name for your account"
       />
       <Flex direction={"column"}>
         <Flex direction={"row"} gap={4}>
-          <Text>18-Word Phrase</Text>
+          <Text>Recovery phrase</Text>
           <Text c="var(--input-asterisk-color, var(--mantine-color-error))">*</Text>
         </Flex>
         <Box pos="relative">
@@ -143,7 +143,7 @@ export default function CreateWallet({
           >
             <IconReload />
             <Text fz={14} fw={600}>
-              {"Change Seed Phrase"}
+              {"Change recovery phrase"}
             </Text>
           </Flex>
           <Flex
@@ -201,7 +201,7 @@ export default function CreateWallet({
               showMnemonic();
             }}
           >
-            Reveal Secret Recovery Phrase
+            Reveal recovery phrase
           </Button>
         )}
       </Flex>

@@ -28,7 +28,7 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
       console.log(error);
       notifications.show({
         position: "top-right",
-        message: error || "Failed to import wallet",
+        message: error || "Failed to import account",
         color: "red",
         title: "Error",
       });
@@ -46,9 +46,9 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
   return (
     <Flex direction={"column"} gap={8} style={{ height: "100%", marginTop: "8px" }}>
       <TextInput
-        label="Wallet Name"
+        label="Account name"
         data-autofocus
-        placeholder="Enter a name for your wallet"
+        placeholder="Enter a name for your account"
         value={importData.name}
         onChange={(event) =>
           setImportData({
@@ -58,8 +58,8 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
         }
       />
       <Textarea
-        label="18-Word Phrase"
-        placeholder="Enter a mnemonic phrase"
+        label="Recovery phrase"
+        placeholder="Enter your recovery phrase"
         autosize
         minRows={4}
         value={importData.mnemonic}
@@ -83,9 +83,9 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
       />
       <Flex direction={"row"} gap={16}>
         <NumberInput
-          label="Num Keys"
+          label="Number of keys"
           w={"50%"}
-          placeholder="Enter the number keys"
+          placeholder="Enter the number of keys"
           min={1}
           hideControls
           thousandSeparator
@@ -100,7 +100,7 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
           }
         />
         <NumberInput
-          label="Start Height"
+          label="Start height"
           thousandSeparator
           w={"50%"}
           placeholder="Enter the start height"

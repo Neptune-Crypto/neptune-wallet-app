@@ -68,8 +68,8 @@ export default function SettingList() {
       notifications.show({
         position: "top-right",
         color: "red",
-        title: "Failed to remove account",
-        message: error || "Change  disk cache failed!",
+        title: "Error",
+        message: error || "Failed to change disk cache.",
       });
     }
   }
@@ -111,7 +111,7 @@ export default function SettingList() {
     <Flex direction="column" gap={16} w={"100%"}>
       <BaseItem
         leftSection={<IconCirclesRelation />}
-        label={"Server url"}
+        label={"Server URL"}
         value={serverUrl}
         hide={hideServerUrl}
         rightSection={
@@ -168,7 +168,7 @@ export default function SettingList() {
 
       <BaseItem
         leftSection={<IconPlugConnected />}
-        label={"Remote rest"}
+        label={"Remote REST URL"}
         value={remoteUrl}
         rightSection={
           <Flex direction={"row"} gap={8}>
@@ -184,13 +184,13 @@ export default function SettingList() {
       />
       <BaseItem
         leftSection={<IconCube />}
-        label={"Resync Block Height"}
+        label={"Resync block height"}
         rightSection={<ResyncIcon />}
       />
 
       <BaseItem
         leftSection={<IconDatabase />}
-        label={"Disk Cache"}
+        label={"Disk cache"}
         rightSection={
           <Flex direction={"row"} gap={8} align={"center"}>
             <TrashDiskIcon />
@@ -207,7 +207,7 @@ export default function SettingList() {
 
       <BaseItem
         leftSection={<IconFolderOpen />}
-        label={"Open Data Dir"}
+        label={"Open data directory"}
         value={`${dataDir}`}
         rightSection={
           <IconFolderShare

@@ -29,7 +29,7 @@ export default function SecureWallet(props: Props) {
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={14} fw={600} style={{ textAlign: "center" }}>
-        Write down this 18-word Secret Recovery Phrase and save it in a place that you trust and
+        Write down this 18-word recovery phrase and save it in a place that you trust and
         only you can access.
       </Text>
       <Box pos="relative">
@@ -104,14 +104,14 @@ export default function SecureWallet(props: Props) {
               notifications.show({
                 position: "top-right",
                 title: "Success",
-                message: "New seed phrase generated",
+                message: "New recovery phrase generated",
                 color: "green",
               });
             }}
           >
             <IconReload />
             <Text fz={14} fw={600}>
-              {"Change Seed Phrase"}
+              {"Change recovery phrase"}
             </Text>
           </Flex>
           <Flex
@@ -162,7 +162,7 @@ export default function SecureWallet(props: Props) {
               showMnemonic();
             }}
           >
-            Reveal Secret Recovery Phrase
+            Reveal recovery phrase
           </Button>
         )}
       </Flex>

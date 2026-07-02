@@ -32,7 +32,7 @@ export function TrashModal({ opened, close }: { opened: boolean; close: () => vo
       opened={opened}
       size="auto"
       onClose={close}
-      title="Delete Disk Caches"
+      title="Delete disk caches"
       centered
       scrollAreaComponent={ScrollArea.Autosize}
     >

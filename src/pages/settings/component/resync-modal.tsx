@@ -34,15 +34,15 @@ export default function ResyncModal({ opened, close }: { opened: boolean; close:
     setLoading(false);
   }
   return (
-    <Modal opened={opened} onClose={close} title="Resync Block" centered>
+    <Modal opened={opened} onClose={close} title="Resync block" centered>
       <FocusTrap.InitialFocus />
       <Flex direction="column" gap={16}>
         <Alert variant="light" color="yellow">
           Reset all historical records of the current account and resync the height.
         </Alert>
         <NumberInput
-          label="Resync Start Height"
-          placeholder="Input height"
+          label="Resync start height"
+          placeholder="Enter height"
           thousandSeparator=","
           rightSection={null}
           value={height}

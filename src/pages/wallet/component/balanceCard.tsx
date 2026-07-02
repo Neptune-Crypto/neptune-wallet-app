@@ -31,11 +31,11 @@ export default function BalanceCard() {
         : "0.0000";
     const options = [
       {
-        title: "Available Balance",
+        title: "Available balance",
         value: <NumberFormatter value={available_balance} thousandSeparator />,
       },
       {
-        title: "Lock Balance",
+        title: "Locked balance",
         value: <NumberFormatter value={lock_balance} thousandSeparator />,
       },
     ];

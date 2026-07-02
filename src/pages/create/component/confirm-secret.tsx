@@ -115,7 +115,7 @@ export default function ConfirmSecret(props: Props) {
     } catch (error: any) {
       notifications.show({
         position: "top-right",
-        message: error || "Failed to add wallet, please try again later.",
+        message: error || "Failed to create account, please try again later.",
         color: "red",
         title: "Error",
       });
@@ -219,7 +219,7 @@ export default function ConfirmSecret(props: Props) {
           loading={loading}
           onClick={checkSecret}
         >
-          Confirm Secret Recovery Phrase
+          Confirm recovery phrase
         </Button>
       </Flex>
     </Flex>

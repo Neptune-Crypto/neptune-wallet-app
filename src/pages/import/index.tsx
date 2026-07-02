@@ -59,7 +59,7 @@ export default function ImportPage(props: Props) {
         <Stepper.Step label="First step" description="Create password">
           <ImportCreatePassword nextStep={nextStep} />
         </Stepper.Step>
-        <Stepper.Step label="Second step" description="Secure wallet">
+        <Stepper.Step label="Second step" description="Recover account">
           <ImportCecret nextStep={nextStep} />
         </Stepper.Step>
         <Stepper.Completed>

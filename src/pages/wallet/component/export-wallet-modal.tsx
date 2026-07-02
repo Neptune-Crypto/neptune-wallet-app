@@ -68,7 +68,7 @@ export default function ExportWalletModal(props: Props) {
   }
 
   return (
-    <Modal opened={opened} onClose={close} title="Export Account">
+    <Modal opened={opened} onClose={close} title="Export account">
       <FocusTrap.InitialFocus />
       <Flex direction={"column"} gap={16} w={"100%"}>
         <Alert variant="light" color="red" title="" icon={<IconInfoCircle />}>
@@ -97,8 +97,8 @@ export default function ExportWalletModal(props: Props) {
                 }}
               />
               <Textarea
-                label="Mnemonic"
-                placeholder="Mnemonic"
+                label="Recovery phrase"
+                placeholder="Recovery phrase"
                 value={mnemonic}
                 readOnly
                 autosize
@@ -122,7 +122,7 @@ export default function ExportWalletModal(props: Props) {
               >
                 {showMnemonic ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                 <Text fz={14} fw={600}>
-                  {showMnemonic ? "Hide seed phrase" : "Reveal seed phrase"}
+                  {showMnemonic ? "Hide recovery phrase" : "Reveal recovery phrase"}
                 </Text>
               </Flex>
               <Flex

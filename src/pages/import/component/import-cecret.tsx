@@ -46,11 +46,11 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={14} fw={600} style={{ textAlign: "center" }}>
-        Access your wallet with your Secret Recovery Phrase.
+        Access your account with your recovery phrase.
       </Text>
       <Stack w={"100%"}>
         <Textarea
-          label="18-word Phrase"
+          label="Recovery phrase"
           value={importData.mnemonic}
           onChange={(event) => {
             if (event && event.target.value) {
@@ -66,15 +66,15 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
               });
             }
           }}
-          placeholder="Enter your secret recovery phrase here"
+          placeholder="Enter your recovery phrase"
           rows={4}
         />
 
         <Flex direction={"row"} gap={16} w={"100%"}>
           <NumberInput
             w={"50%"}
-            label="Num Keys"
-            placeholder="Enter the number keys"
+            label="Number of keys"
+            placeholder="Enter the number of keys"
             min={1}
             hideControls
             thousandSeparator
@@ -90,7 +90,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
           />
           <NumberInput
             w={"50%"}
-            label="Start Height"
+            label="Start height"
             thousandSeparator
             placeholder="Enter the start height"
             min={0}

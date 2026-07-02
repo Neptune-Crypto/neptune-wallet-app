@@ -49,7 +49,7 @@ export default function CreatePassword(props: Props) {
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={16} fw={600} style={{ textAlign: "center" }}>
-        This password will unlock your neptune wallet only on this device. Neptune Wallet can not
+        This password will unlock your Neptune Wallet only on this device. Neptune Wallet cannot
         recover this password.
       </Text>
       <Stack w={"100%"}>
@@ -76,7 +76,7 @@ export default function CreatePassword(props: Props) {
           disabled={!password || !confirmPassword || password !== confirmPassword}
           onClick={createPassword}
         >
-          Create a new wallet
+          Create a new account
         </Button>
       </Flex>
     </Flex>

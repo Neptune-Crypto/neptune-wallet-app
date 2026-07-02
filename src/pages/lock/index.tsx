@@ -84,7 +84,7 @@ function LockPage() {
             <Flex direction={"column"} gap={32} justify="center" w={"100%"}>
               <PasswordInput
                 label="Password"
-                placeholder="Input password to unlock"
+                placeholder="Enter password to unlock"
                 value={password}
                 onKeyDown={handleKeyPress}
                 onChange={(event) => setPassword(event.currentTarget.value)}
