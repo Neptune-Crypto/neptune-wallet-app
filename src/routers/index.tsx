@@ -1,10 +1,9 @@
 import {
-  IconAddressBook,
+  IconArrowDownCircle,
   IconDeviceImacUp,
   IconHistory,
   IconLayoutNavbarCollapse,
   IconSettings,
-  IconTimelineEventText,
   IconTransfer,
   IconWallet,
 } from "@tabler/icons-react";
@@ -14,7 +13,7 @@ import AboutPage from "../pages/about";
 
 const WalletPage = lazy(async () => await import("../pages/wallet"));
 const SettingsPage = lazy(async () => await import("../pages/settings"));
-const LogPage = lazy(async () => await import("../pages/log"));
+const AdvancedPage = lazy(async () => await import("../pages/advanced"));
 const AddressesPage = lazy(async () => await import("../pages/addresses"));
 const HistoryPage = lazy(async () => await import("../pages/history"));
 const BatchPage = lazy(async () => await import("../pages/batch"));
@@ -34,8 +33,13 @@ export const routesConfig: RouteObject[] = [
         element: <Navigate to="/wallet" />,
       },
       {
+        path: "advanced",
+        element: <AdvancedPage />,
+      },
+      {
+        // Log moved into the Advanced view; redirect any persisted /log location.
         path: "log",
-        element: <LogPage />,
+        element: <Navigate to="/advanced" />,
       },
       {
         path: "wallet",
@@ -68,20 +72,9 @@ export const routesConfig: RouteObject[] = [
 export const linkdata = [
   { label: "Wallet", href: "/wallet", icon: IconWallet },
   { label: "Send", href: "/send", icon: IconTransfer },
-  { label: "Addresses", href: "/addresses", icon: IconAddressBook },
+  { label: "Receive", href: "/addresses", icon: IconArrowDownCircle },
   { label: "History", href: "/history", icon: IconHistory },
-  {
-    label: "Advanced",
-    href: "/advanced",
-    icon: IconDeviceImacUp,
-    links: [
-      {
-        icon: IconTimelineEventText,
-        label: "Log",
-        link: "/log",
-      },
-    ],
-  },
+  { label: "Advanced", href: "/advanced", icon: IconDeviceImacUp },
   { label: "Settings", href: "/settings", icon: IconSettings },
   { label: "About", href: "/about", icon: IconLayoutNavbarCollapse },
 ];

@@ -39,9 +39,9 @@ export default function AddressesPage() {
   const [selectedAddress, setSelectedAddress] = useState("");
 
   const BUTTON_LABELS: Record<string, string> = {
-    [generation_tab]: "New Generation Address",
-    [ec_hybrid_tab]: "New EC Hybrid Address",
-    [viewing_tab]: "New Viewing Address",
+    [generation_tab]: "New generation address",
+    [ec_hybrid_tab]: "New EC hybrid address",
+    [viewing_tab]: "New viewing address",
   };
 
   const ADDRESS_DESCRIPTIONS: Record<string, string> = {
@@ -101,7 +101,7 @@ export default function AddressesPage() {
   const qr_button = (item: AddressRecord) => {
     return (
       has_qr_codes && (
-        <Tooltip label="Show QR Code" withArrow position="top">
+        <Tooltip label="Show QR code" withArrow position="top">
           <ActionIcon
             color="blue"
             variant="subtle"
@@ -121,7 +121,7 @@ export default function AddressesPage() {
     <Modal
       opened={qrModalOpened}
       onClose={closeQrModal}
-      title="Receive Funds"
+      title="Receive funds"
       centered
       overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
     >
@@ -242,7 +242,7 @@ export default function AddressesPage() {
   return (
     <Box p="md">
       <Title order={2} fw={500}>
-        Addresses
+        Receive
       </Title>
 
       {qr_modal}
@@ -266,7 +266,7 @@ export default function AddressesPage() {
                 onClick={handleGenerate}
                 loading={isGenerating}
               >
-                {activeTab ? BUTTON_LABELS[activeTab] : "Generate New Address"}
+                {activeTab ? BUTTON_LABELS[activeTab] : "Generate new address"}
               </Button>
             </Flex>
 

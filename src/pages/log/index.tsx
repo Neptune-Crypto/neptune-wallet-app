@@ -1,5 +1,4 @@
 import { clear_logs } from "@/commands/log";
-import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import { useAppDispatch } from "@/store/hooks";
 import { useLogs } from "@/store/log/hooks";
 import { queryLogMessages } from "@/store/log/log-slice";
@@ -7,48 +6,44 @@ import { Button, Flex, ScrollArea } from "@mantine/core";
 import Ansi from "ansi-to-react";
 import { useEffect, useRef, useState } from "react";
 
-export default function LogPage() {
+// The log viewer, rendered as a tab inside the Advanced view. It manages its own
+// polling and "Clear logs" action, and tails the latest output: it jumps to the
+// bottom instantly as new lines arrive, unless the user has scrolled up.
+export function LogView() {
   const dispatch = useAppDispatch();
   const logs = useLogs();
-  let timerId: any = null;
-  const [isAtBottom, setIsAtBottom] = useState(false);
+  const viewport = useRef<HTMLDivElement>(null);
+  const [followTail, setFollowTail] = useState(true);
+
+  // Jump straight to the bottom. No smooth animation, which is slow to travel the
+  // full height of a long log on open.
+  const scrollToBottom = () =>
+    viewport.current?.scrollTo({ top: viewport.current.scrollHeight });
+
   useEffect(() => {
-    timerId = setInterval(async () => {
+    const timerId = setInterval(() => {
       dispatch(queryLogMessages());
     }, 100);
-    setTimeout(() => {
-      scrollToBottom();
-    }, 500);
-    return () => {
-      clearInterval(timerId);
-    };
-  }, []);
-  useEffect(() => {
-    if (isAtBottom) {
-      scrollToBottom();
-      setIsAtBottom(true);
-    }
-  }, [logs]);
-  const viewport = useRef<HTMLDivElement>(null);
+    return () => clearInterval(timerId);
+  }, [dispatch]);
 
-  const scrollToBottom = () =>
-    viewport.current?.scrollTo({
-      top: viewport.current.scrollHeight,
-      behavior: "smooth",
-    });
+  // While following the tail, stay pinned to the bottom as new lines arrive.
+  useEffect(() => {
+    if (followTail) {
+      scrollToBottom();
+    }
+  }, [logs, followTail]);
 
   const handleScroll = ({ y }: { x: number; y: number }) => {
-    const scrollArea = document.querySelector(".mantine-ScrollArea-viewport");
-    if (!scrollArea) return;
-    const { scrollHeight, clientHeight, scrollTop } = scrollArea;
-    const isBottom = scrollHeight - (scrollTop + clientHeight) < 20;
-    setIsAtBottom(isBottom);
+    const el = viewport.current;
+    if (!el) return;
+    const atBottom = el.scrollHeight - (y + el.clientHeight) < 20;
+    setFollowTail(atBottom);
   };
 
   return (
-    <WithTitlePageHeader
-      title="Log"
-      buttons={
+    <>
+      <Flex justify="flex-end" mb="sm">
         <Button
           size="xs"
           variant="light"
@@ -58,10 +53,9 @@ export default function LogPage() {
         >
           Clear logs
         </Button>
-      }
-    >
+      </Flex>
       <ScrollArea
-        h={"calc(100vh - 80px)"}
+        h={"calc(100vh - 180px)"}
         scrollbarSize={8}
         viewportRef={viewport}
         onScrollPositionChange={handleScroll}
@@ -82,6 +76,8 @@ export default function LogPage() {
             })}
         </Flex>
       </ScrollArea>
-    </WithTitlePageHeader>
+    </>
   );
 }
+
+export default LogView;
