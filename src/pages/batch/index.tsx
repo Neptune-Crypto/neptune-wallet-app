@@ -171,7 +171,7 @@ export default function BatchTranferPage() {
               <Fragment key={index}>
                 {index > 0 && <Divider style={{ gridColumn: "1 / -1" }} variant="dashed" />}
                 <Text size="sm" c="dimmed">
-                  {sendInputs.length > 1 ? `Recipient ${index + 1}` : "Recipient"}
+                  {sendInputs.length > 1 ? `Address ${index + 1}` : "Address"}
                 </Text>
                 <Text size="sm" ta="right" style={{ whiteSpace: "nowrap" }}>
                   {ellipsis(item.toAddress)}
@@ -265,107 +265,105 @@ export default function BatchTranferPage() {
           </Button>
         }
       >
-        <Flex direction={"row"} justify={"space-between"}>
-          <Flex direction={"row"} gap={8}>
-            {selectedInputs && selectedInputs.length > 0 && (
-              <Flex direction={"row"} gap={8}>
-                <Text c="gray">{`Selected ${selectedInputs.length} UTXOs amount:`}</Text>
-                <HoverCard width={320} shadow="md" withArrow openDelay={200} closeDelay={400}>
-                  <HoverCard.Target>
-                    <Text
-                      fw={600}
-                      c="green"
-                      style={{
-                        wordWrap: "break-word",
-                        overflowWrap: "break-word",
-                      }}
-                    >
-                      {selectedAmount}{" "}
-                      <Text span c="dimmed" fw={400}>
-                        NPT
+        <Stack gap="md">
+          <Flex direction={"row"} justify={"space-between"}>
+            <Flex direction={"row"} gap={8}>
+              {selectedInputs && selectedInputs.length > 0 && (
+                <Flex direction={"row"} gap={8}>
+                  <Text c="dimmed">{`Selected ${selectedInputs.length} UTXOs amount:`}</Text>
+                  <HoverCard width={320} shadow="md" withArrow openDelay={200} closeDelay={400}>
+                    <HoverCard.Target>
+                      <Text
+                        fw={600}
+                        c="green"
+                        style={{
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        {selectedAmount}{" "}
+                        <Text span c="dimmed" fw={400}>
+                          NPT
+                        </Text>
                       </Text>
-                    </Text>
-                  </HoverCard.Target>
-                  <HoverCard.Dropdown>
-                    <Stack gap={5}>
-                      <Text size="sm" fw={700} style={{ lineHeight: 1 }}>
-                        Selected UTXO IDs
+                    </HoverCard.Target>
+                    <HoverCard.Dropdown>
+                      <Stack gap={5}>
+                        <Text size="sm" fw={700} style={{ lineHeight: 1 }}>
+                          Selected UTXO IDs
+                        </Text>
+                      </Stack>
+                      <Text size="xs" mt="xs">
+                        {`[${selectedInputs.join(", ")}]`}
                       </Text>
-                    </Stack>
-                    <Text size="xs" mt="xs">
-                      {`[${selectedInputs.join(", ")}]`}
-                    </Text>
-                  </HoverCard.Dropdown>
-                </HoverCard>
-              </Flex>
-            )}
-          </Flex>
+                    </HoverCard.Dropdown>
+                  </HoverCard>
+                </Flex>
+              )}
+            </Flex>
 
-          <Flex direction={"row"} gap={8}>
-            <Text c="gray">Available balance:</Text>
-            <Text fw={600} c="green">
-              {balanceData.available_balance}{" "}
-              <Text span c="dimmed" fw={400}>
-                NPT
+            <Flex direction={"row"} gap={8}>
+              <Text c="dimmed">Available balance:</Text>
+              <Text fw={600} c="green">
+                {balanceData.available_balance}{" "}
+                <Text span c="dimmed" fw={400}>
+                  NPT
+                </Text>
               </Text>
-            </Text>
+            </Flex>
           </Flex>
-        </Flex>
-        <Flex direction={"column"} gap={16} style={{ marginTop: "8px" }}>
-          {sendInputs &&
-            sendInputs.length > 0 &&
-            sendInputs.map((item, index) => {
-              return (
-                <TransferForm
-                  key={index}
-                  keyIndex={index}
-                  showRemove={sendInputs.length > 1}
-                  onChangeAmount={(amount) => {
-                    setSendInputs((prev) =>
-                      prev.map((item, i) => (i === index ? { ...item, amount: amount } : item))
-                    );
-                  }}
-                  onChangeToAddress={(address) => {
-                    setSendInputs((prev) =>
-                      prev.map((item, i) => (i === index ? { ...item, toAddress: address } : item))
-                    );
-                  }}
-                  onRemoveWallet={(removeIndex) => {
-                    const newItems = sendInputs.filter((input) => input.index !== removeIndex);
-                    setSendInputs(newItems);
-                  }}
-                  data={item}
-                />
-              );
-            })}
-        </Flex>
-        <Flex direction={"column"} justify={"center"} align={"start"} style={{ marginTop: "16px" }}>
-          <Button
-            size="compact-xs"
-            variant="light"
-            leftSection={<IconPlus size={14} />}
-            onClick={() => {
-              let newSendInput = {
-                index: queryNextIndex(),
-                toAddress: "",
-                amount: "",
-              };
-              setSendInputs([...sendInputs, newSendInput]);
-            }}
-          >
-            Add address
-          </Button>
-        </Flex>
 
-        <Flex direction={"column"} style={{ marginTop: "16px" }}>
+          <Stack gap={16}>
+            {sendInputs &&
+              sendInputs.length > 0 &&
+              sendInputs.map((item, index) => {
+                return (
+                  <TransferForm
+                    key={index}
+                    keyIndex={index}
+                    showRemove={sendInputs.length > 1}
+                    onChangeAmount={(amount) => {
+                      setSendInputs((prev) =>
+                        prev.map((item, i) => (i === index ? { ...item, amount: amount } : item))
+                      );
+                    }}
+                    onChangeToAddress={(address) => {
+                      setSendInputs((prev) =>
+                        prev.map((item, i) => (i === index ? { ...item, toAddress: address } : item))
+                      );
+                    }}
+                    onRemoveWallet={(removeIndex) => {
+                      const newItems = sendInputs.filter((input) => input.index !== removeIndex);
+                      setSendInputs(newItems);
+                    }}
+                    data={item}
+                  />
+                );
+              })}
+          </Stack>
+
+          <Flex>
+            <Button
+              size="xs"
+              variant="light"
+              leftSection={<IconPlus size={14} />}
+              onClick={() => {
+                let newSendInput = {
+                  index: queryNextIndex(),
+                  toAddress: "",
+                  amount: "",
+                };
+                setSendInputs([...sendInputs, newSendInput]);
+              }}
+            >
+              Add address
+            </Button>
+          </Flex>
+
           <NumberInput
             label={"Fee"}
-            styles={{
-              label: {
-                fontSize: "16px",
-                fontWeight: "bold",
-              },
-            }}
+            styles={{ label: { fontSize: "16px", fontWeight: 600 } }}
+            w={200}
             value={fee}
             onChange={(value) => setFee(value.toString())}
             required
@@ -378,53 +376,43 @@ export default function BatchTranferPage() {
             }
             rightSectionWidth={48}
           />
-        </Flex>
 
-        <Flex direction={"column"} style={{ marginTop: "16px" }}>
           <Switch
             label="Accept lustrations"
             labelPosition="left"
             size="md"
             checked={accept_lustrations}
             onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
-            styles={{
-              label: {
-                fontSize: "16px",
-                fontWeight: "bold",
-              },
-            }}
+            styles={{ label: { fontSize: "16px", fontWeight: 600 } }}
           />
-        </Flex>
 
-        <Flex direction={"column"} justify={"center"} align={"center"} gap={16}>
-          <Flex justify={"center"} style={{ marginTop: "16px" }}>
-            <Flex direction={"row"} gap={24}>
-              <Button
-                variant="filled"
-                size="md"
-                disabled={checkButtonDisabled()}
-                loading={loading}
-                onClick={handleSendButtonClick}
-              >
-                Send
-              </Button>
-            </Flex>
-          </Flex>
+          <Button
+            variant="filled"
+            size="md"
+            fullWidth
+            disabled={checkButtonDisabled()}
+            loading={loading}
+            onClick={handleSendButtonClick}
+          >
+            Send
+          </Button>
+
           {syncedBlock != 0 && syncedBlock < latestBlock ? (
-            <Text c={"red"}>* Wait for syncing...</Text>
+            <Text c={"red"} ta="center">
+              * Wait for syncing...
+            </Text>
           ) : null}
           {sendStatus ? (
             <Alert
               variant="light"
               color="blue"
               title="Send transaction status"
-              style={{ minWidth: "480px" }}
               icon={<IconInfoCircle />}
             >
               {sendStatus}
             </Alert>
           ) : null}
-        </Flex>
+        </Stack>
       </WithTitlePageHeader>
       <ExecutionCard />
     </ScrollArea>

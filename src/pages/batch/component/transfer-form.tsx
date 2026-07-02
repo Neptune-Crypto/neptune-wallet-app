@@ -1,5 +1,5 @@
 import { SendInputItem } from "@/utils/api/types.ts";
-import { Flex, NumberInput, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Flex, NumberInput, Text, TextInput } from "@mantine/core";
 import { IconAddressBook, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import SelecteContact from "./selecte-contact";
@@ -27,30 +27,35 @@ export default function TransferForm(props: Props) {
         }}
       />
       <Flex direction={"row"} justify={"space-between"} align={"center"}>
-        <Text style={{ fontSize: "16px", fontWeight: 600 }}>
-          {showRemove ? `Recipient ${keyIndex + 1}` : "Recipient"}
-        </Text>
-        <Flex direction={"row"} gap={8} align={"center"}>
-          <IconAddressBook
-            style={{
-              color: "#332526",
-            }}
-            size={20}
-            cursor={"pointer"}
+        <Flex direction={"row"} gap={4} align={"center"}>
+          <Text fz={16} fw={600}>
+            {showRemove ? `Address ${keyIndex + 1}` : "Address"}
+          </Text>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="lg"
+            aria-label="Choose from address book"
             onClick={() => setShowSelectContactModal(true)}
-          />
-          {showRemove && (
-            <IconTrash
-              style={{ cursor: "pointer", color: "red" }}
-              size={14}
-              onClick={() => {
-                if (onRemoveWallet) {
-                  onRemoveWallet(data.index);
-                }
-              }}
-            />
-          )}
+          >
+            <IconAddressBook size={22} />
+          </ActionIcon>
         </Flex>
+        {showRemove && (
+          <ActionIcon
+            variant="subtle"
+            color="red"
+            size="lg"
+            aria-label="Remove address"
+            onClick={() => {
+              if (onRemoveWallet) {
+                onRemoveWallet(data.index);
+              }
+            }}
+          >
+            <IconTrash size={22} />
+          </ActionIcon>
+        )}
       </Flex>
       <Flex direction={"row"} gap={16} align={"flex-start"} wrap={"wrap"}>
         <TextInput
@@ -60,7 +65,7 @@ export default function TransferForm(props: Props) {
             onChangeToAddress(event.target.value.trim());
           }}
           required
-          placeholder="Enter recipient address"
+          placeholder="Enter address"
         />
         <NumberInput
           w={200}
