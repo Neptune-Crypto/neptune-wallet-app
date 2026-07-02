@@ -174,10 +174,9 @@ export default function BatchTranferPage() {
   }
   return (
     <ScrollArea w={"100%"} h={"calc(100vh - 12px)"} scrollbarSize={8}>
-      <ExecutionCard />
       <ContactModal opened={showContactModal} close={() => setShowContactModal(false)} />
       <WithTitlePageHeader
-        title="​Send"
+        title="Send"
         buttons={
           <Button
             onClick={() => setShowContactModal(true)}
@@ -185,7 +184,7 @@ export default function BatchTranferPage() {
             size="xs"
             leftSection={<IconAddressBook size={14} />}
           >
-            Contact
+            Address book
           </Button>
         }
       >
@@ -193,7 +192,7 @@ export default function BatchTranferPage() {
           <Flex direction={"row"} gap={8}>
             {selectedInputs && selectedInputs.length > 0 && (
               <Flex direction={"row"} gap={8}>
-                <Text c="gray">{`Selected ${selectedInputs.length} Utxos Amount:`}</Text>
+                <Text c="gray">{`Selected ${selectedInputs.length} UTXOs amount:`}</Text>
                 <HoverCard width={320} shadow="md" withArrow openDelay={200} closeDelay={400}>
                   <HoverCard.Target>
                     <Text
@@ -210,7 +209,7 @@ export default function BatchTranferPage() {
                   <HoverCard.Dropdown>
                     <Stack gap={5}>
                       <Text size="sm" fw={700} style={{ lineHeight: 1 }}>
-                        Selected Utxo IDs
+                        Selected UTXO IDs
                       </Text>
                     </Stack>
                     <Text size="xs" mt="xs">
@@ -272,7 +271,7 @@ export default function BatchTranferPage() {
               setSendInputs([...sendInputs, newSendInput]);
             }}
           >
-            Add Address
+            Add address
           </Button>
         </Flex>
 
@@ -288,14 +287,14 @@ export default function BatchTranferPage() {
             value={fee}
             onChange={(value) => setFee(value.toString())}
             required
-            placeholder="Input fee to send"
+            placeholder="Enter fee"
             hideControls
           />
         </Flex>
 
         <Flex direction={"column"} style={{ marginTop: "16px" }}>
           <Switch
-            label="Accept Lustrations"
+            label="Accept lustrations"
             labelPosition="left"
             size="md"
             checked={accept_lustrations}
@@ -329,7 +328,7 @@ export default function BatchTranferPage() {
             <Alert
               variant="light"
               color="blue"
-              title="Send Transaction status"
+              title="Send transaction status"
               style={{ minWidth: "480px" }}
               icon={<IconInfoCircle />}
             >
@@ -338,6 +337,7 @@ export default function BatchTranferPage() {
           ) : null}
         </Flex>
       </WithTitlePageHeader>
+      <ExecutionCard />
     </ScrollArea>
   );
 }

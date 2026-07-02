@@ -47,7 +47,7 @@ export default function ExecutionCard() {
       position: "top-right",
       color: "green",
       loading: true,
-      title: "Forgetting Transaction",
+      title: "Forgetting transaction",
       message: "Forgetting transaction, please wait...",
       autoClose: false,
       withCloseButton: false,
@@ -99,17 +99,22 @@ export default function ExecutionCard() {
     return amount_to_positive_fixed(amount);
   }
 
+  // Only show the section when there is something in progress.
+  if (!executions || executions.length === 0) {
+    return null;
+  }
+
   return (
     <Container fluid style={{ width: "100%" }}>
       <Space h={16} />
       <Flex direction={"column"} gap={2} px={24}>
         <Flex direction={"row"} justify={"space-between"} align={"center"}>
           <Text fw={500} fz={24}>
-            In Execution
+            In execution
           </Text>
           {executions && executions.length > 0 && (
             <Flex direction={"row"} gap={16}>
-              <Text>{executions.length} Executions</Text>
+              <Text>{executions.length} executions</Text>
               <IconChevronDown
                 onClick={toggle}
                 style={{
@@ -225,7 +230,7 @@ export default function ExecutionCard() {
                       </Table.Td>
                     </Table.Tr>
                     <Table.Tr>
-                      <Table.Th w={100}>To Address:</Table.Th>
+                      <Table.Th w={100}>To address:</Table.Th>
                       <Table.Td
                         style={{
                           wordWrap: "break-word",
@@ -272,7 +277,7 @@ export default function ExecutionCard() {
 
                     {item.priorityFee && (
                       <Table.Tr>
-                        <Table.Th>Priority Fee:</Table.Th>
+                        <Table.Th>Priority fee:</Table.Th>
                         <Table.Td>
                           <Flex w={"100%"} justify={"end"}>
                             <Text c={"#0A8030"}>

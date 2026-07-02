@@ -72,7 +72,7 @@ export default function SelecteContact({
     ));
 
   return (
-    <Modal size={"lg"} opened={opened} onClose={close} title="Select Contact to Send">
+    <Modal size={"lg"} opened={opened} onClose={close} title="Select contact to send">
       <Flex direction={"column"} gap={16}>
         <Box pos="relative">
           <LoadingOverlay

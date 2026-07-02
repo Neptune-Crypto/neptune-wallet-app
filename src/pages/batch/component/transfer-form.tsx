@@ -57,10 +57,10 @@ export default function TransferForm(props: Props) {
             onChangeToAddress(event.target.value.trim());
           }}
           required
-          placeholder="Input to address"
+          placeholder="Enter recipient address"
         />
         <NumberInput
-          placeholder="Input amount to send"
+          placeholder="Enter amount to send"
           allowNegative={false}
           value={data.amount}
           onChange={(value) => {

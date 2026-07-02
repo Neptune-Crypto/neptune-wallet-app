@@ -42,14 +42,14 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
     setLoading(false);
   }
   return (
-    <Modal opened={opened} onClose={close} title="Add Contact">
+    <Modal opened={opened} onClose={close} title="Add contact">
       <Flex direction="column" gap="md">
         <TextInput
           data-autofocus
           label="Name"
           value={contact.aliasName ?? ""}
           onChange={(event) => setContact({ ...contact, aliasName: event.target.value })}
-          placeholder="Enter a name for address"
+          placeholder="Enter a name for this address"
         />
         <Flex direction={"column"}>
           <Flex direction={"row"} justify={"space-between"}>

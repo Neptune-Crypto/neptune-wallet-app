@@ -14,7 +14,7 @@ export default function ContactModal({ opened, close }: Props) {
     dispatch(queryAllContacts());
   }, [dispatch]);
   return (
-    <Modal size={"lg"} opened={opened} onClose={close} title="Address Book">
+    <Modal size={"lg"} opened={opened} onClose={close} title="Address book">
       <ContactTable />
     </Modal>
   );
