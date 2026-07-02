@@ -280,7 +280,10 @@ export default function BatchTranferPage() {
                         overflowWrap: "break-word",
                       }}
                     >
-                      {`${selectedAmount}`}
+                      {selectedAmount}{" "}
+                      <Text span c="dimmed" fw={400}>
+                        NPT
+                      </Text>
                     </Text>
                   </HoverCard.Target>
                   <HoverCard.Dropdown>
@@ -301,7 +304,10 @@ export default function BatchTranferPage() {
           <Flex direction={"row"} gap={8}>
             <Text c="gray">Available balance:</Text>
             <Text fw={600} c="green">
-              {balanceData.available_balance}
+              {balanceData.available_balance}{" "}
+              <Text span c="dimmed" fw={400}>
+                NPT
+              </Text>
             </Text>
           </Flex>
         </Flex>

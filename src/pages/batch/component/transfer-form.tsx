@@ -52,8 +52,9 @@ export default function TransferForm(props: Props) {
           )}
         </Flex>
       </Flex>
-      <Flex direction={"column"} gap={16}>
+      <Flex direction={"row"} gap={16} align={"flex-start"} wrap={"wrap"}>
         <TextInput
+          style={{ flex: 1, minWidth: 240 }}
           value={data.toAddress}
           onChange={(event) => {
             onChangeToAddress(event.target.value.trim());
@@ -62,7 +63,8 @@ export default function TransferForm(props: Props) {
           placeholder="Enter recipient address"
         />
         <NumberInput
-          placeholder="Enter amount to send"
+          w={200}
+          placeholder="Enter amount"
           allowNegative={false}
           value={data.amount}
           onChange={(value) => {

@@ -99,6 +99,15 @@ export default function ExecutionCard() {
     return amount_to_positive_fixed(amount);
   }
 
+  // Total value spent: outputs + fee (+ priority fee, when present).
+  function handleTotal(item: ExecutionHistory) {
+    let total = bigNumberPlusToString(handleAmount(item), amount_to_positive_fixed(item.fee));
+    if (item.priorityFee) {
+      total = bigNumberPlusToString(total, amount_to_positive_fixed(item.priorityFee));
+    }
+    return total;
+  }
+
   // Only show the section when there is something in progress.
   if (!executions || executions.length === 0) {
     return null;
@@ -256,7 +265,11 @@ export default function ExecutionCard() {
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
                           <Text c={"#0A8030"}>
-                            <NumberFormatter value={handleAmount(item)} thousandSeparator />
+                            <NumberFormatter
+                              value={handleAmount(item)}
+                              thousandSeparator
+                              suffix=" NPT"
+                            />
                           </Text>
                         </Flex>
                       </Table.Td>
@@ -269,6 +282,7 @@ export default function ExecutionCard() {
                             <NumberFormatter
                               value={amount_to_positive_fixed(item.fee)}
                               thousandSeparator
+                              suffix=" NPT"
                             />
                           </Text>
                         </Flex>
@@ -284,12 +298,27 @@ export default function ExecutionCard() {
                               <NumberFormatter
                                 value={amount_to_positive_fixed(item.priorityFee)}
                                 thousandSeparator
+                                suffix=" NPT"
                               />
                             </Text>
                           </Flex>
                         </Table.Td>
                       </Table.Tr>
                     )}
+                    <Table.Tr>
+                      <Table.Th>Total:</Table.Th>
+                      <Table.Td>
+                        <Flex w={"100%"} justify={"end"}>
+                          <Text c={"#0A8030"} fw={700}>
+                            <NumberFormatter
+                              value={handleTotal(item)}
+                              thousandSeparator
+                              suffix=" NPT"
+                            />
+                          </Text>
+                        </Flex>
+                      </Table.Td>
+                    </Table.Tr>
                   </Table.Tbody>
                 </Table>
               </Flex>
