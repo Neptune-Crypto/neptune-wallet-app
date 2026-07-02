@@ -1,4 +1,6 @@
 import { generateNewAddress, knownAddresses } from "@/commands/wallet";
+import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
+import CopyedIcon from "@/components/copyed-icon";
 import { AddressRecord, NeptuneKeyType } from "@/utils/api/types";
 import {
   ActionIcon,
@@ -10,12 +12,10 @@ import {
   Group,
   Loader,
   Modal,
-  Paper,
   ScrollArea,
   Table,
   Tabs,
   Text,
-  Title,
   Tooltip,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
@@ -153,6 +153,20 @@ export default function AddressesPage() {
             >
               {selectedAddress}
             </Text>
+            <CopyButton value={selectedAddress} timeout={2000}>
+              {({ copied, copy }) => (
+                <Button
+                  mt="md"
+                  size="xs"
+                  variant="light"
+                  color={copied ? "teal" : "blue"}
+                  leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  onClick={copy}
+                >
+                  {copied ? "Copied" : "Copy address"}
+                </Button>
+              )}
+            </CopyButton>
           </>
         )}
       </Box>
@@ -185,7 +199,7 @@ export default function AddressesPage() {
     const sortedData = [...data].sort((a, b) => b.key_index - a.key_index);
 
     return (
-      <ScrollArea h="calc(100vh - 220px)" type="auto" offsetScrollbars>
+      <ScrollArea h="calc(100vh - 244px)" type="auto" offsetScrollbars>
         <Table
           verticalSpacing="sm"
           striped
@@ -206,7 +220,7 @@ export default function AddressesPage() {
               <Table.Th w={110}>Key index</Table.Th>
               <Table.Th>Address</Table.Th>
               <Table.Th w={80} ta="right">
-                Action
+                Actions
               </Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -223,19 +237,7 @@ export default function AddressesPage() {
                     {qr_button(item)}
 
                     {/* Copy Button */}
-                    <CopyButton value={item.address} timeout={2000}>
-                      {({ copied, copy }) => (
-                        <Tooltip label={copied ? "Copied" : "Copy"} withArrow position="top">
-                          <ActionIcon
-                            color={copied ? "teal" : "gray"}
-                            variant="subtle"
-                            onClick={copy}
-                          >
-                            {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                    </CopyButton>
+                    <CopyedIcon size={16} value={item.address} />
                   </Group>
                 </Table.Td>
               </Table.Tr>
@@ -247,15 +249,10 @@ export default function AddressesPage() {
   };
 
   return (
-    <Box p="md">
-      <Title order={2} fw={500}>
-        Receive
-      </Title>
-
+    <WithTitlePageHeader title="Receive">
       {qr_modal}
 
-      <Paper withBorder radius="md" p="md">
-        <Tabs value={activeTab} onChange={setActiveTab}>
+      <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List mb="md">
             <Tabs.Tab value="generation">Generation</Tabs.Tab>
             <Tabs.Tab value="echybrid">EC hybrid</Tabs.Tab>
@@ -263,12 +260,17 @@ export default function AddressesPage() {
           </Tabs.List>
 
           <Tabs.Panel value={activeTab || generation_tab}>
-            <Flex justify="space-between" align="center" mb="sm" wrap="wrap" gap="sm">
+            {/* Reserve a consistent height so the table doesn't shift between
+                tabs whose descriptions differ in length, and fix the button
+                width so it stays the same across tabs. */}
+            <Flex justify="space-between" align="flex-start" mb="sm" wrap="wrap" gap="sm" mih={80}>
               <Text c="dimmed" size="sm" style={{ flex: 1 }}>
                 {activeTab ? ADDRESS_DESCRIPTIONS[activeTab] : ""}
               </Text>
 
               <Button
+                w={230}
+                justify="flex-start"
                 leftSection={<IconPlus size={15} />}
                 onClick={handleGenerate}
                 loading={isGenerating}
@@ -279,8 +281,7 @@ export default function AddressesPage() {
 
             <AddressTable data={addresses} />
           </Tabs.Panel>
-        </Tabs>
-      </Paper>
-    </Box>
+      </Tabs>
+    </WithTitlePageHeader>
   );
 }
