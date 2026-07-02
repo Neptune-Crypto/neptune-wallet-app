@@ -36,7 +36,7 @@ export default function ActionMenu({
           leftSection={<IconExchange size={14} />}
           onClick={switchWallet}
         >
-          <Text>Switch account</Text>
+          <Text>Set as active</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item
