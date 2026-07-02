@@ -10,7 +10,9 @@ export default function WithTitlePageHeader({
   buttons?: React.ReactNode;
 }) {
   return (
-    <Container fluid w={"100%"}>
+    // pt clears the fixed 30px window titlebar/controls overlay so top-right
+    // header buttons (e.g. "Clear logs") don't collide with the window controls.
+    <Container fluid w={"100%"} pt={30}>
       <Flex direction={"column"} px={24} w={"100%"}>
         <Space h={16} />
         <Flex direction={"column"} gap={2}>

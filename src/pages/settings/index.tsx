@@ -11,7 +11,7 @@ export default function SettingsPage() {
   }, []);
   return (
     <WithTitlePageHeader title="Settings">
-      <ScrollArea h={"calc(100vh - 80px)"} scrollbarSize={0}>
+      <ScrollArea h={"calc(100vh - 110px)"} scrollbarSize={0}>
         <Flex
           direction="column"
           gap="16"
