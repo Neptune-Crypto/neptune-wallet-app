@@ -21,7 +21,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { IconCheck, IconCopy, IconPlus, IconQrcode } from "@tabler/icons-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const generation_tab = "generation";
 const viewing_tab = "viewing";
@@ -33,6 +33,9 @@ export default function AddressesPage() {
   const [addresses, setAddresses] = useState<AddressRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  // Tracks whether the first fetch has completed, so the loading spinner only
+  // shows on the initial load, not on every tab switch.
+  const hasLoadedOnce = useRef(false);
 
   // State for managing the QR modal
   const [qrModalOpened, { open: openQrModal, close: closeQrModal }] = useDisclosure(false);
@@ -72,6 +75,7 @@ export default function AddressesPage() {
       console.error("Failed to fetch addresses from backend:", error);
     } finally {
       setIsLoading(false);
+      hasLoadedOnce.current = true;
     }
   }, [activeTab]);
 
@@ -176,83 +180,20 @@ export default function AddressesPage() {
   const addressRepresentation = (address: AddressRecord): string =>
     activeTab === generation_tab ? address.address_short_form : address.address;
 
-  const AddressTable = ({ data }: { data: AddressRecord[] }) => {
-    // Show a spinner while Tauri is fetching
-    if (isLoading) {
-      return (
-        <Center p="xl">
-          <Loader color="blue" />
-        </Center>
-      );
-    }
-
-    if (data.length === 0) {
-      return (
-        <Box p="md" ta="center" c="dimmed">
-          No addresses found.
-        </Box>
-      );
-    }
-
-    // Sort the data in reverse chronological order, showing the address with
-    // the highest index first.
-    const sortedData = [...data].sort((a, b) => b.key_index - a.key_index);
-
-    return (
-      <ScrollArea h="calc(100vh - 244px)" type="auto" offsetScrollbars>
-        <Table
-          verticalSpacing="sm"
-          striped
-          highlightOnHover
-          layout="fixed"
-          w="100%"
-          styles={{ td: { verticalAlign: "top" } }}
-        >
-          <Table.Thead
-            style={{
-              position: "sticky",
-              top: 0,
-              backgroundColor: "var(--mantine-color-body)",
-              zIndex: 1,
-            }}
-          >
-            <Table.Tr>
-              <Table.Th w={110}>Key index</Table.Th>
-              <Table.Th>Address</Table.Th>
-              <Table.Th w={80} ta="right">
-                Actions
-              </Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {sortedData.map((item) => (
-              <Table.Tr key={item.key_index}>
-                <Table.Td>{item.key_index}</Table.Td>
-                <Table.Td>
-                  <Box style={{ wordBreak: "break-all" }}>{addressRepresentation(item)}</Box>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs" justify="flex-end" wrap="nowrap">
-                    {/* QR button */}
-                    {qr_button(item)}
-
-                    {/* Copy Button */}
-                    <CopyedIcon size={16} value={item.address} />
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </ScrollArea>
-    );
-  };
-
   return (
     <WithTitlePageHeader title="Receive">
       {qr_modal}
 
-      <Tabs value={activeTab} onChange={setActiveTab}>
+      <Tabs
+        value={activeTab}
+        onChange={(value) => {
+          // Clear rows and enter loading synchronously with the tab change, so the
+          // previous tab's addresses never render for a frame under the new tab.
+          setActiveTab(value);
+          setAddresses([]);
+          setIsLoading(true);
+        }}
+      >
           <Tabs.List mb="md">
             <Tabs.Tab value="generation">Generation</Tabs.Tab>
             <Tabs.Tab value="echybrid">EC hybrid</Tabs.Tab>
@@ -279,7 +220,67 @@ export default function AddressesPage() {
               </Button>
             </Flex>
 
-            <AddressTable data={addresses} />
+            {isLoading && addresses.length === 0 && !hasLoadedOnce.current ? (
+              <Center p="xl">
+                <Loader color="blue" />
+              </Center>
+            ) : isLoading && addresses.length === 0 ? (
+              // Switching tabs: hold a stable empty area (no spinner, no message)
+              // until the new tab's addresses arrive.
+              <ScrollArea h="calc(100vh - 244px)" type="auto" offsetScrollbars />
+            ) : addresses.length === 0 ? (
+              <Box p="md" ta="center" c="dimmed">
+                No addresses found.
+              </Box>
+            ) : (
+              <ScrollArea h="calc(100vh - 244px)" type="auto" offsetScrollbars>
+                <Table
+                  verticalSpacing="sm"
+                  striped
+                  highlightOnHover
+                  layout="fixed"
+                  w="100%"
+                  styles={{ td: { verticalAlign: "top" } }}
+                >
+                  <Table.Thead
+                    style={{
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "var(--mantine-color-body)",
+                      zIndex: 1,
+                    }}
+                  >
+                    <Table.Tr>
+                      <Table.Th w={110}>Key index</Table.Th>
+                      <Table.Th>Address</Table.Th>
+                      <Table.Th w={80} ta="right">
+                        Actions
+                      </Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {[...addresses]
+                      .sort((a, b) => b.key_index - a.key_index)
+                      .map((item) => (
+                        <Table.Tr key={item.key_index}>
+                          <Table.Td>{item.key_index}</Table.Td>
+                          <Table.Td>
+                            <Box style={{ wordBreak: "break-all" }}>
+                              {addressRepresentation(item)}
+                            </Box>
+                          </Table.Td>
+                          <Table.Td>
+                            <Group gap="xs" justify="flex-end" wrap="nowrap">
+                              {qr_button(item)}
+                              <CopyedIcon size={16} value={item.address} />
+                            </Group>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            )}
           </Tabs.Panel>
       </Tabs>
     </WithTitlePageHeader>
