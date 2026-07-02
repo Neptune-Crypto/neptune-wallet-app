@@ -186,7 +186,7 @@ export default function AddressesPage() {
 
     return (
       <ScrollArea h="calc(100vh - 220px)" type="auto" offsetScrollbars>
-        <Table verticalSpacing="sm" striped highlightOnHover>
+        <Table verticalSpacing="sm" striped highlightOnHover layout="fixed" w="100%">
           <Table.Thead
             style={{
               position: "sticky",
@@ -196,7 +196,7 @@ export default function AddressesPage() {
             }}
           >
             <Table.Tr>
-              <Table.Th>Key index</Table.Th>
+              <Table.Th w={110}>Key index</Table.Th>
               <Table.Th>Address</Table.Th>
               <Table.Th w={80} ta="right">
                 Action
