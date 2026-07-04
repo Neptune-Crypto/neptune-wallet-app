@@ -181,7 +181,7 @@ export default function AddressesPage() {
     activeTab === generation_tab ? address.address_short_form : address.address;
 
   return (
-    <WithTitlePageHeader title="Receive">
+    <WithTitlePageHeader title="Receive addresses">
       {qr_modal}
 
       <Tabs
