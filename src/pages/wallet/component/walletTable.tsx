@@ -192,7 +192,7 @@ export default function WalletTable() {
       <Table.Td>
         {
           <Flex direction={"row"} align={"center"} gap={8} justify={"center"}>
-            <Text c="green">{amount_to_fixed(element.balance ?? "0")}</Text>
+            <Text fw={600} c="#0A8030">{amount_to_fixed(element.balance ?? "0")}</Text>
             NPT
           </Flex>
         }

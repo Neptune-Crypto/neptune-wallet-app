@@ -23,7 +23,7 @@ export default function ActivityTableItem(props: Props) {
               {element.changeAmount}
             </Text>
           ) : (
-            <Text fw={600} c={"green"}>
+            <Text fw={600} c={"#0A8030"}>
               {element.changeAmount}
             </Text>
           )}

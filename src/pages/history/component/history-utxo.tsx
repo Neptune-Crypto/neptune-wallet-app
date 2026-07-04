@@ -11,7 +11,7 @@ export default function HistoryUtxoCard({ datas }: { datas: HistoryUtxo[] }) {
         </Text>
       </Table.Td>
       <Table.Td>
-        <Text c={Number(item.amount) > 0 ? "green" : "red"}>
+        <Text c={Number(item.amount) > 0 ? "#0A8030" : "red"}>
           {Number(item.amount) > 0 ? "+ " : "- "}{" "}
           <NumberFormatter value={amount_to_positive_fixed(item.amount)} thousandSeparator />
         </Text>
