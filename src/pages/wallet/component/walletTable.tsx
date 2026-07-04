@@ -297,7 +297,7 @@ export default function WalletTable() {
           Add account
         </Button>
       </Flex>
-      <ScrollArea h={"calc(100vh - 300px)"} scrollbarSize={0}>
+      <ScrollArea h={"calc(100vh - 300px)"} type="auto" scrollbarSize={8} offsetScrollbars>
         <Box pos="relative">
           <LoadingOverlay
             visible={loading}

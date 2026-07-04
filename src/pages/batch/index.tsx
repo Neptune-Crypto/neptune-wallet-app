@@ -250,7 +250,7 @@ export default function BatchTranferPage() {
     (setFee("0.5"), setSelectedInputs([]), setLustrationAcceptance(false));
   }
   return (
-    <ScrollArea w={"100%"} h={"calc(100vh - 12px)"} scrollbarSize={8}>
+    <ScrollArea w={"100%"} h={"calc(100vh - 12px)"} type="auto" scrollbarSize={8}>
       <ContactModal opened={showContactModal} close={() => setShowContactModal(false)} />
       <WithTitlePageHeader
         title="Send"

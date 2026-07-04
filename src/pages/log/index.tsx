@@ -62,9 +62,12 @@ export function LogView() {
       </Flex>
       <ScrollArea
         h={"calc(100vh - 210px)"}
+        type="auto"
         scrollbarSize={8}
         viewportRef={viewport}
         onScrollPositionChange={handleScroll}
+        style={{ marginRight: -24 }}
+        styles={{ viewport: { paddingRight: 24 } }}
       >
         <Flex
           direction="column"

@@ -227,13 +227,13 @@ export default function AddressesPage() {
             ) : isLoading && addresses.length === 0 ? (
               // Switching tabs: hold a stable empty area (no spinner, no message)
               // until the new tab's addresses arrive.
-              <ScrollArea h="calc(100vh - 244px)" type="auto" offsetScrollbars />
+              <ScrollArea h="calc(100vh - 244px)" type="auto" scrollbarSize={8} offsetScrollbars />
             ) : addresses.length === 0 ? (
               <Box p="md" ta="center" c="dimmed">
                 No addresses found.
               </Box>
             ) : (
-              <ScrollArea h="calc(100vh - 244px)" type="auto" offsetScrollbars>
+              <ScrollArea h="calc(100vh - 244px)" type="auto" scrollbarSize={8} offsetScrollbars>
                 <Table
                   verticalSpacing="sm"
                   striped

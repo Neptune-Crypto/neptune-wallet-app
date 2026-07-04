@@ -11,7 +11,13 @@ export default function SettingsPage() {
   }, []);
   return (
     <WithTitlePageHeader title="Settings">
-      <ScrollArea h={"calc(100vh - 110px)"} type="auto" scrollbarSize={8} offsetScrollbars>
+      <ScrollArea
+        h={"calc(100vh - 110px)"}
+        type="auto"
+        scrollbarSize={8}
+        style={{ marginRight: -24 }}
+        styles={{ viewport: { paddingRight: 24 } }}
+      >
         <Flex
           direction="column"
           gap="16"

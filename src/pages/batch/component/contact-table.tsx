@@ -81,7 +81,7 @@ export default function ContactTable() {
           loaderProps={{ color: "pink" }}
         />
         {!loading && contracts && contracts.length > 0 ? (
-          <ScrollArea h={"450px"} scrollbarSize={0}>
+          <ScrollArea h={"450px"} type="auto" scrollbarSize={8} offsetScrollbars>
             <Table
               stickyHeader
               verticalSpacing="sm"
