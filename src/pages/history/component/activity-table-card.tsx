@@ -5,7 +5,7 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { MerageHistory } from "@/store/types";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
-import { Box, Center, Flex, LoadingOverlay, ScrollArea, Select, Table } from "@mantine/core";
+import { Box, Center, Flex, LoadingOverlay, Select, Table } from "@mantine/core";
 import { useEffect, useState } from "react";
 import ActivityTableItem from "./activity-table-item";
 import DetailModal from "./datail-modal";
@@ -66,45 +66,43 @@ export default function ActivityTableCard() {
           loaderProps={{ color: "pink" }}
         />
         {
-          <ScrollArea h={"calc(100vh - 420px)"} scrollbarSize={0}>
-            <Table
-              striped
-              highlightOnHover
-              stickyHeaderOffset={0}
-              stickyHeader
-              verticalSpacing={"sm"}
-              withRowBorders={false}
-            >
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Height</Table.Th>
-                  <Table.Th>
-                    <Center>Amount Change</Center>
-                  </Table.Th>
-                  <Table.Th>
-                    <Center>Time</Center>
-                  </Table.Th>
-                  <Table.Th></Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {historyList &&
-                  historyList.length > 0 &&
-                  historyList.map((item, index) => {
-                    return (
-                      <ActivityTableItem
-                        key={index}
-                        element={item}
-                        showMoreDetail={() => {
-                          setSelectedHistory(item);
-                          setShowDetail(true);
-                        }}
-                      />
-                    );
-                  })}
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
+          <Table
+            striped
+            highlightOnHover
+            stickyHeaderOffset={0}
+            stickyHeader
+            verticalSpacing={"sm"}
+            withRowBorders={false}
+          >
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>Height</Table.Th>
+                <Table.Th>
+                  <Center>Amount Change</Center>
+                </Table.Th>
+                <Table.Th>
+                  <Center>Time</Center>
+                </Table.Th>
+                <Table.Th></Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>
+              {historyList &&
+                historyList.length > 0 &&
+                historyList.map((item, index) => {
+                  return (
+                    <ActivityTableItem
+                      key={index}
+                      element={item}
+                      showMoreDetail={() => {
+                        setSelectedHistory(item);
+                        setShowDetail(true);
+                      }}
+                    />
+                  );
+                })}
+            </Table.Tbody>
+          </Table>
         }
       </Box>
     </Flex>

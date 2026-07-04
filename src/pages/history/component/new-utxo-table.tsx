@@ -17,7 +17,6 @@ import {
   LoadingOverlay,
   Menu,
   NumberFormatter,
-  ScrollArea,
   Switch,
   Table,
   Text,
@@ -182,37 +181,35 @@ export default function NewUtxoTable() {
           loaderProps={{ color: "pink" }}
         />
         {!loading && availableUtxos && availableUtxos.length > 0 ? (
-          <ScrollArea h={"calc(100vh - 420px)"} scrollbarSize={0}>
-            <Table
-              striped
-              highlightOnHover
-              stickyHeaderOffset={0}
-              stickyHeader
-              verticalSpacing={"sm"}
-              withRowBorders={false}
-            >
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th />
-                  <Table.Th>
-                    <Center>ID</Center>
-                  </Table.Th>
-                  <Table.Th>Height</Table.Th>
-                  <Table.Th>
-                    <Center>Amount</Center>
-                  </Table.Th>
-                  <Table.Th>Hash</Table.Th>
-                  <Table.Th>
-                    <Center>Locked</Center>
-                  </Table.Th>
-                  <Table.Th>
-                    <Center>Time</Center>
-                  </Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{rows}</Table.Tbody>
-            </Table>
-          </ScrollArea>
+          <Table
+            striped
+            highlightOnHover
+            stickyHeaderOffset={0}
+            stickyHeader
+            verticalSpacing={"sm"}
+            withRowBorders={false}
+          >
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th />
+                <Table.Th>
+                  <Center>ID</Center>
+                </Table.Th>
+                <Table.Th>Height</Table.Th>
+                <Table.Th>
+                  <Center>Amount</Center>
+                </Table.Th>
+                <Table.Th>Hash</Table.Th>
+                <Table.Th>
+                  <Center>Locked</Center>
+                </Table.Th>
+                <Table.Th>
+                  <Center>Time</Center>
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>{rows}</Table.Tbody>
+          </Table>
         ) : (
           <EmptyTable />
         )}
