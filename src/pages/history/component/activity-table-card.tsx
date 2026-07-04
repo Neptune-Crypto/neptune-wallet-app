@@ -5,7 +5,7 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { MerageHistory } from "@/store/types";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
-import { Box, Center, Flex, LoadingOverlay, Select, Table } from "@mantine/core";
+import { Box, Center, Flex, LoadingOverlay, Select, Table, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import ActivityTableItem from "./activity-table-item";
 import DetailModal from "./datail-modal";
@@ -38,7 +38,10 @@ export default function ActivityTableCard() {
         opened={showDetail}
         onClose={() => setShowDetail(false)}
       />
-      <Flex justify={"end"}>
+      <Flex justify={"space-between"} align={"center"}>
+        <Text size="sm" fw={500}>
+          Full history
+        </Text>
         <Select
           styles={{
             input: {
