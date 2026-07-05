@@ -60,7 +60,9 @@ const theme = createTheme({
       styles: () => ({
         root: {
           wordWrap: "break-word",
-          fontWeight: 500,
+          // 400 (regular) reads lighter than the previous 500 so tables and body
+          // copy no longer feel heavy. Cells that set an explicit `fw` keep it.
+          fontWeight: 400,
           fontSize: "14px",
         },
       }),

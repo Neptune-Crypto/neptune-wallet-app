@@ -36,3 +36,11 @@ body {
   border-radius: var(--body-radius) 0 0 var(--body-radius);
   height: 100vh;
 }
+
+/* Calmer tables: soft near-black data rows so they read a touch lighter than pure
+   black. Clears WCAG AAA on the app background. Cells that set an explicit `c=`
+   (e.g. the green balance) keep their color, since inline styles win. */
+.mantine-Table-td,
+.mantine-Table-td .mantine-Text-root {
+  color: #2b2f36;
+}
