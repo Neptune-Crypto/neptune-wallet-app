@@ -6,6 +6,7 @@ import { querySyncBlockStatus } from "@/store/sync/sync-slice";
 import { Wallet } from "@/store/types";
 import { useCurrentWalledId, useLoadingWallets, useWallets } from "@/store/wallet/hooks";
 import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
+import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { handleImportRandomness } from "@/utils/import-wallet-randomness";
 import { deleteContactAddress } from "@/utils/storage";
@@ -16,6 +17,7 @@ import {
   Group,
   LoadingOverlay,
   Modal,
+  NumberFormatter,
   ScrollArea,
   Table,
   Text,
@@ -49,6 +51,14 @@ export default function WalletTable() {
     let len = amount.length;
     return amount.substring(0, len - 30);
   }
+
+  // Portfolio total across all accounts. Sum the already-formatted per-account
+  // values (what the column shows) rather than the raw balances, so the result
+  // stays a plain number and matches the table.
+  const totalBalance = (wallets ?? []).reduce(
+    (sum, w) => bigNumberPlusToString(sum, amount_to_fixed(w.balance || "0") || "0"),
+    "0"
+  );
 
   async function changeWallet(wallet: Wallet) {
     let canChange = currentWalletID != wallet.id;
@@ -268,7 +278,7 @@ export default function WalletTable() {
         </Modal>
       </Modal.Stack>
       <AddWalletModal opened={showAddWalletModal} onClose={() => setShowAddWalletModal(false)} />
-      <Flex direction={"row"} mb={"sm"}>
+      <Flex direction={"row"} justify={"space-between"} align={"center"} mb={"sm"}>
         <Button
           variant="light"
           size="xs"
@@ -277,6 +287,12 @@ export default function WalletTable() {
         >
           Add account
         </Button>
+        {wallets.length > 1 && (
+          <Text size="sm" fw={500}>
+            Total across {wallets.length} accounts:{" "}
+            <NumberFormatter value={totalBalance} thousandSeparator /> NPT
+          </Text>
+        )}
       </Flex>
       <ScrollArea h={"calc(100vh - 330px)"} type="auto" scrollbarSize={8} offsetScrollbars>
         <Box pos="relative">
