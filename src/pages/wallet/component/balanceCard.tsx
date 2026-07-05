@@ -2,7 +2,6 @@ import { useBalanceData, useLoadingBalance } from "@/store/wallet/hooks";
 import { bigNumberMinus } from "@/utils/common";
 import {
   Box,
-  Button,
   Card,
   Flex,
   Grid,
@@ -13,11 +12,9 @@ import {
 } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 export default function BalanceCard() {
   const [options, setOptions] = useState([] as any[]);
-  const navigate = useNavigate();
   const loading = useLoadingBalance();
   const balanceData = useBalanceData();
   useEffect(() => {
@@ -95,29 +92,6 @@ export default function BalanceCard() {
               NPT
             </Text>
           </Flex>
-          {hideButton ? (
-            <Flex direction={"row"} justify="center" align="center">
-              <Button
-                color="transparent"
-                style={{
-                  backgroundColor: "transparent",
-                  cursor: "default",
-                  color: "transparent",
-                }}
-              ></Button>
-            </Flex>
-          ) : (
-            <Flex direction={"row"} justify="center" align="center">
-              <Button
-                color="#332526"
-                onClick={() => {
-                  navigate("/send");
-                }}
-              >
-                Send
-              </Button>
-            </Flex>
-          )}
         </Flex>
       </Card>
     );
