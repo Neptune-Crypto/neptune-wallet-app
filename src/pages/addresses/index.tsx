@@ -187,6 +187,10 @@ export default function AddressesPage() {
       <Tabs
         value={activeTab}
         onChange={(value) => {
+          // Ignore repeat clicks on the already-active tab (e.g. a double-click) and
+          // deactivation: otherwise we'd clear the list and enter loading without a
+          // refetch (fetchAddresses is keyed on activeTab), leaving the table blank.
+          if (!value || value === activeTab) return;
           // Clear rows and enter loading synchronously with the tab change, so the
           // previous tab's addresses never render for a frame under the new tab.
           setActiveTab(value);
