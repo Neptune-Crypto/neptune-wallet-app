@@ -38,7 +38,7 @@ export default function TransferForm(props: Props) {
             aria-label="Choose from contacts"
             onClick={() => setShowSelectContactModal(true)}
           >
-            <IconAddressBook size={22} />
+            <IconAddressBook size={18} />
           </ActionIcon>
         </Flex>
         {showRemove && (
@@ -53,7 +53,7 @@ export default function TransferForm(props: Props) {
               }
             }}
           >
-            <IconTrash size={16} />
+            <IconTrash size={18} />
           </ActionIcon>
         )}
       </Flex>

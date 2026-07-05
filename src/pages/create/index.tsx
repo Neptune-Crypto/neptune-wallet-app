@@ -39,7 +39,7 @@ export default function CreatePage(props: Props) {
               }
             }}
           >
-            <IconChevronLeft size={21} />
+            <IconChevronLeft size={18} />
             <Text>Go Back</Text>
           </Flex>
           <Space h={16} />

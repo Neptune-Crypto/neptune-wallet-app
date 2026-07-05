@@ -28,7 +28,7 @@ export default function ActionMenu({
       <Menu.Target>
         <Center>
           <ActionIcon size="sm" variant="default">
-            <IconDots size={16} />
+            <IconDots size={14} />
           </ActionIcon>
         </Center>
       </Menu.Target>

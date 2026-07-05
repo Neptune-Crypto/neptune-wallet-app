@@ -52,7 +52,7 @@ export default function ContactTable({ height = "450px" }: { height?: string } =
           <Center>
             <Flex direction={"row"}>
               <IconTrash
-                size={16}
+                size={18}
                 color={element.type === "owner" ? "grey" : "red"}
                 style={{
                   cursor: element.type === "owner" ? "not-allowed" : "pointer",

@@ -114,7 +114,7 @@ export default function AddressesPage() {
               openQrModal();
             }}
           >
-            <IconQrcode size={16} />
+            <IconQrcode size={14} />
           </ActionIcon>
         </Tooltip>
       )
@@ -216,7 +216,7 @@ export default function AddressesPage() {
               <Button
                 w={230}
                 justify="flex-start"
-                leftSection={<IconPlus size={15} />}
+                leftSection={<IconPlus size={14} />}
                 onClick={handleGenerate}
                 loading={isGenerating}
               >
