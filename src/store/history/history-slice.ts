@@ -187,11 +187,11 @@ async function handleTransaction(data: HistoryData[], addressId: number, history
       history.index = element.index;
       history.release_date = element.release_date;
       history.utxos = findUtxoHistoryByHeight(data, element.height);
-      if (historyType == "Send") {
+      if (historyType == "Sent") {
         if (!isPositive) {
           merageHistorys.push(history);
         }
-      } else if (historyType == "Receive") {
+      } else if (historyType == "Received") {
         if (isPositive) {
           merageHistorys.push(history);
         }

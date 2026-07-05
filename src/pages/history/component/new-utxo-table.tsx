@@ -17,12 +17,13 @@ import {
   LoadingOverlay,
   Menu,
   NumberFormatter,
+  Stack,
   Switch,
   Table,
   Text,
 } from "@mantine/core";
 import { IconSortDescending } from "@tabler/icons-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -98,12 +99,17 @@ export default function NewUtxoTable() {
 
         <Table.Td>
           <Center>
-            <Text c={element.locked ? "grey" : "green"}>{element.locked ? "True" : "False"}</Text>
+            <Text c={element.locked ? "grey" : "#0A8030"}>{element.locked ? "Yes" : "No"}</Text>
           </Center>
         </Table.Td>
         <Table.Td>
           <Center>
-            <Text c={"#0A8030"}>{format(element.confirm_timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+            <Stack gap={0} align="center">
+              <Text c={"#0A8030"}>{format(element.confirm_timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+              <Text size="xs" c="dimmed">
+                {formatDistanceToNow(element.confirm_timestamp, { addSuffix: true })}
+              </Text>
+            </Stack>
           </Center>
         </Table.Td>
       </Table.Tr>
@@ -115,23 +121,24 @@ export default function NewUtxoTable() {
   return (
     <Flex direction={"column"} gap={8}>
       <Flex direction={"row"} justify={"space-between"} align={"center"}>
-        {selectedRows.length > 0 ? (
-          <Flex direction={"row"} gap={16}>
-            <Button size="compact-xs" variant="light" onClick={navigateToSend}>
-              Send
-            </Button>
-            <Text
-              c={"#858585"}
-              style={{ fontSize: "14px" }}
-            >{`(${selectedRows.length} Utxos)`}</Text>
-          </Flex>
-        ) : (
-          <Flex direction={"row"} gap={16}></Flex>
-        )}
-        <Flex justify={"end"} gap={16}>
-          <Flex direction={"row"} gap={8}>
-            <Text>UTXO count:{availableUtxos?.length}</Text>
-            <Text>{"Contain Locked"}</Text>
+        <Flex direction={"row"} align={"center"} gap={16}>
+          <Text size="sm" fw={500}>
+            UTXO count: {availableUtxos?.length ?? 0}
+          </Text>
+          {selectedRows.length > 0 && (
+            <>
+              <Button size="xs" variant="light" onClick={navigateToSend}>
+                Send
+              </Button>
+              <Text c="dimmed" style={{ fontSize: "14px" }}>
+                {`(${selectedRows.length} selected)`}
+              </Text>
+            </>
+          )}
+        </Flex>
+        <Flex justify={"end"} align={"center"} gap={16}>
+          <Flex direction={"row"} align={"center"} gap={8}>
+            <Text c="dimmed">Include locked</Text>
             <Switch
               checked={containLocked}
               onChange={(event) => {
@@ -139,17 +146,12 @@ export default function NewUtxoTable() {
               }}
             />
           </Flex>
-          <Flex direction={"row"} gap={8}>
-            <Text c={"#858585"} style={{ textAlign: "end" }}>
-              Sort by
-            </Text>
+          <Flex direction={"row"} align={"center"} gap={8}>
+            <Text c="dimmed">Sort by</Text>
             <Menu shadow="md" width={120}>
               <Menu.Target>
                 <Flex direction={"row"} gap={2} align={"center"} style={{ cursor: "pointer" }}>
-                  <Text
-                    c={"var(--primaryhighlight)"}
-                    style={{ textAlign: "end", fontSize: "14px" }}
-                  >
+                  <Text c={"var(--primaryhighlight)"} style={{ fontSize: "14px" }}>
                     {sortType}
                   </Text>
                   <IconSortDescending size={14} style={{ color: "var(--primaryhighlight)" }} />
@@ -195,9 +197,9 @@ export default function NewUtxoTable() {
                 <Table.Th>
                   <Center>ID</Center>
                 </Table.Th>
-                <Table.Th>Height</Table.Th>
+                <Table.Th>Block height</Table.Th>
                 <Table.Th>
-                  <Center>Amount</Center>
+                  <Center>Amount (NPT)</Center>
                 </Table.Th>
                 <Table.Th>Hash</Table.Th>
                 <Table.Th>

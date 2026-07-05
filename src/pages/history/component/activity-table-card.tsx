@@ -5,12 +5,13 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { MerageHistory } from "@/store/types";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
-import { Box, Center, Flex, LoadingOverlay, Select, Table, Text } from "@mantine/core";
+import EmptyTable from "@/components/empty-table";
+import { Box, Center, Flex, LoadingOverlay, Table, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import ActivityTableItem from "./activity-table-item";
 import DetailModal from "./datail-modal";
 
-export default function ActivityTableCard() {
+export default function ActivityTableCard({ historyType }: { historyType: string }) {
   const loading = useLoadingActivityTx();
   const historyList = useActivityTransactions();
   const { serverUrl } = useSettingActionData();
@@ -18,9 +19,9 @@ export default function ActivityTableCard() {
   const dispatch = useAppDispatch();
   const latestBlock = useLatestBlock();
   const syncedBlock = useSyncedBlock();
-  const [historyType, setHistoryType] = useState("All");
   const [selectedHistory, setSelectedHistory] = useState({} as MerageHistory);
   const [showDetail, setShowDetail] = useState(false);
+  const entryCount = historyList?.length ?? 0;
   useEffect(() => {
     if (latestBlock && syncedBlock && latestBlock <= syncedBlock) {
       dispatch(queryActivityHistory({ serverUrl, addressId, historyType }));
@@ -38,29 +39,9 @@ export default function ActivityTableCard() {
         opened={showDetail}
         onClose={() => setShowDetail(false)}
       />
-      <Flex justify={"space-between"} align={"center"}>
-        <Text size="sm" fw={500}>
-          Full history
-        </Text>
-        <Select
-          styles={{
-            input: {
-              outline: "none",
-              border: "none",
-            },
-          }}
-          variant="filled"
-          size="xs"
-          w={120}
-          data={["All", "Send", "Receive"]}
-          value={historyType}
-          onChange={(value) => {
-            setHistoryType(value ?? "All");
-          }}
-          defaultValue={historyType}
-          allowDeselect={false}
-        />
-      </Flex>
+      <Text size="sm" fw={500}>
+        {`Full history: ${entryCount} balance change${entryCount === 1 ? "" : "s"}`}
+      </Text>
       <Box pos="relative">
         <LoadingOverlay
           visible={loading}
@@ -68,7 +49,7 @@ export default function ActivityTableCard() {
           overlayProps={{ radius: "sm", blur: 2 }}
           loaderProps={{ color: "pink" }}
         />
-        {
+        {!loading && historyList && historyList.length > 0 ? (
           <Table
             striped
             highlightOnHover
@@ -79,14 +60,14 @@ export default function ActivityTableCard() {
           >
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>Height</Table.Th>
+                <Table.Th>Block height</Table.Th>
                 <Table.Th>
-                  <Center>Amount Change</Center>
+                  <Center>Amount change (NPT)</Center>
                 </Table.Th>
                 <Table.Th>
                   <Center>Time</Center>
                 </Table.Th>
-                <Table.Th></Table.Th>
+                <Table.Th>Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
@@ -106,7 +87,9 @@ export default function ActivityTableCard() {
                 })}
             </Table.Tbody>
           </Table>
-        }
+        ) : (
+          <EmptyTable />
+        )}
       </Box>
     </Flex>
   );
