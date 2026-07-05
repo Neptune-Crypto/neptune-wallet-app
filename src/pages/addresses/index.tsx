@@ -1,6 +1,7 @@
 import { generateNewAddress, knownAddresses } from "@/commands/wallet";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import CopyedIcon from "@/components/copyed-icon";
+import { useCurrentWalledId } from "@/store/wallet/hooks";
 import { AddressRecord, NeptuneKeyType } from "@/utils/api/types";
 import {
   ActionIcon,
@@ -30,6 +31,9 @@ const uri_scheme_prefix = "NPT";
 
 export default function AddressesPage() {
   const [activeTab, setActiveTab] = useState<string | null>(generation_tab);
+  // Refetch when the active account changes (e.g. via the sidebar switcher):
+  // addresses are account-scoped, so a switch must not show the old account's list.
+  const currentWalletID = useCurrentWalledId();
   const [addresses, setAddresses] = useState<AddressRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -77,7 +81,13 @@ export default function AddressesPage() {
       setIsLoading(false);
       hasLoadedOnce.current = true;
     }
-  }, [activeTab]);
+  }, [activeTab, currentWalletID]);
+
+  // Clear the previous account's rows as soon as the account switches, so stale
+  // addresses never linger while the refetch below is in flight.
+  useEffect(() => {
+    setAddresses([]);
+  }, [currentWalletID]);
 
   useEffect(() => {
     fetchAddresses();
