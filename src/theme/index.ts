@@ -50,11 +50,13 @@ const theme = createTheme({
       },
     },
     Button: {
-      styles: (theme: any) => ({
-        root: {
-          backgroundColor: `${theme.colors.blue[6]} !important`,
-        },
-      }),
+      // Default all buttons to the blue accent, but let each button's variant
+      // (filled/light) and explicit color prop work normally. (Previously this
+      // forced backgroundColor with !important, which neutered variants and
+      // collided with per-button color props.)
+      defaultProps: {
+        color: "blue",
+      },
     },
     Text: {
       styles: () => ({
