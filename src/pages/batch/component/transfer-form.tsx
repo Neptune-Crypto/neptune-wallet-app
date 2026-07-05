@@ -28,7 +28,7 @@ export default function TransferForm(props: Props) {
       />
       <Flex direction={"row"} justify={"space-between"} align={"center"}>
         <Flex direction={"row"} gap={4} align={"center"}>
-          <Text fz={16} fw={600}>
+          <Text fz={14} fw={500}>
             {showRemove ? `Address ${keyIndex + 1}` : "Address"}
           </Text>
           <ActionIcon

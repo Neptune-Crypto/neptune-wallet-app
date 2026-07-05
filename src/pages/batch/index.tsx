@@ -248,8 +248,14 @@ export default function BatchTranferPage() {
     (setFee("0.5"), setSelectedInputs([]), setLustrationAcceptance(false));
   }
   return (
-    <ScrollArea w={"100%"} h={"calc(100vh - 12px)"} type="auto" scrollbarSize={8}>
-      <WithTitlePageHeader title="Send">
+    <WithTitlePageHeader title="Send">
+      <ScrollArea
+        h={"calc(100vh - 110px)"}
+        type="auto"
+        scrollbarSize={8}
+        style={{ marginRight: -24 }}
+        styles={{ viewport: { paddingRight: 24 } }}
+      >
         <Stack gap="md">
           <Flex direction={"row"} justify={"space-between"}>
             <Flex direction={"row"} gap={8}>
@@ -348,7 +354,6 @@ export default function BatchTranferPage() {
           <NumberInput
             mt="sm"
             label={"Fee"}
-            styles={{ label: { fontSize: "16px", fontWeight: 600 } }}
             w={200}
             value={fee}
             onChange={(value) => setFee(value.toString())}
@@ -370,7 +375,6 @@ export default function BatchTranferPage() {
             size="md"
             checked={accept_lustrations}
             onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
-            styles={{ label: { fontSize: "16px", fontWeight: 600 } }}
           />
 
           <Button
@@ -399,9 +403,9 @@ export default function BatchTranferPage() {
               {sendStatus}
             </Alert>
           ) : null}
+          <ExecutionCard />
         </Stack>
-      </WithTitlePageHeader>
-      <ExecutionCard />
-    </ScrollArea>
+      </ScrollArea>
+    </WithTitlePageHeader>
   );
 }
