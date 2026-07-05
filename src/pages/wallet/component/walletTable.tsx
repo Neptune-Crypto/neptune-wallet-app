@@ -11,6 +11,7 @@ import { ellipsis } from "@/utils/ellipsis-format";
 import { handleImportRandomness } from "@/utils/import-wallet-randomness";
 import { deleteContactAddress } from "@/utils/storage";
 import {
+  Badge,
   Box,
   Button,
   Flex,
@@ -25,7 +26,7 @@ import {
   useModalsStack,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconPlus, IconStarFilled } from "@tabler/icons-react";
+import { IconCheck, IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
 import ActionMenu from "./action-menu";
 import AddWalletModal from "./add-wallet-modal";
@@ -176,19 +177,22 @@ export default function WalletTable() {
   }
 
   const rows = wallets.map((element, index) => (
-    <Table.Tr key={index}>
+    <Table.Tr
+      key={index}
+      bg={currentWalletID === element.id ? "var(--mantine-color-blue-light)" : undefined}
+    >
       <Table.Td>
-        {currentWalletID != element.id ? (
-          <Flex>{`#${index + 1}`}</Flex>
-        ) : (
-          <Flex direction={"row"} align={"center"} style={{ color: "green" }} gap={8}>
-            {`#${index + 1}`}
-            <IconStarFilled color="green" size={12} />
-          </Flex>
-        )}
+        <Flex>{`#${index + 1}`}</Flex>
       </Table.Td>
       <Table.Td>
-        <Text>{element.name}</Text>
+        <Flex direction={"row"} align={"center"} gap={8}>
+          <Text>{element.name}</Text>
+          {currentWalletID === element.id && (
+            <Badge color="blue" variant="filled" size="sm">
+              Active
+            </Badge>
+          )}
+        </Flex>
       </Table.Td>
       <Table.Td>
         <Flex direction={"row"} gap={8} align={"center"}>
@@ -221,7 +225,7 @@ export default function WalletTable() {
     </Table.Tr>
   ));
   return (
-    <Flex direction={"column"} gap={8}>
+    <Flex direction={"column"} gap={8} style={{ flex: 1, minHeight: 0 }}>
       <ExportWalletModal
         id={exportWalletData.id}
         opened={showExportWalletModal}
@@ -294,7 +298,7 @@ export default function WalletTable() {
           </Text>
         )}
       </Flex>
-      <ScrollArea h={"calc(100vh - 330px)"} type="auto" scrollbarSize={8} offsetScrollbars>
+      <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars>
         <Box pos="relative">
           <LoadingOverlay
             visible={loading}

@@ -12,7 +12,12 @@ import {
 import { useAppDispatch } from "@/store/hooks.ts";
 import { useSettingActionData } from "@/store/settings/hooks.ts";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks.ts";
-import { useBalanceData, useCurrentAddress, useCurrentWalledId } from "@/store/wallet/hooks.ts";
+import {
+  useBalanceData,
+  useCurrentAddress,
+  useCurrentWalledId,
+  useWallets,
+} from "@/store/wallet/hooks.ts";
 import { Output, SendInputItem, SendTransactionParam } from "@/utils/api/types.ts";
 import {
   Alert,
@@ -59,6 +64,8 @@ export default function BatchTranferPage() {
 
   const latestBlock = useLatestBlock();
   const currentWalletID = useCurrentWalledId();
+  const wallets = useWallets();
+  const currentAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
   const currentAddress = useCurrentAddress();
   const syncedBlock = useSyncedBlock();
   const requesTransactionResponse = useRequesetSendTransactionResponse();
@@ -250,15 +257,22 @@ export default function BatchTranferPage() {
   return (
     <WithTitlePageHeader title="Send">
       <ScrollArea
-        h={"calc(100vh - 110px)"}
         type="auto"
         scrollbarSize={8}
-        style={{ marginRight: -24 }}
-        styles={{ viewport: { paddingRight: 24 } }}
+        style={{ flex: 1, minHeight: 0, marginLeft: -24, marginRight: -24 }}
+        styles={{ viewport: { paddingLeft: 24, paddingRight: 24 } }}
       >
         <Stack gap="md">
-          <Flex direction={"row"} justify={"space-between"}>
-            <Flex direction={"row"} gap={8}>
+          <Flex direction={"row"} justify={"space-between"} align={"center"} wrap={"wrap"} gap={8}>
+            <Flex direction={"row"} gap={8} align={"center"}>
+              <Flex direction={"row"} gap={6} align={"center"}>
+                <Text size="sm" c="dimmed">
+                  Sending from
+                </Text>
+                <Text size="sm" fw={600}>
+                  {currentAccountName || "—"}
+                </Text>
+              </Flex>
               {selectedInputs && selectedInputs.length > 0 && (
                 <Flex direction={"row"} gap={8}>
                   <Text c="dimmed">{`Selected ${selectedInputs.length} UTXOs amount:`}</Text>
@@ -377,16 +391,17 @@ export default function BatchTranferPage() {
             onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
           />
 
-          <Button
-            variant="filled"
-            size="md"
-            fullWidth
-            disabled={checkButtonDisabled()}
-            loading={loading}
-            onClick={handleSendButtonClick}
-          >
-            Send
-          </Button>
+          <Flex>
+            <Button
+              variant="filled"
+              size="sm"
+              disabled={checkButtonDisabled()}
+              loading={loading}
+              onClick={handleSendButtonClick}
+            >
+              Send
+            </Button>
+          </Flex>
 
           {syncedBlock != 0 && syncedBlock < latestBlock ? (
             <Text c={"red"} ta="center">

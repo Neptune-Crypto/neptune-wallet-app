@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { linkdata } from "../../routers";
 import { LinksGroup } from "../base/navbar-links-group";
 import SyncBlockCard from "../card/sync-block-card";
+import AccountSwitcher from "./account-switcher";
 import classes from "./navbar.module.css";
 function Navbar() {
   const [active, setActive] = useState("");
@@ -55,6 +56,8 @@ function Navbar() {
             />
           </Flex>
           <Space data-tauri-drag-region h={16} />
+          <AccountSwitcher />
+          <Space h={16} />
           <div data-tauri-drag-region className={classes.navbarMain}>
             {links}
           </div>
