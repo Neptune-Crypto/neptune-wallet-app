@@ -8,7 +8,7 @@ import { ellipsis } from "@/utils/ellipsis-format";
 import { deleteContactAddress } from "@/utils/storage";
 import { Box, Button, Center, Flex, LoadingOverlay, ScrollArea, Table, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconPencil, IconTrash } from "@tabler/icons-react";
+import { IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import AddContact from "./add-contact";
 import EditContact from "./edit-contact";
@@ -50,7 +50,7 @@ export default function ContactTable({ height = "450px" }: { height?: string } =
       <Table.Td>
         <Flex direction={"row"} gap={8} align={"center"}>
           <Text>{ellipsis(element.address)}</Text>
-          <CopyedIcon tooltipLable="Copy Address" size={16} value={element.address} />
+          <CopyedIcon tooltipLable="Copy address" size={16} value={element.address} />
         </Flex>
       </Table.Td>
       <Table.Td>
@@ -82,7 +82,13 @@ export default function ContactTable({ height = "450px" }: { height?: string } =
         contact={editingContact}
       />
       <Flex direction={"row"} mb={"sm"}>
-        <Button variant="light" data-autofocus size={"xs"} onClick={() => setShowAddContact(true)}>
+        <Button
+          variant="light"
+          data-autofocus
+          size={"xs"}
+          leftSection={<IconPlus size={14} />}
+          onClick={() => setShowAddContact(true)}
+        >
           Add contact
         </Button>
         <div data-autofocus></div>

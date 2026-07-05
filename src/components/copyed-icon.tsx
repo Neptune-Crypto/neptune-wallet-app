@@ -6,7 +6,7 @@ import { useState } from "react";
 export default function CopyedIcon({
   value,
   size = 18,
-  tooltipLable = "Copy Value",
+  tooltipLable = "Copy value",
 }: {
   value: string;
   size?: number;
