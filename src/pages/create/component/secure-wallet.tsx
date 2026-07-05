@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { useAppDispatch } from "@/store/hooks";
 import { setMnemonic } from "@/store/wallet/wallet-slice";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@/utils/notify";
 import * as bip39 from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 interface Props {
@@ -101,12 +101,7 @@ export default function SecureWallet(props: Props) {
             onClick={() => {
               dispatch(setMnemonic(bip39.generateMnemonic(wordlist, 192)));
               showMnemonic();
-              notifications.show({
-                position: "top-right",
-                title: "Success",
-                message: "New recovery phrase generated",
-                color: "green",
-              });
+              notify.success("New recovery phrase generated");
             }}
           >
             <IconReload />

@@ -9,7 +9,7 @@ import {
 } from "@/commands/app";
 import { Contact } from "@/database/types/contact";
 import { ExecutionDbHistory, ExecutionHistory } from "@/database/types/localhistory";
-import { notifications } from "@mantine/notifications";
+import { notify } from "../notify";
 
 export async function addContactAddress({ contact }: { contact: Contact }): Promise<boolean> {
   const params = [
@@ -134,12 +134,7 @@ export async function addExecutionHistory({ localHistory }: { localHistory: Exec
     return true;
   } catch (error: any) {
     console.log("Failed to insert execution history:", error);
-    notifications.show({
-      position: "top-right",
-      message: error,
-      color: "red",
-      title: "Error",
-    });
+    notify.error(error, "Failed to insert execution history");
     return false;
   }
 }
@@ -151,12 +146,7 @@ export async function deleteExecutionHistory({ txid }: { txid: string }): Promis
     return true;
   } catch (error: any) {
     console.log("Failed to delete execution history element:", error);
-    notifications.show({
-      position: "top-right",
-      message: error,
-      color: "red",
-      title: "Error",
-    });
+    notify.error(error, "Failed to delete execution history");
     return false;
   }
 }

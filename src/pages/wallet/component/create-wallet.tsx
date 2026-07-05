@@ -3,8 +3,8 @@ import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock } from "@/store/sync/hooks";
 import { queryLatestBlock } from "@/store/sync/sync-slice";
+import { notify } from "@/utils/notify";
 import { Box, Button, Center, Flex, Grid, LoadingOverlay, Text, TextInput } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { IconCircleCheck, IconCopy, IconEye, IconReload } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
@@ -43,20 +43,10 @@ export default function CreateWallet({
       let walletID = await addWallet(name, mnemonic, 25, latestBlock, true);
       await setCurrentWallet(walletID);
       onCreated();
-      notifications.show({
-        position: "top-right",
-        message: "Account created successfully!",
-        color: "green",
-        title: "Success",
-      });
+      notify.success("Account created successfully!");
     } catch (error: any) {
       console.log(error);
-      notifications.show({
-        position: "top-right",
-        message: error ?? "Failed to create account",
-        color: "red",
-        title: "Error",
-      });
+      notify.error(error, "Failed to create account");
     }
     setLoading(false);
   }

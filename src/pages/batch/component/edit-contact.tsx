@@ -1,9 +1,9 @@
 import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
 import { useAppDispatch } from "@/store/hooks";
+import { notify } from "@/utils/notify";
 import { updateContactAddress } from "@/utils/storage";
 import { Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 
 export default function EditContact({
@@ -38,20 +38,12 @@ export default function EditContact({
         address: address.trim(),
       };
       await updateContactAddress({ originalAddress: contact.address, contact: updated });
-      notifications.show({
-        position: "top-right",
-        message: "Contact updated successfully",
-        color: "green",
-      });
+      notify.success("Contact updated successfully");
       dispatch(queryAllContacts());
       close();
     } catch (error: any) {
       console.error(error);
-      notifications.show({
-        position: "top-right",
-        message: error || "Failed to update contact",
-        color: "red",
-      });
+      notify.error(error, "Failed to update contact");
     }
     setLoading(false);
   }

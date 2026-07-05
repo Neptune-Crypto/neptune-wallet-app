@@ -1,6 +1,6 @@
 import { addWallet, setCurrentWallet } from "@/commands/wallet";
+import { notify } from "@/utils/notify";
 import { Button, Flex, NumberInput, Textarea, TextInput } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { useState } from "react";
 
 export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
@@ -26,12 +26,7 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
       onCreated();
     } catch (error: any) {
       console.log(error);
-      notifications.show({
-        position: "top-right",
-        message: error || "Failed to import account",
-        color: "red",
-        title: "Error",
-      });
+      notify.error(error, "Failed to import account");
     }
     setLoading(false);
   }

@@ -2,9 +2,9 @@ import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
 import { useAppDispatch } from "@/store/hooks";
 import { sleep_milliseconds } from "@/utils/common";
+import { notify } from "@/utils/notify";
 import { addContactAddress } from "@/utils/storage";
 import { Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { useState } from "react";
 
 export default function AddContact({ opened, close }: { opened: boolean; close: () => void }) {
@@ -23,21 +23,13 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
       setLoading(true);
       contact.createdTime = new Date().getTime();
       addContactAddress({ contact });
-      notifications.show({
-        position: "top-right",
-        message: "Contact added successfully",
-        color: "green",
-      });
+      notify.success("Contact added successfully");
       await sleep_milliseconds(100);
       dispatch(queryAllContacts());
       close();
     } catch (error: any) {
       console.error(error);
-      notifications.show({
-        position: "top-right",
-        message: error || "Failed to add contact",
-        color: "red",
-      });
+      notify.error(error, "Failed to add contact");
     }
     setLoading(false);
   }

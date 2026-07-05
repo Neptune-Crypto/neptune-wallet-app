@@ -4,8 +4,8 @@ import { startRunRpcServer } from "@/store/auth/auth-slice";
 import { useAppDispatch } from "@/store/hooks";
 import { useMnemonic, useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
 import { setMnemonic, setOneTimePassword } from "@/store/wallet/wallet-slice";
+import { notify } from "@/utils/notify";
 import { Box, Button, Flex, Grid, Text } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { IconX } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 interface Props {
@@ -96,12 +96,7 @@ export default function ConfirmSecret(props: Props) {
 
   async function checkSecret() {
     if (verifyWords.join(" ") != mnemonic) {
-      notifications.show({
-        position: "top-right",
-        message: "The recovery phrase is incorrect, please check again.",
-        color: "red",
-        title: "Error",
-      });
+      notify.error(undefined, "The recovery phrase is incorrect, please check again.");
       return;
     }
     setLoading(true);
@@ -113,12 +108,7 @@ export default function ConfirmSecret(props: Props) {
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        message: error || "Failed to create account, please try again later.",
-        color: "red",
-        title: "Error",
-      });
+      notify.error(error, "Failed to create account, please try again later.");
     }
     setLoading(false);
   }

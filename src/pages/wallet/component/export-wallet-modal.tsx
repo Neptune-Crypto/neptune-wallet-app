@@ -1,4 +1,5 @@
 import { ExportWallet } from "@/commands/wallet";
+import { notify } from "@/utils/notify";
 import {
   Alert,
   Box,
@@ -12,7 +13,6 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import {
   IconCircleCheck,
   IconCopy,
@@ -52,12 +52,11 @@ export default function ExportWalletModal(props: Props) {
       let mnemonicWordList = await ExportWallet(value, id);
       setMnemonic(mnemonicWordList.join(" "));
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        color: "red",
-        title: "Failed to export account",
-        message: error || "An error occurred while exporting your account.",
-      });
+      notify.error(
+        error,
+        "An error occurred while exporting your account.",
+        "Failed to export account"
+      );
     }
   }
   function clickShowMnemonic() {

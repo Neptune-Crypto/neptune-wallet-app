@@ -10,6 +10,7 @@ import { forgetPendingTransaction } from "@/utils/api/apis";
 import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsisFormatLen } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
+import { notify } from "@/utils/notify";
 import {
   Button,
   Collapse,
@@ -22,8 +23,7 @@ import {
   Text,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
-import { IconCheck, IconChevronDown, IconX } from "@tabler/icons-react";
+import { IconChevronDown } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import styles from "./execution.module.css";
 
@@ -43,15 +43,7 @@ export default function ExecutionCard() {
   }, [requesTransactionResponse]);
 
   async function forgetTx(txid: string) {
-    const id = notifications.show({
-      position: "top-right",
-      color: "green",
-      loading: true,
-      title: "Forgetting transaction",
-      message: "Forgetting transaction, please wait...",
-      autoClose: false,
-      withCloseButton: false,
-    });
+    const id = notify.loading("Forgetting transaction", "Forgetting transaction, please wait...");
     try {
       setLoadingForget(true);
       await forgetPendingTransaction({ serverUrl, txid });
@@ -62,29 +54,13 @@ export default function ExecutionCard() {
           serverUrl,
         })
       );
-      notifications.update({
-        id,
-        position: "top-right",
-        color: "green",
-        title: "Transaction forgotten",
-        autoClose: 2500,
-        message: "Transaction forgotten successfully",
-        icon: <IconCheck size={18} />,
-        loading: false,
-        withCloseButton: true,
-      });
+      notify.done(id, "Transaction forgotten", "Transaction forgotten successfully");
     } catch (error: any) {
-      notifications.update({
+      notify.failed(
         id,
-        position: "top-right",
-        color: "red",
-        title: error || "Transaction forget failed",
-        autoClose: 2500,
-        message: "Transaction forget failed, please try again later",
-        icon: <IconX size={18} />,
-        loading: false,
-        withCloseButton: true,
-      });
+        error || "Transaction forget failed",
+        "Transaction forget failed, please try again later"
+      );
     }
     setLoadingForget(false);
   }

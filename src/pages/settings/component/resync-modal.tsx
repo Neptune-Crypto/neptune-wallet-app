@@ -1,6 +1,6 @@
 import { resetToHeight } from "@/commands/wallet";
+import { notify } from "@/utils/notify";
 import { Alert, Button, Flex, FocusTrap, Modal, NumberInput } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 
 export default function ResyncModal({ opened, close }: { opened: boolean; close: () => void }) {
@@ -16,20 +16,10 @@ export default function ResyncModal({ opened, close }: { opened: boolean; close:
     setLoading(true);
     try {
       await resetToHeight(Number(height));
-      notifications.show({
-        position: "top-right",
-        title: "Success",
-        message: "Resync Block Height Successfully!",
-        color: "green",
-      });
+      notify.success("Resync Block Height Successfully!");
       close();
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        title: "Error",
-        message: error || "Resync Block Height Failed!",
-        color: "red",
-      });
+      notify.error(error, "Resync Block Height Failed!");
     }
     setLoading(false);
   }

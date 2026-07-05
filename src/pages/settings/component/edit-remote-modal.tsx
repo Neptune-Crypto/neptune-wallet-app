@@ -2,8 +2,8 @@ import { set_rest_url } from "@/commands/config";
 import { useAppDispatch } from "@/store/hooks";
 import { querySettingActionData } from "@/store/settings/settings-slice";
 import { isValidUrl } from "@/utils/common";
+import { notify } from "@/utils/notify";
 import { Button, Flex, FocusTrap, Modal, TextInput } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 
 export default function EditRemoteModal({
@@ -29,20 +29,10 @@ export default function EditRemoteModal({
         }
         await set_rest_url(newValue);
         dispatch(querySettingActionData());
-        notifications.show({
-          position: "top-right",
-          title: "Success",
-          message: "Update remote rest url successfully.",
-          color: "green",
-        });
+        notify.success("Update remote rest url successfully.");
         close();
       } catch (error: any) {
-        notifications.show({
-          position: "top-right",
-          title: "Error",
-          message: error || "Failed to change network.",
-          color: "red",
-        });
+        notify.error(error, "Failed to change network.");
       }
     }
   }

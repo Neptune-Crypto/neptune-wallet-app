@@ -1,12 +1,12 @@
 import "@mantine/core/styles.css";
 import "@mantine/charts/styles.css";
-import { notifications } from "@mantine/notifications";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import "./app.css";
 import { ViewPort } from "./components/base/ViewPort";
 import { UpdateHandler } from "./components/UpdateHandler"; // Path to the new component
 import WindowTitlebarCard from "./components/windowTitlebarCard";
+import { notify } from "@/utils/notify";
 import { SYNC_FINISH_EVENT, SYNC_HEIGHT_EVENT, SYNC_SENT_STATUS_EVENT } from "./constant";
 import { checkHasUpdateVersion, queryAboutInfo } from "./store/about/about-slice";
 import { checkAuthPassword, startRunRpcServer } from "./store/auth/auth-slice";
@@ -88,19 +88,9 @@ const NotificationCard = (): null => {
   }, [requesTransactionResponse]);
   function handleRequesTransactionResponse() {
     if (requesTransactionResponse.transaction) {
-      notifications.show({
-        position: "top-right",
-        color: "green",
-        title: "Success",
-        message: "Create transaction success!",
-      });
+      notify.success("Create transaction success!");
     } else if (!requesTransactionResponse.transaction && requesTransactionResponse.message) {
-      notifications.show({
-        position: "top-right",
-        color: "red",
-        title: "Error",
-        message: requesTransactionResponse.message,
-      });
+      notify.error(undefined, requesTransactionResponse.message);
     }
   }
   return null;

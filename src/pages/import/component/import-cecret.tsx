@@ -3,8 +3,8 @@ import { addWallet } from "@/commands/wallet";
 import { useAppDispatch } from "@/store/hooks";
 import { useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
 import { setOneTimePassword } from "@/store/wallet/wallet-slice";
+import { notify } from "@/utils/notify";
 import { Button, Flex, NumberInput, Stack, Text, Textarea } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { useState } from "react";
 
 export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
@@ -33,12 +33,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        message: error || "Failed to import wallet",
-        color: "red",
-        title: "Error",
-      });
+      notify.error(error, "Failed to import wallet");
     }
     setLoading(false);
   }

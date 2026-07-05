@@ -9,6 +9,7 @@ import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
 import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { handleImportRandomness } from "@/utils/import-wallet-randomness";
+import { notify } from "@/utils/notify";
 import { deleteContactAddress } from "@/utils/storage";
 import {
   Badge,
@@ -25,8 +26,7 @@ import {
   TextInput,
   useModalsStack,
 } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
-import { IconCheck, IconPlus } from "@tabler/icons-react";
+import { IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
 import ActionMenu from "./action-menu";
 import AddWalletModal from "./add-wallet-modal";
@@ -64,27 +64,10 @@ export default function WalletTable() {
   async function changeWallet(wallet: Wallet) {
     let canChange = currentWalletID != wallet.id;
     if (canChange) {
-      const id = notifications.show({
-        position: "top-right",
-        loading: true,
-        title: "Changing account",
-        message: "Change account to " + wallet.name,
-        autoClose: false,
-        withCloseButton: false,
-      });
+      const id = notify.loading("Changing account", "Change account to " + wallet.name);
       await setCurrentWallet(wallet.id);
       await refreshWalletData();
-      notifications.update({
-        id,
-        position: "top-right",
-        color: "green",
-        title: "Account changed",
-        autoClose: 2000,
-        message: "Change account to " + wallet.name,
-        icon: <IconCheck size={18} />,
-        loading: false,
-        withCloseButton: true,
-      });
+      notify.done(id, "Account changed", "Change account to " + wallet.name);
     }
   }
 
@@ -105,19 +88,13 @@ export default function WalletTable() {
         await removeWallet(removeWalletData.id);
         remoceContact(removeWalletData.address);
         dispatch(queryWallets());
-        notifications.show({
-          position: "top-right",
-          color: "green",
-          title: "Account removed",
-          message: "Account " + removeWalletData.name + " has been removed",
-        });
+        notify.success("Account " + removeWalletData.name + " has been removed", "Account removed");
       } catch (error: any) {
-        notifications.show({
-          position: "top-right",
-          color: "red",
-          title: "Failed to remove account",
-          message: error || "An error occurred while removing the account.",
-        });
+        notify.error(
+          error,
+          "An error occurred while removing the account.",
+          "Failed to remove account"
+        );
       }
       stack.closeAll();
     }
@@ -135,19 +112,13 @@ export default function WalletTable() {
     try {
       await renameWallet(renameWalletData.id, name);
       dispatch(queryWallets());
-      notifications.show({
-        position: "top-right",
-        color: "green",
-        title: "Account renamed",
-        message: 'Account renamed to "' + name + '"',
-      });
+      notify.success('Account renamed to "' + name + '"', "Account renamed");
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        color: "red",
-        title: "Failed to rename account",
-        message: error || "An error occurred while renaming the account.",
-      });
+      notify.error(
+        error,
+        "An error occurred while renaming the account.",
+        "Failed to rename account"
+      );
     }
     stack.closeAll();
   }

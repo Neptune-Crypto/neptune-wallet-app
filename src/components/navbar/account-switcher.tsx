@@ -5,8 +5,8 @@ import { querySyncBlockStatus } from "@/store/sync/sync-slice";
 import { Wallet } from "@/store/types";
 import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
+import { notify } from "@/utils/notify";
 import { Box, Group, Menu, Text, UnstyledButton } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { IconCheck, IconChevronDown, IconWallet } from "@tabler/icons-react";
 import { useEffect } from "react";
 
@@ -26,31 +26,14 @@ export default function AccountSwitcher() {
 
   async function changeWallet(wallet: Wallet) {
     if (currentWalletID === wallet.id) return;
-    const id = notifications.show({
-      position: "top-right",
-      loading: true,
-      title: "Changing account",
-      message: "Switching to " + wallet.name,
-      autoClose: false,
-      withCloseButton: false,
-    });
+    const id = notify.loading("Changing account", "Switching to " + wallet.name);
     await setCurrentWallet(wallet.id);
     setTimeout(() => {
       dispatch(querySyncBlockStatus({ serverUrl }));
       dispatch(queryWallets());
       dispatch(queryWalletBalance({ serverUrl }));
     }, 200);
-    notifications.update({
-      id,
-      position: "top-right",
-      color: "green",
-      title: "Account changed",
-      message: "Switched to " + wallet.name,
-      icon: <IconCheck size={18} />,
-      loading: false,
-      autoClose: 2000,
-      withCloseButton: true,
-    });
+    notify.done(id, "Account changed", "Switched to " + wallet.name);
   }
 
   return (

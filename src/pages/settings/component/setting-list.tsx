@@ -3,8 +3,8 @@ import { get_disk_cache, set_disk_cache, set_network } from "@/commands/config";
 import { set_log_level } from "@/commands/log";
 import { LOG_LEVELS, NETWORKS } from "@/constant";
 import { useSettingActionData } from "@/store/settings/hooks";
+import { notify } from "@/utils/notify";
 import { Flex, Select, Switch } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import {
   IconCirclesRelation,
   IconCube,
@@ -58,19 +58,9 @@ export default function SettingList() {
     try {
       await set_disk_cache(enable);
       setChecked(enable);
-      notifications.show({
-        position: "top-right",
-        message: "Disk cache has been changed",
-        color: "green",
-        title: "Success",
-      });
+      notify.success("Disk cache has been changed");
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        color: "red",
-        title: "Error",
-        message: error || "Failed to change disk cache.",
-      });
+      notify.error(error, "Failed to change disk cache.");
     }
   }
 
@@ -80,12 +70,7 @@ export default function SettingList() {
         await set_log_level(value);
         setSelectedLogLevel(value);
       } catch (error: any) {
-        notifications.show({
-          position: "top-right",
-          title: "Error",
-          message: error || "Failed to change log level.",
-          color: "red",
-        });
+        notify.error(error, "Failed to change log level.");
       }
     }
   }
@@ -96,12 +81,7 @@ export default function SettingList() {
         await set_network(value);
         setSelectedNetwork(value);
       } catch (error: any) {
-        notifications.show({
-          position: "top-right",
-          title: "Error",
-          message: error || "Failed to change network.",
-          color: "red",
-        });
+        notify.error(error, "Failed to change network.");
       }
     }
   }

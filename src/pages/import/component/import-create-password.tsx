@@ -1,8 +1,8 @@
 import { useAppDispatch } from "@/store/hooks";
 import { setOneTimePassword, setOneTimeWalletName } from "@/store/wallet/wallet-slice";
+import { notify } from "@/utils/notify";
 import { Button, Flex, PasswordInput, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
 import { useCallback, useState } from "react";
 export default function ImportCreatePassword({ nextStep }: { nextStep: () => void }) {
   const [password, setPassword] = useState("");
@@ -29,12 +29,7 @@ export default function ImportCreatePassword({ nextStep }: { nextStep: () => voi
       dispatch(setOneTimeWalletName(name));
       nextStep();
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        message: error || "Failed to create password",
-        color: "red",
-        title: "Error",
-      });
+      notify.error(error, "Failed to create password");
     }
   }
   return (

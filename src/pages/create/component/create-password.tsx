@@ -1,8 +1,8 @@
 import { useAppDispatch } from "@/store/hooks";
 import { setMnemonic, setOneTimePassword, setOneTimeWalletName } from "@/store/wallet/wallet-slice";
+import { notify } from "@/utils/notify";
 import { Button, Flex, PasswordInput, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
 import * as bip39 from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { useCallback, useState } from "react";
@@ -38,12 +38,7 @@ export default function CreatePassword(props: Props) {
       dispatch(setMnemonic(bip39.generateMnemonic(wordlist, 192)));
       nextStep();
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        message: error || "Failed to create password",
-        color: "red",
-        title: "Error",
-      });
+      notify.error(error, "Failed to create password");
     }
   }
   return (

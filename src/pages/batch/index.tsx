@@ -33,7 +33,6 @@ import {
   Text,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
-import { notifications } from "@mantine/notifications";
 import { IconAlertTriangle, IconInfoCircle, IconPlus } from "@tabler/icons-react";
 import { Fragment, useEffect, useState } from "react";
 
@@ -42,6 +41,7 @@ import { queryCurrentWalletID, queryWalletBalance } from "@/store/wallet/wallet-
 import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
+import { notify } from "@/utils/notify";
 import { useLocation } from "react-router-dom";
 import ExecutionCard from "./component/execution-card";
 
@@ -131,12 +131,7 @@ export default function BatchTranferPage() {
       hasEmptyInput = true;
     }
     if (hasEmptyInput) {
-      notifications.show({
-        position: "top-right",
-        color: "red",
-        title: "Error",
-        message: "Please complete all required fields.",
-      });
+      notify.error(undefined, "Please complete all required fields.");
       return;
     }
 

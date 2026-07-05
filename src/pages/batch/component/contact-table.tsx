@@ -5,9 +5,9 @@ import { useAllContacts, useLoadingContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
 import { Contact } from "@/database/types/contact";
 import { ellipsis } from "@/utils/ellipsis-format";
+import { notify } from "@/utils/notify";
 import { deleteContactAddress } from "@/utils/storage";
 import { Box, Button, Center, Flex, LoadingOverlay, ScrollArea, Table, Text } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import AddContact from "./add-contact";
@@ -27,19 +27,9 @@ export default function ContactTable() {
     try {
       await deleteContactAddress({ address });
       dispatch(queryAllContacts());
-      notifications.show({
-        position: "top-right",
-        title: "Success",
-        message: "Delete contact successfully",
-        color: "green",
-      });
+      notify.success("Delete contact successfully");
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        title: "Error",
-        message: error || "Delete contact failed",
-        color: "red",
-      });
+      notify.error(error, "Delete contact failed");
     }
   }
   const rows = customContacts.map((element) => (

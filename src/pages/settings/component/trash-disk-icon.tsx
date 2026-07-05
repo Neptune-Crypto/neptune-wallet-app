@@ -3,8 +3,8 @@ import { useAppDispatch } from "@/store/hooks";
 import { useCacheFiles } from "@/store/settings/hooks";
 import { queryDiskCacheFiles } from "@/store/settings/settings-slice";
 import { BlockCacheFile } from "@/store/types";
+import { notify } from "@/utils/notify";
 import { Button, Flex, FocusTrap, Modal, NumberFormatter, ScrollArea, Table } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { IconTrashX } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
@@ -74,19 +74,9 @@ export function ChacheFileItem({ item }: { item: BlockCacheFile }) {
     try {
       await delete_cache(item.path);
       dispatch(queryDiskCacheFiles());
-      notifications.show({
-        position: "top-right",
-        title: "Success",
-        message: "Delete cache file success!",
-        color: "green",
-      });
+      notify.success("Delete cache file success!");
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        title: "Error",
-        message: error || "Delete cache file failed!",
-        color: "red",
-      });
+      notify.error(error, "Delete cache file failed!");
     }
     setLoading(false);
   }

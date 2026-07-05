@@ -1,5 +1,5 @@
+import { notify } from "@/utils/notify";
 import { Tooltip } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import { IconCircleCheck, IconCopy } from "@tabler/icons-react";
 import { useState } from "react";
 
@@ -25,12 +25,7 @@ export default function CopyedIcon({
             onClick={() => {
               navigator.clipboard.writeText(value);
               setCopyed(true);
-              notifications.show({
-                position: "top-right",
-                message: "Copied to clipboard",
-                color: "green",
-                title: "Success",
-              });
+              notify.success("Copied to clipboard");
               setTimeout(() => {
                 setCopyed(false);
               }, 2000);
