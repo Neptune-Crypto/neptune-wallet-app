@@ -115,6 +115,10 @@ export default function HistoryPage() {
             <ActivityTableCard historyType={historyType} />
           </Tabs.Panel>
           <Tabs.Panel value="utxos">
+            <Text size="sm" c="dimmed" mb={24}>
+              Your balance is made up of individual coins called UTXOs (unspent transaction
+              outputs). Select any below to spend them in a specific transaction.
+            </Text>
             <NewUtxoTable />
           </Tabs.Panel>
         </Tabs>

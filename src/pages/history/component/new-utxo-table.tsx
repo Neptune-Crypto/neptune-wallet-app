@@ -8,6 +8,7 @@ import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
 import { ellipsisFormatLen } from "@/utils/ellipsis-format";
 import { amount_to_fixed } from "@/utils/math-util";
+import { bigNumberPlusToString } from "@/utils/common";
 import {
   Box,
   Button,
@@ -118,13 +119,26 @@ export default function NewUtxoTable() {
   function navigateToSend() {
     navigate("/send", { state: selectedRows });
   }
+
+  const selectableIds = (availableUtxos ?? []).filter((u) => !u.locked).map((u) => u.id);
+  const allSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selectedRows.includes(id));
+  const totalAmount = (availableUtxos ?? []).reduce(
+    (sum, u) => bigNumberPlusToString(sum, u.amount),
+    "0"
+  );
+  const utxoCount = availableUtxos?.length ?? 0;
+
   return (
     <Flex direction={"column"} gap={8}>
       <Flex direction={"row"} justify={"space-between"} align={"center"}>
         <Flex direction={"row"} align={"center"} gap={16}>
-          <Text size="sm" fw={500}>
-            UTXO count: {availableUtxos?.length ?? 0}
-          </Text>
+          {utxoCount > 0 && (
+            <Text size="sm" fw={500}>
+              {utxoCount} UTXO{utxoCount === 1 ? "" : "s"} totalling{" "}
+              <NumberFormatter value={totalAmount} thousandSeparator decimalScale={4} /> NPT
+            </Text>
+          )}
           {selectedRows.length > 0 && (
             <>
               <Button size="xs" variant="light" onClick={navigateToSend}>
@@ -146,33 +160,35 @@ export default function NewUtxoTable() {
               }}
             />
           </Flex>
-          <Flex direction={"row"} align={"center"} gap={8}>
-            <Text c="dimmed">Sort by</Text>
-            <Menu shadow="md" width={120}>
-              <Menu.Target>
-                <Flex direction={"row"} gap={2} align={"center"} style={{ cursor: "pointer" }}>
-                  <Text c={"var(--primaryhighlight)"} style={{ fontSize: "14px" }}>
-                    {sortType}
-                  </Text>
-                  <IconSortDescending size={14} style={{ color: "var(--primaryhighlight)" }} />
-                </Flex>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  color={sortType == "Amount" ? "var(--primaryhighlight)" : ""}
-                  onClick={() => onchangeSortType("Amount")}
-                >
-                  Amount
-                </Menu.Item>
-                <Menu.Item
-                  color={sortType == "ID" ? "var(--primaryhighlight)" : ""}
-                  onClick={() => onchangeSortType("ID")}
-                >
-                  ID
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Flex>
+          {utxoCount > 0 && (
+            <Flex direction={"row"} align={"center"} gap={8}>
+              <Text c="dimmed">Sort by</Text>
+              <Menu shadow="md" width={120}>
+                <Menu.Target>
+                  <Flex direction={"row"} gap={2} align={"center"} style={{ cursor: "pointer" }}>
+                    <Text c={"var(--primaryhighlight)"} style={{ fontSize: "14px" }}>
+                      {sortType}
+                    </Text>
+                    <IconSortDescending size={14} style={{ color: "var(--primaryhighlight)" }} />
+                  </Flex>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    color={sortType == "Amount" ? "var(--primaryhighlight)" : ""}
+                    onClick={() => onchangeSortType("Amount")}
+                  >
+                    Amount
+                  </Menu.Item>
+                  <Menu.Item
+                    color={sortType == "ID" ? "var(--primaryhighlight)" : ""}
+                    onClick={() => onchangeSortType("ID")}
+                  >
+                    ID
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Flex>
+          )}
         </Flex>
       </Flex>
       <Box pos="relative">
@@ -193,7 +209,14 @@ export default function NewUtxoTable() {
           >
             <Table.Thead>
               <Table.Tr>
-                <Table.Th />
+                <Table.Th>
+                  <Checkbox
+                    aria-label="Select all UTXOs"
+                    checked={allSelected}
+                    indeterminate={selectedRows.length > 0 && !allSelected}
+                    onChange={() => setSelectedRows(allSelected ? [] : selectableIds)}
+                  />
+                </Table.Th>
                 <Table.Th>
                   <Center>ID</Center>
                 </Table.Th>

@@ -39,9 +39,11 @@ export default function ActivityTableCard({ historyType }: { historyType: string
         opened={showDetail}
         onClose={() => setShowDetail(false)}
       />
-      <Text size="sm" fw={500}>
-        {`Full history: ${entryCount} balance change${entryCount === 1 ? "" : "s"}`}
-      </Text>
+      {entryCount > 0 && (
+        <Text size="sm" fw={500}>
+          {`Full history: ${entryCount} balance change${entryCount === 1 ? "" : "s"}`}
+        </Text>
+      )}
       <Box pos="relative">
         <LoadingOverlay
           visible={loading}
