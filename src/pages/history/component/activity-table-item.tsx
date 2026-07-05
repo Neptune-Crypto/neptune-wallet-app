@@ -13,7 +13,7 @@ export default function ActivityTableItem(props: Props) {
   return (
     <Table.Tr>
       <Table.Td>
-        <Text c={"#0A8030"}>
+        <Text c={"#0A8430"}>
           <NumberFormatter value={element.height} thousandSeparator />
         </Text>
       </Table.Td>
@@ -24,7 +24,7 @@ export default function ActivityTableItem(props: Props) {
               {element.changeAmount}
             </Text>
           ) : (
-            <Text fw={600} c={"#0A8030"}>
+            <Text fw={600} c={"#0A8430"}>
               {element.changeAmount}
             </Text>
           )}
@@ -33,7 +33,7 @@ export default function ActivityTableItem(props: Props) {
       <Table.Td>
         <Center>
           <Stack gap={0} align="center">
-            <Text c={"#0A8030"}>{format(element.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+            <Text c={"#0A8430"}>{format(element.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
             <Text size="xs" c="dimmed">
               {formatDistanceToNow(element.timestamp, { addSuffix: true })}
             </Text>

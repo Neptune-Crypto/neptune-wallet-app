@@ -275,7 +275,7 @@ export default function BatchTranferPage() {
                     <HoverCard.Target>
                       <Text
                         fw={600}
-                        c="#0A8030"
+                        c="#0A8430"
                         style={{
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
@@ -304,7 +304,7 @@ export default function BatchTranferPage() {
 
             <Flex direction={"row"} gap={8}>
               <Text c="dimmed">Available balance:</Text>
-              <Text fw={600} c="#0A8030">
+              <Text fw={600} c="#0A8430">
                 {balanceData.available_balance}{" "}
                 <Text span c="dimmed" fw={400}>
                   NPT

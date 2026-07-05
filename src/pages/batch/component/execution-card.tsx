@@ -180,7 +180,7 @@ export default function ExecutionCard() {
                       <Table.Th>
                         <TimeClock
                           style={{
-                            color: "#0A8030",
+                            color: "#0A8430",
                           }}
                           timeStamp={Math.floor(item.timestamp / 1000)}
                         />
@@ -264,7 +264,7 @@ export default function ExecutionCard() {
                       <Table.Th>Amount:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
-                          <Text c={"#0A8030"}>
+                          <Text c={"#0A8430"}>
                             <NumberFormatter
                               value={handleAmount(item)}
                               thousandSeparator
@@ -278,7 +278,7 @@ export default function ExecutionCard() {
                       <Table.Th>Fee:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
-                          <Text c={"#0A8030"}>
+                          <Text c={"#0A8430"}>
                             <NumberFormatter
                               value={amount_to_positive_fixed(item.fee)}
                               thousandSeparator
@@ -294,7 +294,7 @@ export default function ExecutionCard() {
                         <Table.Th>Priority fee:</Table.Th>
                         <Table.Td>
                           <Flex w={"100%"} justify={"end"}>
-                            <Text c={"#0A8030"}>
+                            <Text c={"#0A8430"}>
                               <NumberFormatter
                                 value={amount_to_positive_fixed(item.priorityFee)}
                                 thousandSeparator
@@ -309,7 +309,7 @@ export default function ExecutionCard() {
                       <Table.Th>Total:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
-                          <Text c={"#0A8030"} fw={700}>
+                          <Text c={"#0A8430"} fw={700}>
                             <NumberFormatter
                               value={handleTotal(item)}
                               thousandSeparator

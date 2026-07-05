@@ -79,13 +79,13 @@ export default function NewUtxoTable() {
           </Center>
         </Table.Td>
         <Table.Td>
-          <Text c={"#0A8030"}>
+          <Text>
             <NumberFormatter value={element.confirm_height} thousandSeparator />
           </Text>
         </Table.Td>
         <Table.Td>
           <Center>
-            <Text c={"#0A8030"}>
+            <Text fw={600} c={"#0A8430"}>
               <NumberFormatter value={amount_to_fixed(element.amount)} thousandSeparator />
             </Text>
           </Center>
@@ -99,13 +99,13 @@ export default function NewUtxoTable() {
 
         <Table.Td>
           <Center>
-            <Text c={element.locked ? "grey" : "#0A8030"}>{element.locked ? "Yes" : "No"}</Text>
+            <Text c={element.locked ? "grey" : "#0A8430"}>{element.locked ? "Yes" : "No"}</Text>
           </Center>
         </Table.Td>
         <Table.Td>
           <Center>
             <Stack gap={0} align="center">
-              <Text c={"#0A8030"}>{format(element.confirm_timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+              <Text>{format(element.confirm_timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
               <Text size="xs" c="dimmed">
                 {formatDistanceToNow(element.confirm_timestamp, { addSuffix: true })}
               </Text>
