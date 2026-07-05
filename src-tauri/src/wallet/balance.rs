@@ -5,6 +5,9 @@ use serde::Deserialize;
 use serde::Serialize;
 
 impl super::WalletState {
+    // Available (spendable-now) balance. Retained for tests; the sync loop now
+    // persists the total balance via get_all_balance for the accounts list.
+    #[allow(dead_code)]
     pub(crate) async fn get_balance(&self) -> Result<NativeCurrencyAmount> {
         let utxos = self.get_utxos().await?;
 
