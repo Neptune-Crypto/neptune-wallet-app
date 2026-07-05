@@ -44,7 +44,7 @@ function Navbar() {
     <Box>
       <Group visibleFrom="sm">
         <nav data-tauri-drag-region className={classes.navbar}>
-          <Space data-tauri-drag-region h={54} />
+          <Space data-tauri-drag-region h={34} />
           <Flex justify={"center"} align={"center"}>
             <Image
               data-tauri-drag-region
