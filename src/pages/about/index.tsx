@@ -24,18 +24,19 @@ export function AboutView() {
       striped={false}
       styles={{
         th: {
-          fontSize: "16px",
-          fontWeight: "600",
-          justifyContent: "center",
-          justifyItems: "center",
+          fontSize: "14px",
+          fontWeight: "500",
+          color: "var(--mantine-color-dimmed)",
+          justifyContent: "flex-start",
+          justifyItems: "start",
           alignItems: "center",
           background: "transparent",
         },
         tr: {
-          fontSize: "12px",
-          fontWeight: "500",
-          justifyContent: "center",
-          justifyItems: "center",
+          fontSize: "14px",
+          fontWeight: "400",
+          justifyContent: "flex-start",
+          justifyItems: "start",
           alignItems: "center",
         },
       }}
