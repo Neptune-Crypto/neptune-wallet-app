@@ -5,11 +5,12 @@ import { queryLogMessages } from "@/store/log/log-slice";
 import { Button, Flex, ScrollArea } from "@mantine/core";
 import Ansi from "ansi-to-react";
 import { memo, useEffect, useRef, useState } from "react";
+import "./index.css";
 
 // Memoized so an existing line is not re-parsed (ansi-to-react is not cheap) when
 // new lines arrive; only lines whose text actually changed re-render.
 const LogLine = memo(function LogLine({ line }: { line: string }) {
-  return <Ansi>{line}</Ansi>;
+  return <Ansi useClasses>{line}</Ansi>;
 });
 
 // The log viewer, rendered as a tab inside the Advanced view. It manages its own
@@ -70,6 +71,7 @@ export function LogView() {
         styles={{ viewport: { paddingRight: 24 } }}
       >
         <Flex
+          className="log-view"
           direction="column"
           gap="16"
           style={{
