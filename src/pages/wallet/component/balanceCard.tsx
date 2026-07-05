@@ -53,6 +53,9 @@ export default function BalanceCard() {
     hideButton?: boolean;
     tooltip?: string;
   }) {
+    // Both cards use white text; their backgrounds are dark enough for it to clear
+    // WCAG AA (the locked card's amber was darkened for this — see app.css).
+    const textColor = "white";
     return (
       <Card
         radius="md"
@@ -69,10 +72,14 @@ export default function BalanceCard() {
               whiteSpace: "nowrap",
             }}
           >
-            <Text style={{ color: "white", fontWeight: "500", fontSize: "14px" }}>{title}</Text>
+            <Text style={{ color: textColor, fontWeight: "500", fontSize: "14px" }}>{title}</Text>
             {tooltip && (
               <Tooltip label={tooltip} multiline w={240} withArrow position="top">
-                <IconInfoCircle size={14} color="white" style={{ opacity: 0.75, cursor: "help" }} />
+                <IconInfoCircle
+                  size={14}
+                  color={textColor}
+                  style={{ opacity: 0.75, cursor: "help" }}
+                />
               </Tooltip>
             )}
           </Flex>
@@ -84,11 +91,11 @@ export default function BalanceCard() {
                 overlayProps={{ radius: "sm", blur: 3 }}
                 loaderProps={{ color: "orange", type: "dots" }}
               />
-              <Text style={{ color: "white", fontWeight: "500", fontSize: "32px" }}>
+              <Text style={{ color: textColor, fontWeight: "500", fontSize: "32px" }}>
                 {children}
               </Text>
             </Box>
-            <Text style={{ color: "white", fontWeight: "500", fontSize: "16px", opacity: 0.75 }}>
+            <Text style={{ color: textColor, fontWeight: "500", fontSize: "16px", opacity: 0.75 }}>
               NPT
             </Text>
           </Flex>
