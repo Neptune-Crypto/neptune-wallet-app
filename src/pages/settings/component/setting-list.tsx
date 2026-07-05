@@ -111,7 +111,8 @@ export default function SettingList() {
     <Flex direction="column" gap={16} w={"100%"}>
       <BaseItem
         leftSection={<IconCirclesRelation />}
-        label={"Server URL"}
+        label={"Local RPC URL"}
+        description="The wallet's own local backend (127.0.0.1). Carries an access token, so keep it private."
         value={serverUrl}
         hide={hideServerUrl}
         rightSection={
@@ -141,6 +142,7 @@ export default function SettingList() {
       <BaseItem
         leftSection={<IconLicense />}
         label={"Log level"}
+        description="How much detail the app writes to its logs."
         rightSection={
           <Select
             allowDeselect
@@ -155,6 +157,7 @@ export default function SettingList() {
       <BaseItem
         leftSection={<IconWorld />}
         label={"Network"}
+        description="Which Neptune network the wallet connects to."
         rightSection={
           <Select
             allowDeselect
@@ -168,7 +171,8 @@ export default function SettingList() {
 
       <BaseItem
         leftSection={<IconPlugConnected />}
-        label={"Remote REST URL"}
+        label={"Remote node URL"}
+        description="The remote Neptune node the wallet fetches blockchain data from."
         value={remoteUrl}
         rightSection={
           <Flex direction={"row"} gap={8}>
@@ -180,17 +184,20 @@ export default function SettingList() {
       <BaseItem
         leftSection={<IconLockCog />}
         label={"Password"}
+        description="Change the password that unlocks this wallet."
         rightSection={<ResetPasswordIcon />}
       />
       <BaseItem
         leftSection={<IconCube />}
         label={"Resync block height"}
+        description="Re-scan the blockchain from a chosen block height to rebuild balances and history."
         rightSection={<ResyncIcon />}
       />
 
       <BaseItem
         leftSection={<IconDatabase />}
         label={"Disk cache"}
+        description="Keep downloaded blocks on disk to speed up future syncs."
         rightSection={
           <Flex direction={"row"} gap={8} align={"center"}>
             <TrashDiskIcon />
@@ -208,6 +215,7 @@ export default function SettingList() {
       <BaseItem
         leftSection={<IconFolderOpen />}
         label={"Open data directory"}
+        description="Open the folder where the wallet stores its files."
         value={`${dataDir}`}
         rightSection={
           <IconFolderShare

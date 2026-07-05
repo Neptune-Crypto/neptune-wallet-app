@@ -21,6 +21,7 @@ export default function SettingsPage() {
         <Flex
           direction="column"
           gap="16"
+          pb={24}
           style={{
             fontSize: "14px",
             wordWrap: "break-word",

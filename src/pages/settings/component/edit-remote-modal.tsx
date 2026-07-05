@@ -47,12 +47,12 @@ export default function EditRemoteModal({
     }
   }
   return (
-    <Modal opened={opened} onClose={close} title="Update remote REST URL" centered>
+    <Modal opened={opened} onClose={close} title="Update remote node URL" centered>
       <FocusTrap.InitialFocus />
       <Flex direction="column" gap={16}>
         <TextInput
-          label="Remote REST URL"
-          placeholder="Remote REST URL, with protocol (either https:// or http://)"
+          label="Remote node URL"
+          placeholder="Remote node URL, with protocol (either https:// or http://)"
           value={newValue}
           onChange={(e) => setNewValue(e.target.value.trim())}
         />
