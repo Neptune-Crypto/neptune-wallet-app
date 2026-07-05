@@ -49,11 +49,11 @@ export default function AddressesPage() {
 
   const ADDRESS_DESCRIPTIONS: Record<string, string> = {
     [generation_tab]:
-      "The most private option. Safe to reuse and share with many people without weakening your privacy. Recommended for everyday use.",
+      "The most private option and a good default for everyday use. It is safe to reuse without harming your on-chain privacy, though publicly posting the same address under different names can still connect those identities.",
     [ec_hybrid_tab]:
-      "A shorter, more compact address. Share each one with a single person only: if the same address is reused more widely, an attacker with a powerful quantum computer could expose (but never steal) the payments sent to it.",
+      "A shorter, more compact address that is easier to share. Give each one to a single person only: if reused more widely, a future quantum attacker could reveal (but never spend) the funds sent to it.",
     [viewing_tab]:
-      "Share each address with a single person only. Anyone who has one of these addresses can see everything it has ever received.",
+      "A view-only address, best given to a single person. Anyone holding it can see every payment the address has ever received — which is useful for auditing — but can never move or spend any of those funds.",
   };
 
   const getQrPayload = (address: string) => `${uri_scheme_prefix}:${address.toUpperCase()}`;
@@ -205,17 +205,13 @@ export default function AddressesPage() {
           </Tabs.List>
 
           <Tabs.Panel value={activeTab || generation_tab}>
-            {/* Reserve a consistent height so the table doesn't shift between
-                tabs whose descriptions differ in length, and fix the button
-                width so it stays the same across tabs. */}
-            <Flex justify="space-between" align="flex-start" mb="sm" wrap="wrap" gap="sm" mih={80}>
-              <Text c="dimmed" size="sm" style={{ flex: 1 }}>
+            <Flex direction="column" align="flex-start" mb="sm" gap="sm">
+              <Text c="dimmed" size="sm">
                 {activeTab ? ADDRESS_DESCRIPTIONS[activeTab] : ""}
               </Text>
-
               <Button
-                w={230}
-                justify="flex-start"
+                variant="light"
+                size="xs"
                 leftSection={<IconPlus size={14} />}
                 onClick={handleGenerate}
                 loading={isGenerating}
