@@ -40,51 +40,70 @@ export default function HistoryPage() {
         styles={{ viewport: { paddingRight: 24 } }}
       >
         <Tabs value={section} onChange={(value) => setSection(value ?? "activity")}>
-          <Tabs.List mb="md">
-            <Tabs.Tab value="activity">Activity</Tabs.Tab>
-            <Tabs.Tab value="utxos">UTXOs</Tabs.Tab>
-          </Tabs.List>
+          <Box pos="relative" mb="sm">
+            <Tabs.List>
+              <Tabs.Tab value="activity">Activity</Tabs.Tab>
+              <Tabs.Tab value="utxos">UTXOs</Tabs.Tab>
+            </Tabs.List>
+            {section === "activity" && (
+              <Group
+                pos="absolute"
+                right={0}
+                top="50%"
+                gap="xs"
+                align="center"
+                style={{ transform: "translateY(-50%)" }}
+              >
+                <Text size="sm" c="dimmed">
+                  Show
+                </Text>
+                <Select
+                  w={120}
+                  size="xs"
+                  data={["All", "Received", "Sent"]}
+                  value={historyType}
+                  onChange={(value) => setHistoryType(value ?? "All")}
+                  allowDeselect={false}
+                />
+              </Group>
+            )}
+          </Box>
           <Tabs.Panel value="activity">
-            <Group justify="flex-end" align="center" gap="xs" mb="md">
-              <Text size="sm" c="dimmed">
-                Show
-              </Text>
-              <Select
-                w={120}
-                size="sm"
-                data={["All", "Received", "Sent"]}
-                value={historyType}
-                onChange={(value) => setHistoryType(value ?? "All")}
-                allowDeselect={false}
-              />
-            </Group>
             {perDay && perDay.length > 0 && (
               <>
-                <Text size="sm" fw={500} ta="center" mb={4}>
-                  Last 7 days
-                </Text>
-                <Group gap="lg" justify="center" mb="xs">
-                  {historyType !== "Sent" && (
-                    <Group gap={6}>
-                      <Box
-                        w={12}
-                        h={12}
-                        style={{ borderRadius: 2, backgroundColor: "#0A8430" }}
-                      />
-                      <Text size="sm">Received</Text>
-                    </Group>
-                  )}
-                  {historyType !== "Received" && (
-                    <Group gap={6}>
-                      <Box
-                        w={12}
-                        h={12}
-                        style={{ borderRadius: 2, backgroundColor: "var(--mantine-color-red-6)" }}
-                      />
-                      <Text size="sm">Sent</Text>
-                    </Group>
-                  )}
-                </Group>
+                <Box pos="relative" mb="xs">
+                  <Text size="sm" fw={500} ta="center">
+                    Last 14 days
+                  </Text>
+                  <Group
+                    gap="lg"
+                    pos="absolute"
+                    right={0}
+                    top="50%"
+                    style={{ transform: "translateY(-50%)" }}
+                  >
+                    {historyType !== "Sent" && (
+                      <Group gap={6}>
+                        <Box
+                          w={12}
+                          h={12}
+                          style={{ borderRadius: 2, backgroundColor: "#0A8430" }}
+                        />
+                        <Text size="sm">Received</Text>
+                      </Group>
+                    )}
+                    {historyType !== "Received" && (
+                      <Group gap={6}>
+                        <Box
+                          w={12}
+                          h={12}
+                          style={{ borderRadius: 2, backgroundColor: "var(--mantine-color-red-6)" }}
+                        />
+                        <Text size="sm">Sent</Text>
+                      </Group>
+                    )}
+                  </Group>
+                </Box>
                 <BarChart
                   h={220}
                   data={perDay}

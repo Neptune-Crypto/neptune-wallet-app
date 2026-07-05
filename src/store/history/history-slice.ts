@@ -91,7 +91,7 @@ function getTotalPerDay(activitys: MerageHistory[]) {
   let timestamp = new Date().getTime();
   let perDay = [] as DayHistory[];
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 14; i++) {
     perDay.push({
       start_height: 0,
       end_height: 0,
@@ -99,9 +99,7 @@ function getTotalPerDay(activitys: MerageHistory[]) {
       Sent: 0,
       timestamp: timestamp - i * 24 * 60 * 60 * 1000,
       data:
-        i === 0
-          ? "Today"
-          : format(new Date(timestamp - i * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
+        i === 0 ? "Today" : format(new Date(timestamp - i * 24 * 60 * 60 * 1000), "MMM d"),
     });
   }
   perDay.reverse();
@@ -127,7 +125,7 @@ function getTotalPerDay(activitys: MerageHistory[]) {
     }
   });
 
-  // Keep the full 7-day window (including days with no transactions) so the
+  // Keep the full 14-day window (including days with no transactions) so the
   // chart x-axis stays a continuous timeline instead of collapsing gaps. But
   // if the whole window is empty, return nothing so the chart hides entirely.
   const hasActivity = perDay.some((item) => item.end_height !== 0);

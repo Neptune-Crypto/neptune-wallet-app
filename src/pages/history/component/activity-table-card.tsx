@@ -64,7 +64,7 @@ export default function ActivityTableCard({ historyType }: { historyType: string
               <Table.Tr>
                 <Table.Th>Block height</Table.Th>
                 <Table.Th>
-                  <Center>Amount change (NPT)</Center>
+                  <Center>Balance change (NPT)</Center>
                 </Table.Th>
                 <Table.Th>
                   <Center>Time</Center>
