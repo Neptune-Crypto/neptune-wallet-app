@@ -91,7 +91,7 @@ function LockPage() {
                 autoFocus={true}
               />
               <Button variant="light" disabled={!password} onClick={handleUnlock}>
-                UnLock
+                Unlock
               </Button>
             </Flex>
           </Card>
