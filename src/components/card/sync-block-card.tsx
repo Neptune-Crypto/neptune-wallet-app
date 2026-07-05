@@ -30,7 +30,7 @@ export default function SyncBlockCard() {
             <IconMeteor color="#fa6800" size={16} />
             <Space w={5} />
             <Text fz={"xs"} fw={"bold"} c={"#FFFFFF"}>
-              sync status
+              Sync status
             </Text>
           </Flex>
           <Flex direction={"row"} gap={2}>
