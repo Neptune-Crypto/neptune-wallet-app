@@ -10,7 +10,6 @@ import { ellipsis } from "@/utils/ellipsis-format";
 import { handleImportRandomness } from "@/utils/import-wallet-randomness";
 import { deleteContactAddress } from "@/utils/storage";
 import {
-  Badge,
   Box,
   Button,
   Flex,
@@ -24,7 +23,7 @@ import {
   useModalsStack,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCheck, IconCirclePlus, IconStarFilled } from "@tabler/icons-react";
+import { IconCheck, IconPlus, IconStarFilled } from "@tabler/icons-react";
 import { useState } from "react";
 import ActionMenu from "./action-menu";
 import AddWalletModal from "./add-wallet-modal";
@@ -198,22 +197,6 @@ export default function WalletTable() {
         }
       </Table.Td>
       <Table.Td>
-        <Flex direction="row" gap={8} align="center">
-          <Badge color="blue" variant="light" size="sm" title="Generation Addresses">
-            {element.num_generation_addresses} Gen
-          </Badge>
-          <Badge color="violet" variant="light" size="sm" title="Symmetric Addresses">
-            {element.num_symmetric_addresses} Sym
-          </Badge>
-          <Badge color="green" variant="light" size="sm" title="EC-hybrid Addresses">
-            {element.num_ec_hybrid_addresses} ECH
-          </Badge>
-          <Badge color="orange" variant="light" size="sm" title="Viewing Addresses">
-            {element.num_viewing_addresses} View
-          </Badge>
-        </Flex>
-      </Table.Td>
-      <Table.Td>
         <ActionMenu
           isCurrentWallet={currentWalletID == element.id}
           switchWallet={() => changeWallet(element)}
@@ -285,19 +268,17 @@ export default function WalletTable() {
         </Modal>
       </Modal.Stack>
       <AddWalletModal opened={showAddWalletModal} onClose={() => setShowAddWalletModal(false)} />
-      <Flex direction={"row"} justify={"space-between"} align={"center"}>
-        <Text fz={24} fw={500}>
-          Accounts
-        </Text>
+      <Flex direction={"row"} mb={"sm"}>
         <Button
           variant="light"
+          size="xs"
           onClick={() => setShowAddWalletModal(true)}
-          leftSection={<IconCirclePlus />}
+          leftSection={<IconPlus size={14} />}
         >
           Add account
         </Button>
       </Flex>
-      <ScrollArea h={"calc(100vh - 300px)"} type="auto" scrollbarSize={8} offsetScrollbars>
+      <ScrollArea h={"calc(100vh - 330px)"} type="auto" scrollbarSize={8} offsetScrollbars>
         <Box pos="relative">
           <LoadingOverlay
             visible={loading}
@@ -305,7 +286,27 @@ export default function WalletTable() {
             overlayProps={{ radius: "sm", blur: 2 }}
             loaderProps={{ color: "pink" }}
           />
-          <Table verticalSpacing="md">
+          <Table
+            stickyHeader
+            verticalSpacing="sm"
+            striped
+            highlightOnHover
+            styles={{
+              thead: {
+                fontSize: "14px",
+                fontWeight: 600,
+              },
+            }}
+          >
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>#</Table.Th>
+                <Table.Th>Account name</Table.Th>
+                <Table.Th>Address</Table.Th>
+                <Table.Th>Total balance</Table.Th>
+                <Table.Th>Actions</Table.Th>
+              </Table.Tr>
+            </Table.Thead>
             <Table.Tbody>{rows}</Table.Tbody>
           </Table>
         </Box>

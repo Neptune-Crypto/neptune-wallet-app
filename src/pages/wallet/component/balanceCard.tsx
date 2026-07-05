@@ -9,7 +9,9 @@ import {
   LoadingOverlay,
   NumberFormatter,
   Text,
+  Tooltip,
 } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -36,6 +38,8 @@ export default function BalanceCard() {
       },
       {
         title: "Locked balance",
+        tooltip:
+          "Funds you own that aren't spendable yet — e.g. time-locked outputs or coins still awaiting confirmation.",
         value: <NumberFormatter value={lock_balance} thousandSeparator />,
       },
     ];
@@ -45,10 +49,12 @@ export default function BalanceCard() {
     title,
     children,
     hideButton,
+    tooltip,
   }: {
     title: string;
     children: React.ReactNode;
     hideButton?: boolean;
+    tooltip?: string;
   }) {
     return (
       <Card
@@ -67,8 +73,13 @@ export default function BalanceCard() {
             }}
           >
             <Text style={{ color: "white", fontWeight: "500", fontSize: "14px" }}>{title}</Text>
+            {tooltip && (
+              <Tooltip label={tooltip} multiline w={240} withArrow position="top">
+                <IconInfoCircle size={14} color="white" style={{ opacity: 0.75, cursor: "help" }} />
+              </Tooltip>
+            )}
           </Flex>
-          <Flex direction={"row"} gap={4} justify="center" align="center">
+          <Flex direction={"row"} gap={6} justify="center" align="baseline">
             <Box pos="relative">
               <LoadingOverlay
                 visible={loading}
@@ -80,6 +91,9 @@ export default function BalanceCard() {
                 {children}
               </Text>
             </Box>
+            <Text style={{ color: "white", fontWeight: "500", fontSize: "16px", opacity: 0.75 }}>
+              NPT
+            </Text>
           </Flex>
           {hideButton ? (
             <Flex direction={"row"} justify="center" align="center">
@@ -117,7 +131,7 @@ export default function BalanceCard() {
           {options.map((item, index) => {
             return (
               <Grid.Col key={index} span={6}>
-                <BaseCard title={item.title} hideButton={index === 1}>
+                <BaseCard title={item.title} hideButton={index === 1} tooltip={item.tooltip}>
                   {item.value}
                 </BaseCard>
               </Grid.Col>
