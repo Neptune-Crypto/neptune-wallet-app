@@ -5,6 +5,7 @@ import {
   IconLayoutNavbarCollapse,
   IconSettings,
   IconTransfer,
+  IconUsers,
   IconWallet,
 } from "@tabler/icons-react";
 import { lazy } from "react";
@@ -17,6 +18,7 @@ const AdvancedPage = lazy(async () => await import("../pages/advanced"));
 const AddressesPage = lazy(async () => await import("../pages/addresses"));
 const HistoryPage = lazy(async () => await import("../pages/history"));
 const BatchPage = lazy(async () => await import("../pages/batch"));
+const ContactsPage = lazy(async () => await import("../pages/contacts"));
 export const routesConfig: RouteObject[] = [
   {
     path: "/",
@@ -54,6 +56,10 @@ export const routesConfig: RouteObject[] = [
         element: <AddressesPage />,
       },
       {
+        path: "contacts",
+        element: <ContactsPage />,
+      },
+      {
         path: "history",
         element: <HistoryPage />,
       },
@@ -73,6 +79,7 @@ export const linkdata = [
   { label: "Wallet", href: "/wallet", icon: IconWallet },
   { label: "Send", href: "/send", icon: IconTransfer },
   { label: "Receive", href: "/addresses", icon: IconArrowDownCircle },
+  { label: "Contacts", href: "/contacts", icon: IconUsers },
   { label: "History", href: "/history", icon: IconHistory },
   { label: "Advanced", href: "/advanced", icon: IconDeviceImacUp },
   { label: "Settings", href: "/settings", icon: IconSettings },

@@ -35,7 +35,7 @@ export default function TransferForm(props: Props) {
             variant="subtle"
             color="gray"
             size="lg"
-            aria-label="Choose from address book"
+            aria-label="Choose from contacts"
             onClick={() => setShowSelectContactModal(true)}
           >
             <IconAddressBook size={22} />
@@ -53,7 +53,7 @@ export default function TransferForm(props: Props) {
               }
             }}
           >
-            <IconTrash size={22} />
+            <IconTrash size={16} />
           </ActionIcon>
         )}
       </Flex>

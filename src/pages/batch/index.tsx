@@ -29,7 +29,7 @@ import {
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
-import { IconAddressBook, IconAlertTriangle, IconInfoCircle, IconPlus } from "@tabler/icons-react";
+import { IconAlertTriangle, IconInfoCircle, IconPlus } from "@tabler/icons-react";
 import { Fragment, useEffect, useState } from "react";
 
 import { useAvailableUtxos } from "@/store/history/hooks";
@@ -38,7 +38,6 @@ import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { useLocation } from "react-router-dom";
-import ContactModal from "./component/contact-modal";
 import ExecutionCard from "./component/execution-card";
 
 export default function BatchTranferPage() {
@@ -62,7 +61,6 @@ export default function BatchTranferPage() {
   const currentWalletID = useCurrentWalledId();
   const currentAddress = useCurrentAddress();
   const syncedBlock = useSyncedBlock();
-  const [showContactModal, setShowContactModal] = useState(false);
   const requesTransactionResponse = useRequesetSendTransactionResponse();
   const [selectedInputs, setSelectedInputs] = useState([] as number[]);
   const [selectedAmount, setSelectedAmount] = useState("");
@@ -251,20 +249,7 @@ export default function BatchTranferPage() {
   }
   return (
     <ScrollArea w={"100%"} h={"calc(100vh - 12px)"} type="auto" scrollbarSize={8}>
-      <ContactModal opened={showContactModal} close={() => setShowContactModal(false)} />
-      <WithTitlePageHeader
-        title="Send"
-        buttons={
-          <Button
-            onClick={() => setShowContactModal(true)}
-            variant="light"
-            size="xs"
-            leftSection={<IconAddressBook size={14} />}
-          >
-            Address book
-          </Button>
-        }
-      >
+      <WithTitlePageHeader title="Send">
         <Stack gap="md">
           <Flex direction={"row"} justify={"space-between"}>
             <Flex direction={"row"} gap={8}>
@@ -361,6 +346,7 @@ export default function BatchTranferPage() {
           </Flex>
 
           <NumberInput
+            mt="sm"
             label={"Fee"}
             styles={{ label: { fontSize: "16px", fontWeight: 600 } }}
             w={200}
@@ -378,6 +364,7 @@ export default function BatchTranferPage() {
           />
 
           <Switch
+            mt="sm"
             label="Accept lustrations"
             labelPosition="left"
             size="md"

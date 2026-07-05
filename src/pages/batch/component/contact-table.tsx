@@ -11,7 +11,7 @@ import { IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import AddContact from "./add-contact";
 
-export default function ContactTable() {
+export default function ContactTable({ height = "450px" }: { height?: string } = {}) {
   const loading = useLoadingContacts();
   const contracts = useAllContacts();
   const dispatch = useAppDispatch();
@@ -52,7 +52,7 @@ export default function ContactTable() {
           <Center>
             <Flex direction={"row"}>
               <IconTrash
-                size={14}
+                size={16}
                 color={element.type === "owner" ? "grey" : "red"}
                 style={{
                   cursor: element.type === "owner" ? "not-allowed" : "pointer",
@@ -67,9 +67,9 @@ export default function ContactTable() {
   return (
     <Flex direction={"column"}>
       <AddContact opened={showAddContact} close={() => setShowAddContact(false)} />
-      <Flex direction={"row"}>
+      <Flex direction={"row"} mb={"sm"}>
         <Button variant="light" data-autofocus size={"xs"} onClick={() => setShowAddContact(true)}>
-          Add Contact
+          Add contact
         </Button>
         <div data-autofocus></div>
       </Flex>
@@ -81,7 +81,7 @@ export default function ContactTable() {
           loaderProps={{ color: "pink" }}
         />
         {!loading && contracts && contracts.length > 0 ? (
-          <ScrollArea h={"450px"} type="auto" scrollbarSize={8} offsetScrollbars>
+          <ScrollArea h={height} type="auto" scrollbarSize={8} offsetScrollbars>
             <Table
               stickyHeader
               verticalSpacing="sm"
@@ -98,7 +98,7 @@ export default function ContactTable() {
                 <Table.Tr>
                   <Table.Th>Name</Table.Th>
                   <Table.Th>Address</Table.Th>
-                  <Table.Th>Operate</Table.Th>
+                  <Table.Th>Actions</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>{rows}</Table.Tbody>
