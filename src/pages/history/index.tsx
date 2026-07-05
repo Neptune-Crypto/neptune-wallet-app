@@ -23,8 +23,8 @@ export default function HistoryPage() {
 
   // Series order is bottom-to-top of the stack: Sent on the bottom, Received on top.
   const series = [
-    { name: "Sent", color: "red.6" },
-    { name: "Received", color: "#0A8430" },
+    ...(historyType !== "Received" ? [{ name: "Sent", color: "red.6" }] : []),
+    ...(historyType !== "Sent" ? [{ name: "Received", color: "#0A8430" }] : []),
   ];
 
   const valueFormatter = (value: number) =>
@@ -64,22 +64,26 @@ export default function HistoryPage() {
                   Last 7 days
                 </Text>
                 <Group gap="lg" justify="center" mb="xs">
-                  <Group gap={6}>
-                    <Box
-                      w={12}
-                      h={12}
-                      style={{ borderRadius: 2, backgroundColor: "#0A8430" }}
-                    />
-                    <Text size="sm">Received</Text>
-                  </Group>
-                  <Group gap={6}>
-                    <Box
-                      w={12}
-                      h={12}
-                      style={{ borderRadius: 2, backgroundColor: "var(--mantine-color-red-6)" }}
-                    />
-                    <Text size="sm">Sent</Text>
-                  </Group>
+                  {historyType !== "Sent" && (
+                    <Group gap={6}>
+                      <Box
+                        w={12}
+                        h={12}
+                        style={{ borderRadius: 2, backgroundColor: "#0A8430" }}
+                      />
+                      <Text size="sm">Received</Text>
+                    </Group>
+                  )}
+                  {historyType !== "Received" && (
+                    <Group gap={6}>
+                      <Box
+                        w={12}
+                        h={12}
+                        style={{ borderRadius: 2, backgroundColor: "var(--mantine-color-red-6)" }}
+                      />
+                      <Text size="sm">Sent</Text>
+                    </Group>
+                  )}
                 </Group>
                 <BarChart
                   h={220}
@@ -115,7 +119,7 @@ export default function HistoryPage() {
             <ActivityTableCard historyType={historyType} />
           </Tabs.Panel>
           <Tabs.Panel value="utxos">
-            <Text size="sm" c="dimmed" mb={24}>
+            <Text size="sm" c="dimmed" mb={36}>
               Your balance is made up of individual coins called UTXOs (unspent transaction
               outputs). Select any below to spend them in a specific transaction.
             </Text>
