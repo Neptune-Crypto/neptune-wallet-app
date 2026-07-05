@@ -26,7 +26,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <Provider store={store}>
       <HashRouter>
         <MantineProvider theme={theme} cssVariablesResolver={cssVariablesResolver}>
-          <Notifications />
+          {/* paddingTop offsets the toasts from the top via padding (not `top`,
+              which broke pointer events on the overlay). */}
+          <Notifications styles={{ root: { paddingTop: 24 } }} />
           <ModalsProvider>
             <App />
           </ModalsProvider>
