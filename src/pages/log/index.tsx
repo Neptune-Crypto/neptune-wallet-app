@@ -1,8 +1,7 @@
-import { clear_logs } from "@/commands/log";
 import { useAppDispatch } from "@/store/hooks";
 import { useLogs } from "@/store/log/hooks";
 import { queryLogMessages } from "@/store/log/log-slice";
-import { Button, Flex, ScrollArea } from "@mantine/core";
+import { Flex, ScrollArea } from "@mantine/core";
 import Ansi from "ansi-to-react";
 import { memo, useEffect, useRef, useState } from "react";
 import "./index.css";
@@ -13,9 +12,10 @@ const LogLine = memo(function LogLine({ line }: { line: string }) {
   return <Ansi useClasses>{line}</Ansi>;
 });
 
-// The log viewer, rendered as a tab inside the Advanced view. It manages its own
-// polling and "Clear logs" action, and tails the latest output: it jumps to the
-// bottom instantly as new lines arrive, unless the user has scrolled up.
+// The log viewer, rendered as the "Logs" tab inside Settings. It manages its own
+// polling and tails the latest output: it jumps to the bottom instantly as new
+// lines arrive, unless the user has scrolled up. ("Clear logs" lives in the tab
+// strip of the Settings page.)
 export function LogView() {
   const dispatch = useAppDispatch();
   const logs = useLogs();
@@ -50,19 +50,8 @@ export function LogView() {
 
   return (
     <>
-      <Flex justify="flex-end" mb="sm">
-        <Button
-          size="xs"
-          variant="light"
-          onClick={async () => {
-            await clear_logs();
-          }}
-        >
-          Clear logs
-        </Button>
-      </Flex>
       <ScrollArea
-        h={"calc(100vh - 210px)"}
+        h={"calc(100vh - 170px)"}
         type="auto"
         scrollbarSize={8}
         viewportRef={viewport}

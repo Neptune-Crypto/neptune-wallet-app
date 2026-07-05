@@ -1,8 +1,6 @@
 import {
   IconArrowDownCircle,
-  IconDeviceImacUp,
   IconHistory,
-  IconLayoutNavbarCollapse,
   IconSettings,
   IconTransfer,
   IconUsers,
@@ -10,11 +8,9 @@ import {
 } from "@tabler/icons-react";
 import { lazy } from "react";
 import { Navigate, Outlet, type RouteObject } from "react-router-dom";
-import AboutPage from "../pages/about";
 
 const WalletPage = lazy(async () => await import("../pages/wallet"));
 const SettingsPage = lazy(async () => await import("../pages/settings"));
-const AdvancedPage = lazy(async () => await import("../pages/advanced"));
 const AddressesPage = lazy(async () => await import("../pages/addresses"));
 const HistoryPage = lazy(async () => await import("../pages/history"));
 const BatchPage = lazy(async () => await import("../pages/batch"));
@@ -35,13 +31,14 @@ export const routesConfig: RouteObject[] = [
         element: <Navigate to="/wallet" />,
       },
       {
+        // Advanced retired; its Log viewer is now a tab in Settings.
         path: "advanced",
-        element: <AdvancedPage />,
+        element: <Navigate to="/settings" />,
       },
       {
-        // Log moved into the Advanced view; redirect any persisted /log location.
+        // Log moved into Settings; redirect any persisted /log location.
         path: "log",
-        element: <Navigate to="/advanced" />,
+        element: <Navigate to="/settings" />,
       },
       {
         path: "wallet",
@@ -68,8 +65,9 @@ export const routesConfig: RouteObject[] = [
         element: <SettingsPage />,
       },
       {
+        // About moved into Settings as a tab; redirect any persisted /about location.
         path: "about",
-        element: <AboutPage />,
+        element: <Navigate to="/settings" />,
       },
     ],
   },
@@ -81,7 +79,5 @@ export const linkdata = [
   { label: "Receive", href: "/addresses", icon: IconArrowDownCircle },
   { label: "Contacts", href: "/contacts", icon: IconUsers },
   { label: "History", href: "/history", icon: IconHistory },
-  { label: "Advanced", href: "/advanced", icon: IconDeviceImacUp },
   { label: "Settings", href: "/settings", icon: IconSettings },
-  { label: "About", href: "/about", icon: IconLayoutNavbarCollapse },
 ];
