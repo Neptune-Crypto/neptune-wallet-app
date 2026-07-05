@@ -15,7 +15,11 @@ export default function SettingsPage() {
   }, []);
   return (
     <WithTitlePageHeader title="Settings">
-      <Tabs value={activeTab} onChange={setActiveTab}>
+      <Tabs
+        value={activeTab}
+        onChange={setActiveTab}
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+      >
         {/*
           "Clear logs" rides on the tab-strip row (right-aligned) but is kept
           OUTSIDE Tabs.List so the list stays a pure ARIA tablist. It shows only
@@ -43,12 +47,11 @@ export default function SettingsPage() {
             </Button>
           )}
         </Box>
-        <Tabs.Panel value="general">
+        <Tabs.Panel value="general" className="page-tab-panel">
           <ScrollArea
-            h={"calc(100vh - 160px)"}
             type="auto"
             scrollbarSize={8}
-            style={{ marginRight: -24 }}
+            style={{ flex: 1, minHeight: 0, marginRight: -24 }}
             styles={{ viewport: { paddingRight: 24 } }}
           >
             <Flex
@@ -65,10 +68,10 @@ export default function SettingsPage() {
             </Flex>
           </ScrollArea>
         </Tabs.Panel>
-        <Tabs.Panel value="logs">
+        <Tabs.Panel value="logs" className="page-tab-panel">
           <LogView />
         </Tabs.Panel>
-        <Tabs.Panel value="about">
+        <Tabs.Panel value="about" className="page-tab-panel">
           <AboutView />
         </Tabs.Panel>
       </Tabs>

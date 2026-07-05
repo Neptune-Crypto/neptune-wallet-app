@@ -13,7 +13,7 @@ import { useState } from "react";
 import AddContact from "./add-contact";
 import EditContact from "./edit-contact";
 
-export default function ContactTable({ height = "450px" }: { height?: string } = {}) {
+export default function ContactTable() {
   const loading = useLoadingContacts();
   const contracts = useAllContacts();
   // This page manages user-saved contacts only. A wallet's own addresses (type
@@ -74,7 +74,7 @@ export default function ContactTable({ height = "450px" }: { height?: string } =
     </Table.Tr>
   ));
   return (
-    <Flex direction={"column"}>
+    <Flex direction={"column"} style={{ flex: 1, minHeight: 0 }}>
       <AddContact opened={showAddContact} close={() => setShowAddContact(false)} />
       <EditContact
         opened={!!editingContact}
@@ -93,7 +93,7 @@ export default function ContactTable({ height = "450px" }: { height?: string } =
         </Button>
         <div data-autofocus></div>
       </Flex>
-      <Box pos="relative">
+      <Box pos="relative" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
         <LoadingOverlay
           visible={loading}
           zIndex={1000}
@@ -101,7 +101,7 @@ export default function ContactTable({ height = "450px" }: { height?: string } =
           loaderProps={{ color: "pink" }}
         />
         {!loading && customContacts.length > 0 ? (
-          <ScrollArea h={height} type="auto" scrollbarSize={8} offsetScrollbars>
+          <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars>
             <Table
               stickyHeader
               verticalSpacing="sm"

@@ -197,6 +197,7 @@ export default function AddressesPage() {
           setAddresses([]);
           setIsLoading(true);
         }}
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
           <Tabs.List mb="md">
             <Tabs.Tab value="generation">Generation</Tabs.Tab>
@@ -204,7 +205,7 @@ export default function AddressesPage() {
             <Tabs.Tab value="viewing">Viewing</Tabs.Tab>
           </Tabs.List>
 
-          <Tabs.Panel value={activeTab || generation_tab}>
+          <Tabs.Panel value={activeTab || generation_tab} className="page-tab-panel">
             <Flex direction="column" align="flex-start" mb="sm" gap="sm">
               <Text c="dimmed" size="sm">
                 {activeTab ? ADDRESS_DESCRIPTIONS[activeTab] : ""}
@@ -227,13 +228,13 @@ export default function AddressesPage() {
             ) : isLoading && addresses.length === 0 ? (
               // Switching tabs: hold a stable empty area (no spinner, no message)
               // until the new tab's addresses arrive.
-              <ScrollArea h="calc(100vh - 244px)" type="auto" scrollbarSize={8} offsetScrollbars />
+              <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars />
             ) : addresses.length === 0 ? (
               <Box p="md" ta="center" c="dimmed">
                 No addresses found.
               </Box>
             ) : (
-              <ScrollArea h="calc(100vh - 244px)" type="auto" scrollbarSize={8} offsetScrollbars>
+              <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars>
                 <Table
                   verticalSpacing="sm"
                   striped

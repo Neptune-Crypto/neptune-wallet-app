@@ -51,12 +51,11 @@ export function LogView() {
   return (
     <>
       <ScrollArea
-        h={"calc(100vh - 170px)"}
         type="auto"
         scrollbarSize={8}
         viewportRef={viewport}
         onScrollPositionChange={handleScroll}
-        style={{ marginRight: -24 }}
+        style={{ flex: 1, minHeight: 0, marginRight: -24 }}
         styles={{ viewport: { paddingRight: 24 } }}
       >
         <Flex

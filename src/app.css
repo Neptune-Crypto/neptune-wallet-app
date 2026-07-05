@@ -44,3 +44,13 @@ body {
 .mantine-Table-td .mantine-Text-root {
   color: #2b2f36;
 }
+
+/* Flex-fill tab panels: the active panel (not [hidden]) fills its Tabs column so a
+   ScrollArea with flex:1 inside it consumes the remaining height. Inactive panels
+   keep their [hidden] display:none. */
+.page-tab-panel:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}

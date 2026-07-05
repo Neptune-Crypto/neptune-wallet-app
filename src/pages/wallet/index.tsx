@@ -26,7 +26,7 @@ export default function WalletPage() {
 
   return (
     <WithTitlePageHeader title="Wallet">
-      <Flex direction={"column"} style={{ width: "100%" }} gap={16}>
+      <Flex direction={"column"} style={{ width: "100%", flex: 1, minHeight: 0 }} gap={16}>
         <BalanceCard />
         <WalletTable />
       </Flex>

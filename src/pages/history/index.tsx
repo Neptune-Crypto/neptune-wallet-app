@@ -32,7 +32,11 @@ export default function HistoryPage() {
 
   return (
     <WithTitlePageHeader title="History">
-      <Tabs value={section} onChange={(value) => setSection(value ?? "activity")}>
+      <Tabs
+        value={section}
+        onChange={(value) => setSection(value ?? "activity")}
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+      >
         <Box pos="relative" mb="sm">
           <Tabs.List>
             <Tabs.Tab value="activity">Activity</Tabs.Tab>
@@ -61,12 +65,11 @@ export default function HistoryPage() {
             </Group>
           )}
         </Box>
-        <Tabs.Panel value="activity">
+        <Tabs.Panel value="activity" className="page-tab-panel">
           <ScrollArea
-            h="calc(100vh - 160px)"
             type="auto"
             scrollbarSize={8}
-            style={{ marginRight: -24 }}
+            style={{ flex: 1, minHeight: 0, marginRight: -24 }}
             styles={{ viewport: { paddingRight: 24 } }}
           >
             {perDay && perDay.length > 0 && (
@@ -138,12 +141,11 @@ export default function HistoryPage() {
             <ActivityTableCard historyType={historyType} />
           </ScrollArea>
         </Tabs.Panel>
-        <Tabs.Panel value="utxos">
+        <Tabs.Panel value="utxos" className="page-tab-panel">
           <ScrollArea
-            h="calc(100vh - 160px)"
             type="auto"
             scrollbarSize={8}
-            style={{ marginRight: -24 }}
+            style={{ flex: 1, minHeight: 0, marginRight: -24 }}
             styles={{ viewport: { paddingRight: 24 } }}
           >
             <Text size="sm" c="dimmed" mb={36}>
