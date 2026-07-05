@@ -3,19 +3,26 @@ import EmptyTable from "@/components/empty-table";
 import { queryAllContacts } from "@/store/contact/contact-slice";
 import { useAllContacts, useLoadingContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
+import { Contact } from "@/database/types/contact";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { deleteContactAddress } from "@/utils/storage";
 import { Box, Button, Center, Flex, LoadingOverlay, ScrollArea, Table, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconTrash } from "@tabler/icons-react";
+import { IconPencil, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import AddContact from "./add-contact";
+import EditContact from "./edit-contact";
 
 export default function ContactTable({ height = "450px" }: { height?: string } = {}) {
   const loading = useLoadingContacts();
   const contracts = useAllContacts();
+  // This page manages user-saved contacts only. A wallet's own addresses (type
+  // "owner") are merged into the shared list for the Send picker, but are not
+  // contacts you manage here, so exclude them.
+  const customContacts = (contracts ?? []).filter((element) => element.type !== "owner");
   const dispatch = useAppDispatch();
   const [showAddContact, setShowAddContact] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   async function handleDelete(address: string) {
     try {
       await deleteContactAddress({ address });
@@ -35,38 +42,45 @@ export default function ContactTable({ height = "450px" }: { height?: string } =
       });
     }
   }
-  const rows =
-    contracts &&
-    contracts.map((element) => (
-      <Table.Tr key={element.address}>
-        <Table.Td>
-          <Text style={{ minWidth: "115px" }}>{element.aliasName}</Text>
-        </Table.Td>
-        <Table.Td>
-          <Flex direction={"row"} gap={8} align={"center"}>
-            <Text>{ellipsis(element.address)}</Text>
-            <CopyedIcon tooltipLable="Copy Address" size={16} value={element.address} />
+  const rows = customContacts.map((element) => (
+    <Table.Tr key={element.address}>
+      <Table.Td>
+        <Text style={{ minWidth: "115px" }}>{element.aliasName}</Text>
+      </Table.Td>
+      <Table.Td>
+        <Flex direction={"row"} gap={8} align={"center"}>
+          <Text>{ellipsis(element.address)}</Text>
+          <CopyedIcon tooltipLable="Copy Address" size={16} value={element.address} />
+        </Flex>
+      </Table.Td>
+      <Table.Td>
+        <Center>
+          <Flex direction={"row"} gap={12} align={"center"}>
+            <IconPencil
+              size={18}
+              color="var(--mantine-color-blue-6)"
+              style={{ cursor: "pointer" }}
+              onClick={() => setEditingContact(element)}
+            />
+            <IconTrash
+              size={18}
+              color="red"
+              style={{ cursor: "pointer" }}
+              onClick={() => handleDelete(element.address)}
+            ></IconTrash>
           </Flex>
-        </Table.Td>
-        <Table.Td>
-          <Center>
-            <Flex direction={"row"}>
-              <IconTrash
-                size={18}
-                color={element.type === "owner" ? "grey" : "red"}
-                style={{
-                  cursor: element.type === "owner" ? "not-allowed" : "pointer",
-                }}
-                onClick={() => (element.type === "owner" ? null : handleDelete(element.address))}
-              ></IconTrash>
-            </Flex>
-          </Center>
-        </Table.Td>
-      </Table.Tr>
-    ));
+        </Center>
+      </Table.Td>
+    </Table.Tr>
+  ));
   return (
     <Flex direction={"column"}>
       <AddContact opened={showAddContact} close={() => setShowAddContact(false)} />
+      <EditContact
+        opened={!!editingContact}
+        close={() => setEditingContact(null)}
+        contact={editingContact}
+      />
       <Flex direction={"row"} mb={"sm"}>
         <Button variant="light" data-autofocus size={"xs"} onClick={() => setShowAddContact(true)}>
           Add contact
@@ -80,7 +94,7 @@ export default function ContactTable({ height = "450px" }: { height?: string } =
           overlayProps={{ radius: "sm", blur: 2 }}
           loaderProps={{ color: "pink" }}
         />
-        {!loading && contracts && contracts.length > 0 ? (
+        {!loading && customContacts.length > 0 ? (
           <ScrollArea h={height} type="auto" scrollbarSize={8} offsetScrollbars>
             <Table
               stickyHeader

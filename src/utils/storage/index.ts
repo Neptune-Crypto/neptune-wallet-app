@@ -5,6 +5,7 @@ import {
   delete_execution_history_execute,
   get_contact_list_execute,
   get_execution_history_execute,
+  update_contact_address_execute,
 } from "@/commands/app";
 import { Contact } from "@/database/types/contact";
 import { ExecutionDbHistory, ExecutionHistory } from "@/database/types/localhistory";
@@ -24,6 +25,31 @@ export async function addContactAddress({ contact }: { contact: Contact }): Prom
     return true;
   } catch (error) {
     console.error("Failed to insert contact:", error);
+    throw error;
+  }
+}
+
+// Atomic single-statement UPDATE keyed on the original address, so an edit never
+// risks losing the contact and preserves its row id/position and createdTime.
+export async function updateContactAddress({
+  originalAddress,
+  contact,
+}: {
+  originalAddress: string;
+  contact: Contact;
+}): Promise<boolean> {
+  const params = [
+    contact.aliasName,
+    contact.address,
+    contact.type,
+    contact.remark,
+    originalAddress,
+  ];
+  try {
+    await update_contact_address_execute(params);
+    return true;
+  } catch (error) {
+    console.error("Failed to update contact:", error);
     throw error;
   }
 }
