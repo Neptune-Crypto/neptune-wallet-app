@@ -32,43 +32,43 @@ export default function HistoryPage() {
 
   return (
     <WithTitlePageHeader title="History">
-      <ScrollArea
-        h="calc(100vh - 110px)"
-        type="auto"
-        scrollbarSize={8}
-        style={{ marginRight: -24 }}
-        styles={{ viewport: { paddingRight: 24 } }}
-      >
-        <Tabs value={section} onChange={(value) => setSection(value ?? "activity")}>
-          <Box pos="relative" mb="sm">
-            <Tabs.List>
-              <Tabs.Tab value="activity">Activity</Tabs.Tab>
-              <Tabs.Tab value="utxos">UTXOs</Tabs.Tab>
-            </Tabs.List>
-            {section === "activity" && (
-              <Group
-                pos="absolute"
-                right={0}
-                top="50%"
-                gap="xs"
-                align="center"
-                style={{ transform: "translateY(-50%)" }}
-              >
-                <Text size="sm" c="dimmed">
-                  Show
-                </Text>
-                <Select
-                  w={120}
-                  size="xs"
-                  data={["All", "Received", "Sent"]}
-                  value={historyType}
-                  onChange={(value) => setHistoryType(value ?? "All")}
-                  allowDeselect={false}
-                />
-              </Group>
-            )}
-          </Box>
-          <Tabs.Panel value="activity">
+      <Tabs value={section} onChange={(value) => setSection(value ?? "activity")}>
+        <Box pos="relative" mb="sm">
+          <Tabs.List>
+            <Tabs.Tab value="activity">Activity</Tabs.Tab>
+            <Tabs.Tab value="utxos">UTXOs</Tabs.Tab>
+          </Tabs.List>
+          {section === "activity" && (
+            <Group
+              pos="absolute"
+              right={0}
+              top="50%"
+              gap="xs"
+              align="center"
+              style={{ transform: "translateY(-50%)" }}
+            >
+              <Text size="sm" c="dimmed">
+                Show
+              </Text>
+              <Select
+                w={120}
+                size="xs"
+                data={["All", "Received", "Sent"]}
+                value={historyType}
+                onChange={(value) => setHistoryType(value ?? "All")}
+                allowDeselect={false}
+              />
+            </Group>
+          )}
+        </Box>
+        <Tabs.Panel value="activity">
+          <ScrollArea
+            h="calc(100vh - 160px)"
+            type="auto"
+            scrollbarSize={8}
+            style={{ marginRight: -24 }}
+            styles={{ viewport: { paddingRight: 24 } }}
+          >
             {perDay && perDay.length > 0 && (
               <>
                 <Box pos="relative" mb="xs">
@@ -136,16 +136,24 @@ export default function HistoryPage() {
               </>
             )}
             <ActivityTableCard historyType={historyType} />
-          </Tabs.Panel>
-          <Tabs.Panel value="utxos">
+          </ScrollArea>
+        </Tabs.Panel>
+        <Tabs.Panel value="utxos">
+          <ScrollArea
+            h="calc(100vh - 160px)"
+            type="auto"
+            scrollbarSize={8}
+            style={{ marginRight: -24 }}
+            styles={{ viewport: { paddingRight: 24 } }}
+          >
             <Text size="sm" c="dimmed" mb={36}>
               Your balance is made up of individual coins called UTXOs (unspent transaction
               outputs). Select any below to spend them in a specific transaction.
             </Text>
             <NewUtxoTable />
-          </Tabs.Panel>
-        </Tabs>
-      </ScrollArea>
+          </ScrollArea>
+        </Tabs.Panel>
+      </Tabs>
     </WithTitlePageHeader>
   );
 }
