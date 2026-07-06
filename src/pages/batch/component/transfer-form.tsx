@@ -1,5 +1,5 @@
 import { SendInputItem } from "@/utils/api/types.ts";
-import { ActionIcon, Flex, NumberInput, Text, TextInput, UnstyledButton } from "@mantine/core";
+import { ActionIcon, Button, Divider, Flex, NumberInput, Text, TextInput } from "@mantine/core";
 import { IconAddressBook, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import SelecteContact from "./selecte-contact";
@@ -94,20 +94,22 @@ export default function TransferForm(props: Props) {
           error={amountError}
           rightSectionPointerEvents="all"
           rightSection={
-            <Flex align="center" gap={4} pr={4}>
-              <UnstyledButton
+            <Flex align="center" gap={8} pr={8}>
+              <Button
+                variant="light"
+                size="compact-xs"
                 onClick={onMax}
-                style={{ fontSize: 12, fontWeight: 600, color: "var(--mantine-color-blue-6)" }}
                 aria-label="Use maximum available amount"
               >
                 Max
-              </UnstyledButton>
+              </Button>
+              <Divider orientation="vertical" my={8} />
               <Text size="sm" c="dimmed">
                 NPT
               </Text>
             </Flex>
           }
-          rightSectionWidth={84}
+          rightSectionWidth={100}
         />
       </Flex>
     </Flex>
