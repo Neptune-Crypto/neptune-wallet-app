@@ -86,7 +86,7 @@ export default function ExportWalletModal(props: Props) {
                 }}
                 loaderProps={{
                   children: (
-                    <Center style={{ cursor: "pointer" }} onClick={() => clickShowMnemonic}>
+                    <Center style={{ cursor: "pointer" }} onClick={() => clickShowMnemonic()}>
                       <Flex direction={"column"} align={"center"}>
                         <IconEye />
                         <Text>Make sure nobody is looking</Text>

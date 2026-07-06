@@ -70,7 +70,15 @@ export default function CreateWallet({
             overlayProps={{ radius: "sm", blur: 4, color: "#eee", backgroundOpacity: 0.98 }}
             loaderProps={{
               children: (
-                <Center style={{ cursor: "pointer" }} onClick={() => showMnemonic()}>
+                <Center
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    // Match the "Reveal recovery phrase" button: revealing via the
+                    // cover must also flip to the revealed state (copy row + Create).
+                    setShowCopyIcon(true);
+                    showMnemonic();
+                  }}
+                >
                   <Flex direction={"column"} align={"center"}>
                     <IconEye />
                     <Text>Make sure nobody is looking</Text>
