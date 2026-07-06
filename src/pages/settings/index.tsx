@@ -68,7 +68,10 @@ export default function SettingsPage() {
             </Flex>
           </ScrollArea>
         </Tabs.Panel>
-        <Tabs.Panel value="logs" className="page-tab-panel">
+        {/* keepMounted={false}: LogView must mount when the tab opens, not hidden at
+            page load — its scroll-to-bottom needs real layout heights, and this also
+            stops the 1s log polling while on the other tabs. */}
+        <Tabs.Panel value="logs" className="page-tab-panel" keepMounted={false}>
           <LogView />
         </Tabs.Panel>
         <Tabs.Panel value="about" className="page-tab-panel">

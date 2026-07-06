@@ -21,6 +21,9 @@ export function LogView() {
   const logs = useLogs();
   const viewport = useRef<HTMLDivElement>(null);
   const [followTail, setFollowTail] = useState(true);
+  // Ref mirror so the ResizeObserver callback below always sees the current value.
+  const followTailRef = useRef(true);
+  followTailRef.current = followTail;
 
   // Jump straight to the bottom. No smooth animation, which is slow to travel the
   // full height of a long log on open.
@@ -28,11 +31,31 @@ export function LogView() {
     viewport.current?.scrollTo({ top: viewport.current.scrollHeight });
 
   useEffect(() => {
+    // Fetch immediately on open (the interval's first tick is only after 1s).
+    dispatch(queryLogMessages());
     const timerId = setInterval(() => {
       dispatch(queryLogMessages());
     }, 1000);
     return () => clearInterval(timerId);
   }, [dispatch]);
+
+  // Tail-follow must survive timing races (tab opens before logs arrive, flex
+  // layout settling, line wrapping): observe the viewport and its content, and
+  // re-pin to the bottom whenever their size changes while following.
+  useEffect(() => {
+    const el = viewport.current;
+    if (!el) return;
+    const observer = new ResizeObserver(() => {
+      if (followTailRef.current) {
+        scrollToBottom();
+      }
+    });
+    observer.observe(el);
+    if (el.firstElementChild) {
+      observer.observe(el.firstElementChild);
+    }
+    return () => observer.disconnect();
+  }, []);
 
   // While following the tail, stay pinned to the bottom as new lines arrive.
   useEffect(() => {
