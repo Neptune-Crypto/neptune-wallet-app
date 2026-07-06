@@ -3,6 +3,7 @@ import TransferForm from "@/pages/batch/component/transfer-form.tsx";
 import {
   queryExecutionHistorys,
   requestSedExecutionTransaction,
+  updateSendState,
 } from "@/store/execution/execution-slice.ts";
 import {
   usePendingExecution,
@@ -20,12 +21,12 @@ import {
 } from "@/store/wallet/hooks.ts";
 import { Output, SendInputItem, SendTransactionParam } from "@/utils/api/types.ts";
 import {
-  Alert,
   Box,
   Button,
   Divider,
   Flex,
   HoverCard,
+  NumberFormatter,
   NumberInput,
   ScrollArea,
   Stack,
@@ -33,10 +34,9 @@ import {
   Text,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
-import { IconAlertTriangle, IconInfoCircle, IconPlus } from "@tabler/icons-react";
+import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { Fragment, useEffect, useState } from "react";
 
-import { useAvailableUtxos } from "@/store/history/hooks";
 import { queryCurrentWalletID, queryWalletBalance } from "@/store/wallet/wallet-slice.ts";
 import { bigNumberMinus, bigNumberPlusToString } from "@/utils/common";
 import { ellipsis } from "@/utils/ellipsis-format";
@@ -44,6 +44,7 @@ import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
 import { useLocation } from "react-router-dom";
 import ExecutionCard from "./component/execution-card";
+import SendProgress from "./component/send-progress";
 
 export default function BatchTranferPage() {
   const { serverUrl } = useSettingActionData();
@@ -71,7 +72,6 @@ export default function BatchTranferPage() {
   const requesTransactionResponse = useRequesetSendTransactionResponse();
   const [selectedInputs, setSelectedInputs] = useState([] as number[]);
   const [selectedAmount, setSelectedAmount] = useState("");
-  const availableUtxos = useAvailableUtxos();
   const balanceData = useBalanceData();
   useEffect(() => {
     dispatch(queryCurrentWalletID());
@@ -79,21 +79,28 @@ export default function BatchTranferPage() {
   }, [serverUrl]);
   useEffect(() => {
     if (location.state) {
-      setSelectedInputs(location.state);
-      handleSelectedAmount(location.state);
+      // The selected UTXOs (id + amount) travel through navigation, so this page
+      // has their values directly — no cross-page store lookup and no id
+      // string/number mismatch (UtxoItem.id is a string; the input field is i64).
+      const utxos = location.state as { id: string; amount: string }[];
+      setSelectedInputs(utxos.map((u) => Number(u.id)));
+      const total = utxos.reduce((sum, u) => bigNumberPlusToString(sum, u.amount || "0"), "0");
+      const totalFixed = amount_to_positive_fixed(total);
+      setSelectedAmount(totalFixed);
+      // Sweep prefill: arriving from UTXO selection, the common intent is to send
+      // those coins — prefill the single empty recipient with (total - fee).
+      // Prefill only; never overwrite typed values.
+      const sweep = bigNumberMinus(totalFixed, fee || "0");
+      if (sweep > 0) {
+        const sweepAmount = sweep.toFixed(4).replace(/\.?0+$/, "");
+        setSendInputs((prev) =>
+          prev.length === 1 && prev[0].amount === "" && prev[0].toAddress === ""
+            ? [{ ...prev[0], amount: sweepAmount }]
+            : prev
+        );
+      }
     }
   }, [location]);
-
-  function handleSelectedAmount(inputs: number[]) {
-    let selectedAmount = "0";
-    inputs.forEach((item) => {
-      let seleced = availableUtxos.find((data) => Number(data.id) === item);
-      if (seleced) {
-        selectedAmount = bigNumberPlusToString(selectedAmount, seleced.amount);
-      }
-    });
-    setSelectedAmount(amount_to_positive_fixed(selectedAmount));
-  }
 
   useEffect(() => {
     dispatch(queryExecutionHistorys({ addressId: currentWalletID, serverUrl }));
@@ -111,7 +118,14 @@ export default function BatchTranferPage() {
   // Only meaningful once the user has actually entered an amount somewhere —
   // otherwise a pristine form (fee alone vs an empty balance) would already warn.
   const hasAnyAmount = sendInputs.some((item) => item.amount !== "");
-  const overBalance = hasAnyAmount && bigNumberMinus(availableBalance, totalWithFee) < 0;
+  // With UTXOs selected, the backend funds the transaction ONLY from them — so
+  // the selection (not the whole wallet) is the spending ceiling. Fall back to
+  // the wallet balance if the selected total isn't known yet (e.g. the UTXO list
+  // hasn't loaded on this page), so the form is never wrongly disabled.
+  const hasSelection = selectedInputs && selectedInputs.length > 0;
+  const selectionKnown = hasSelection && Number(selectedAmount) > 0;
+  const spendCeiling = selectionKnown ? selectedAmount : availableBalance;
+  const overBalance = hasAnyAmount && bigNumberMinus(spendCeiling, totalWithFee) < 0;
   // Rows repeating an address already used by an earlier row.
   const duplicateIndexes = new Set<number>();
   {
@@ -136,7 +150,7 @@ export default function BatchTranferPage() {
       if (i !== index) others = bigNumberPlusToString(others, item.amount || "0");
     });
     const spent = bigNumberPlusToString(others, feeInvalid ? "0" : fee || "0");
-    const max = bigNumberMinus(availableBalance, spent);
+    const max = bigNumberMinus(spendCeiling, spent);
     return max > 0 ? max.toString() : "0";
   }
 
@@ -244,7 +258,7 @@ export default function BatchTranferPage() {
           </Box>
         </Stack>
       ),
-      labels: { confirm: "Confirm & Send", cancel: "Cancel" },
+      labels: { confirm: "Confirm & send", cancel: "Cancel" },
       confirmProps: { color: "green" },
       onConfirm: () => sendTransaction(),
     });
@@ -292,6 +306,10 @@ export default function BatchTranferPage() {
       },
     ] as SendInputItem[]);
     (setFee("0.5"), setSelectedInputs([]), setLustrationAcceptance(false));
+    // Hide the progress panel: the backend's last status would otherwise linger
+    // indefinitely (nothing else ever clears it). The success toast and the
+    // Pending transactions section take over from here.
+    dispatch(updateSendState(""));
   }
   return (
     <WithTitlePageHeader title="Send">
@@ -313,7 +331,7 @@ export default function BatchTranferPage() {
                 </Text>
               </Flex>
               {selectedInputs && selectedInputs.length > 0 && (
-                <Flex direction={"row"} gap={8}>
+                <Flex direction={"row"} gap={8} align={"center"}>
                   <Text c="dimmed">{`Selected ${selectedInputs.length} UTXOs amount:`}</Text>
                   <HoverCard width={320} shadow="md" withArrow openDelay={200} closeDelay={400}>
                     <HoverCard.Target>
@@ -342,6 +360,17 @@ export default function BatchTranferPage() {
                       </Text>
                     </HoverCard.Dropdown>
                   </HoverCard>
+                  {/* Drop the input constraint without going back to History. */}
+                  <Button
+                    size="compact-xs"
+                    variant="light"
+                    onClick={() => {
+                      setSelectedInputs([]);
+                      setSelectedAmount("");
+                    }}
+                  >
+                    Clear
+                  </Button>
                 </Flex>
               )}
             </Flex>
@@ -385,7 +414,9 @@ export default function BatchTranferPage() {
                     }}
                     onChangeToAddress={(address) => {
                       setSendInputs((prev) =>
-                        prev.map((item, i) => (i === index ? { ...item, toAddress: address } : item))
+                        prev.map((item, i) =>
+                          i === index ? { ...item, toAddress: address } : item
+                        )
                       );
                     }}
                     onRemoveWallet={(removeIndex) => {
@@ -456,16 +487,36 @@ export default function BatchTranferPage() {
             mt="sm"
             label="Accept lustrations"
             size="sm"
+            styles={{ track: { cursor: "pointer" }, label: { cursor: "pointer" } }}
             checked={accept_lustrations}
             onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
           />
 
+          {/* Live total (recipient amounts + fee), so the user sees what will
+              leave the wallet before the confirm modal. Set off with a divider and
+              an emphasized value so it reads as the summary, not another field.
+              Shown once an amount is entered — a fee-only total is noise. */}
+          {hasAnyAmount && (
+            <>
+              <Divider mt={4} />
+              <Flex direction={"row"} justify={"space-between"} align={"center"}>
+                <Text size="sm" c="dimmed">
+                  Total (amount + fee)
+                </Text>
+                <Text size="sm" fw={600} c={overBalance ? "red" : undefined}>
+                  <NumberFormatter value={totalWithFee} thousandSeparator /> NPT
+                </Text>
+              </Flex>
+            </>
+          )}
           {overBalance && (
             <Text c="red" size="sm">
-              Amounts plus fee exceed your available balance ({availableBalance} NPT).
+              {selectionKnown
+                ? `Amounts plus fee exceed the selected UTXOs' value (${spendCeiling} NPT).`
+                : `Amounts plus fee exceed your available balance (${availableBalance} NPT).`}
             </Text>
           )}
-          <Flex>
+          <Flex mt="md">
             <Button
               variant="filled"
               size="sm"
@@ -482,16 +533,7 @@ export default function BatchTranferPage() {
               * Wait for syncing...
             </Text>
           ) : null}
-          {sendStatus ? (
-            <Alert
-              variant="light"
-              color="blue"
-              title="Send transaction status"
-              icon={<IconInfoCircle />}
-            >
-              {sendStatus}
-            </Alert>
-          ) : null}
+          {sendStatus ? <SendProgress status={sendStatus} /> : null}
           <ExecutionCard />
         </Stack>
       </ScrollArea>

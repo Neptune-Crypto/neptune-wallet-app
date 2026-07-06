@@ -140,7 +140,11 @@ export default function ExportWalletModal(props: Props) {
                   }, 2000);
                 }}
               >
-                {copyed ? <IconCircleCheck size={14} color="var(--color-positive)" /> : <IconCopy size={14} />}
+                {copyed ? (
+                  <IconCircleCheck size={14} color="var(--color-positive)" />
+                ) : (
+                  <IconCopy size={14} />
+                )}
                 <Text fz={14} fw={500}>
                   {copyed ? "Copied" : "Copy to clipboard"}
                 </Text>

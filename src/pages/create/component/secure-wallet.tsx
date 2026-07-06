@@ -29,8 +29,8 @@ export default function SecureWallet(props: Props) {
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={14} fw={600} style={{ textAlign: "center" }}>
-        Write down this 18-word recovery phrase and save it in a place that you trust and
-        only you can access.
+        Write down this 18-word recovery phrase and save it in a place that you trust and only you
+        can access.
       </Text>
       <Box pos="relative">
         <LoadingOverlay
@@ -137,7 +137,11 @@ export default function SecureWallet(props: Props) {
               }, 2000);
             }}
           >
-            {copyed ? <IconCircleCheck size={16} color="var(--color-positive)" /> : <IconCopy size={16} />}
+            {copyed ? (
+              <IconCircleCheck size={16} color="var(--color-positive)" />
+            ) : (
+              <IconCopy size={16} />
+            )}
             <Text fz={14} fw={500}>
               {copyed ? "Copied" : "Copy to clipboard"}
             </Text>

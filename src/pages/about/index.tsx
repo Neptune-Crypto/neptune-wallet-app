@@ -62,7 +62,9 @@ export function AboutView() {
             <Flex direction={"row"} align={"center"} gap={8}>
               <Text>{version}</Text>
               {updateVersion && updateVersion.version && updateVersion.version != version && (
-                <Text style={{ color: "green" }}>{` ( New Version ${updateVersion.version} )`}</Text>
+                <Text
+                  style={{ color: "green" }}
+                >{` ( New Version ${updateVersion.version} )`}</Text>
               )}
             </Flex>
           </Table.Td>

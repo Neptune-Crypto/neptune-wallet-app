@@ -98,8 +98,7 @@ function getTotalPerDay(activitys: MerageHistory[]) {
       Received: 0,
       Sent: 0,
       timestamp: timestamp - i * 24 * 60 * 60 * 1000,
-      data:
-        i === 0 ? "Today" : format(new Date(timestamp - i * 24 * 60 * 60 * 1000), "MMM d"),
+      data: i === 0 ? "Today" : format(new Date(timestamp - i * 24 * 60 * 60 * 1000), "MMM d"),
     });
   }
   perDay.reverse();

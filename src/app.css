@@ -65,11 +65,7 @@ body {
       transparent 0 26px,
       rgba(255, 255, 255, 0.045) 26px 27.5px
     ),
-    linear-gradient(
-        135deg,
-        var(--lockbalancebackground) 0%,
-        var(--lockbalancebackgrounddeep) 100%
-      ) !important;
+    linear-gradient(135deg, var(--lockbalancebackground) 0%, var(--lockbalancebackgrounddeep) 100%) !important;
 }
 
 /* Calmer tables: soft near-black data rows so they read a touch lighter than pure

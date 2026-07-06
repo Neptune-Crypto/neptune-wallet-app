@@ -171,7 +171,11 @@ export default function CreateWallet({
               }, 2000);
             }}
           >
-            {copyed ? <IconCircleCheck size={16} color="var(--color-positive)" /> : <IconCopy size={16} />}
+            {copyed ? (
+              <IconCircleCheck size={16} color="var(--color-positive)" />
+            ) : (
+              <IconCopy size={16} />
+            )}
             <Text fz={14} fw={500}>
               {copyed ? "Copied" : "Copy to clipboard"}
             </Text>

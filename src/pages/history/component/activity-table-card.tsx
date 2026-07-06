@@ -1,3 +1,4 @@
+import EmptyTable from "@/components/empty-table";
 import { queryActivityHistory } from "@/store/history/history-slice";
 import { useActivityTransactions, useLoadingActivityTx } from "@/store/history/hooks";
 import { useAppDispatch } from "@/store/hooks";
@@ -5,7 +6,6 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { MerageHistory } from "@/store/types";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
-import EmptyTable from "@/components/empty-table";
 import { Box, Center, Flex, LoadingOverlay, Table, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 import ActivityTableItem from "./activity-table-item";

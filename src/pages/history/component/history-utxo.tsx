@@ -11,7 +11,10 @@ export default function HistoryUtxoCard({ datas }: { datas: HistoryUtxo[] }) {
         </Text>
       </Table.Td>
       <Table.Td>
-        <Text fw={600} c={Number(item.amount) > 0 ? "var(--color-positive)" : "var(--color-negative)"}>
+        <Text
+          fw={600}
+          c={Number(item.amount) > 0 ? "var(--color-positive)" : "var(--color-negative)"}
+        >
           {Number(item.amount) > 0 ? "+ " : "- "}{" "}
           <NumberFormatter value={amount_to_positive_fixed(item.amount)} thousandSeparator />
         </Text>

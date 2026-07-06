@@ -13,14 +13,14 @@ import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
 import {
   Button,
+  Card,
   Collapse,
-  Container,
   Divider,
   Flex,
   NumberFormatter,
-  Space,
   Table,
   Text,
+  UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconChevronDown } from "@tabler/icons-react";
@@ -90,20 +90,25 @@ export default function ExecutionCard() {
   }
 
   return (
-    <Container fluid style={{ width: "100%" }}>
-      <Space h={16} />
-      <Flex direction={"column"} gap={2} px={24}>
+    // No own Container/padding: this renders inside the Send form's stack, whose
+    // scroll viewport already provides the page inset — wrapping again double-
+    // indented the section. Section-scale heading (the 24px version read as a
+    // second page title).
+    <Flex direction={"column"} gap={2} mt="md" style={{ width: "100%" }}>
+      {/* The whole header is the disclosure trigger (a real button, so it is
+          keyboard-focusable); the chevron is just the state indicator. */}
+      <UnstyledButton onClick={toggle} aria-expanded={opened} style={{ width: "100%" }}>
         <Flex direction={"row"} justify={"space-between"} align={"center"}>
-          <Text fw={500} fz={24}>
-            In execution
+          <Text fw={600} fz={16}>
+            Transactions awaiting network confirmation
           </Text>
           {executions && executions.length > 0 && (
-            <Flex direction={"row"} gap={16}>
-              <Text>{executions.length} executions</Text>
+            <Flex direction={"row"} gap={16} align={"center"}>
+              <Text size="sm" c="dimmed">
+                {executions.length} pending
+              </Text>
               <IconChevronDown
-                onClick={toggle}
                 style={{
-                  cursor: "pointer",
                   transform: opened ? "rotate(-180deg) scale(1.2)" : "none",
                   transition: "transform 0.3s ease",
                 }}
@@ -111,21 +116,17 @@ export default function ExecutionCard() {
             </Flex>
           )}
         </Flex>
-        <Divider />
-      </Flex>
-      <Collapse in={opened} px={24}>
+      </UnstyledButton>
+      <Divider />
+      <Collapse in={opened}>
         {executions &&
           executions.length > 0 &&
           executions.map((item, index) => {
             return (
-              <Flex
-                key={index}
-                direction={"column"}
-                style={{
-                  borderBottom: "1px solid #E5E5E5",
-                }}
-              >
-                <Space h={16} />
+              <Card key={index} withBorder radius="md" padding="md" mt={index === 0 ? "sm" : "xs"}>
+                {/* Each pending transaction in its own card so multiple are clearly
+                    separated. Default 14px type like the History detail modal;
+                    labels bold, cells top-aligned for wrapped values. */}
                 <Table
                   variant="vertical"
                   layout="fixed"
@@ -133,21 +134,12 @@ export default function ExecutionCard() {
                   striped={false}
                   styles={{
                     th: {
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      justifyContent: "center",
-                      justifyItems: "center",
-                      alignItems: "center",
+                      fontWeight: 600,
                       verticalAlign: "top",
                       background: "transparent",
                     },
                     tr: {
-                      fontSize: "10px",
-                      fontWeight: "500",
                       verticalAlign: "top",
-                      justifyContent: "center",
-                      justifyItems: "center",
-                      alignItems: "center",
                     },
                   }}
                 >
@@ -293,10 +285,10 @@ export default function ExecutionCard() {
                     </Table.Tr>
                   </Table.Tbody>
                 </Table>
-              </Flex>
+              </Card>
             );
           })}
       </Collapse>
-    </Container>
+    </Flex>
   );
 }

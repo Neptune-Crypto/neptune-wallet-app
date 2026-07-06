@@ -1,6 +1,6 @@
 import { generateNewAddress, knownAddresses } from "@/commands/wallet";
-import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import CopyedIcon from "@/components/copyed-icon";
+import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { AddressRecord, NeptuneKeyType } from "@/utils/api/types";
 import {
@@ -211,99 +211,109 @@ export default function AddressesPage() {
         }}
         style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
       >
-          <Tabs.List mb="md">
-            <Tabs.Tab value="generation">Generation</Tabs.Tab>
-            <Tabs.Tab value="echybrid">EC hybrid</Tabs.Tab>
-            <Tabs.Tab value="viewing">Viewing</Tabs.Tab>
-          </Tabs.List>
+        <Tabs.List mb="md">
+          <Tabs.Tab value="generation">Generation</Tabs.Tab>
+          <Tabs.Tab value="echybrid">EC hybrid</Tabs.Tab>
+          <Tabs.Tab value="viewing">Viewing</Tabs.Tab>
+        </Tabs.List>
 
-          <Flex direction={"row"} gap={6} align={"center"} mb="sm">
-            <Text size="sm" c="dimmed">
-              Active account:
+        <Flex direction={"row"} gap={6} align={"center"} mb="sm">
+          <Text size="sm" c="dimmed">
+            Active account:
+          </Text>
+          <Text size="sm" fw={600}>
+            {activeAccountName || "—"}
+          </Text>
+        </Flex>
+
+        <Tabs.Panel value={activeTab || generation_tab} className="page-tab-panel">
+          <Flex direction="column" align="flex-start" mb="sm" gap="lg">
+            <Text c="dimmed" size="sm">
+              {activeTab ? ADDRESS_DESCRIPTIONS[activeTab] : ""}
             </Text>
-            <Text size="sm" fw={600}>
-              {activeAccountName || "—"}
-            </Text>
+            <Button
+              variant="light"
+              size="xs"
+              leftSection={<IconPlus size={14} />}
+              onClick={handleGenerate}
+              loading={isGenerating}
+            >
+              {activeTab ? BUTTON_LABELS[activeTab] : "Generate new address"}
+            </Button>
           </Flex>
 
-          <Tabs.Panel value={activeTab || generation_tab} className="page-tab-panel">
-            <Flex direction="column" align="flex-start" mb="sm" gap="lg">
-              <Text c="dimmed" size="sm">
-                {activeTab ? ADDRESS_DESCRIPTIONS[activeTab] : ""}
-              </Text>
-              <Button
-                variant="light"
-                size="xs"
-                leftSection={<IconPlus size={14} />}
-                onClick={handleGenerate}
-                loading={isGenerating}
+          {isLoading && addresses.length === 0 && !hasLoadedOnce.current ? (
+            <Center p="xl">
+              <Loader color="blue" />
+            </Center>
+          ) : isLoading && addresses.length === 0 ? (
+            // Switching tabs: hold a stable empty area (no spinner, no message)
+            // until the new tab's addresses arrive.
+            <ScrollArea
+              style={{ flex: 1, minHeight: 0 }}
+              type="auto"
+              scrollbarSize={8}
+              offsetScrollbars
+            />
+          ) : addresses.length === 0 ? (
+            <Box p="md" ta="center" c="dimmed">
+              No addresses found.
+            </Box>
+          ) : (
+            <ScrollArea
+              style={{ flex: 1, minHeight: 0 }}
+              type="auto"
+              scrollbarSize={8}
+              offsetScrollbars
+            >
+              <Table
+                verticalSpacing="sm"
+                striped
+                highlightOnHover
+                layout="fixed"
+                w="100%"
+                styles={{ td: { verticalAlign: "top" } }}
               >
-                {activeTab ? BUTTON_LABELS[activeTab] : "Generate new address"}
-              </Button>
-            </Flex>
-
-            {isLoading && addresses.length === 0 && !hasLoadedOnce.current ? (
-              <Center p="xl">
-                <Loader color="blue" />
-              </Center>
-            ) : isLoading && addresses.length === 0 ? (
-              // Switching tabs: hold a stable empty area (no spinner, no message)
-              // until the new tab's addresses arrive.
-              <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars />
-            ) : addresses.length === 0 ? (
-              <Box p="md" ta="center" c="dimmed">
-                No addresses found.
-              </Box>
-            ) : (
-              <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars>
-                <Table
-                  verticalSpacing="sm"
-                  striped
-                  highlightOnHover
-                  layout="fixed"
-                  w="100%"
-                  styles={{ td: { verticalAlign: "top" } }}
+                <Table.Thead
+                  style={{
+                    position: "sticky",
+                    top: 0,
+                    backgroundColor: "var(--mantine-color-body)",
+                    zIndex: 1,
+                  }}
                 >
-                  <Table.Thead
-                    style={{
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "var(--mantine-color-body)",
-                      zIndex: 1,
-                    }}
-                  >
-                    <Table.Tr>
-                      <Table.Th w={110}>Key index</Table.Th>
-                      <Table.Th>Address</Table.Th>
-                      <Table.Th w={80} ta="right">
-                        Actions
-                      </Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {[...addresses]
-                      .sort((a, b) => b.key_index - a.key_index)
-                      .map((item) => (
-                        <Table.Tr key={item.key_index}>
-                          <Table.Td>{item.key_index}</Table.Td>
-                          <Table.Td>
-                            <Box style={{ wordBreak: "break-all" }}>
-                              {addressRepresentation(item)}
-                            </Box>
-                          </Table.Td>
-                          <Table.Td>
-                            <Group gap="xs" justify="flex-end" wrap="nowrap">
-                              {qr_button(item)}
-                              <CopyedIcon size={16} value={item.address} />
-                            </Group>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-            )}
-          </Tabs.Panel>
+                  <Table.Tr>
+                    <Table.Th w={110}>Key index</Table.Th>
+                    <Table.Th>Address</Table.Th>
+                    <Table.Th w={80} ta="right">
+                      Actions
+                    </Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {[...addresses]
+                    .sort((a, b) => b.key_index - a.key_index)
+                    .map((item) => (
+                      <Table.Tr key={item.key_index}>
+                        <Table.Td>{item.key_index}</Table.Td>
+                        <Table.Td>
+                          <Box style={{ wordBreak: "break-all" }}>
+                            {addressRepresentation(item)}
+                          </Box>
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap="xs" justify="flex-end" wrap="nowrap">
+                            {qr_button(item)}
+                            <CopyedIcon size={16} value={item.address} />
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          )}
+        </Tabs.Panel>
       </Tabs>
     </WithTitlePageHeader>
   );

@@ -1,9 +1,9 @@
 import CopyedIcon from "@/components/copyed-icon";
 import EmptyTable from "@/components/empty-table";
+import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
 import { useAllContacts, useLoadingContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
-import { Contact } from "@/database/types/contact";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { notify } from "@/utils/notify";
 import { deleteContactAddress } from "@/utils/storage";
@@ -51,8 +51,8 @@ export default function ContactTable() {
       centered: true,
       children: (
         <Text size="sm">
-          Are you sure you want to delete "{contact.aliasName}"? You will need to obtain the
-          address again to re-add it.
+          Are you sure you want to delete "{contact.aliasName}"? You will need to obtain the address
+          again to re-add it.
         </Text>
       ),
       labels: { confirm: "Delete", cancel: "Cancel" },
@@ -119,7 +119,10 @@ export default function ContactTable() {
         </Button>
         <div data-autofocus></div>
       </Flex>
-      <Box pos="relative" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <Box
+        pos="relative"
+        style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
+      >
         <LoadingOverlay
           visible={loading}
           zIndex={1000}
@@ -127,7 +130,12 @@ export default function ContactTable() {
           loaderProps={{ color: "blue" }}
         />
         {!loading && customContacts.length > 0 ? (
-          <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars>
+          <ScrollArea
+            style={{ flex: 1, minHeight: 0 }}
+            type="auto"
+            scrollbarSize={8}
+            offsetScrollbars
+          >
             <Table
               stickyHeader
               verticalSpacing="sm"

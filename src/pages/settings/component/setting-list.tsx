@@ -89,9 +89,9 @@ export default function SettingList() {
       centered: true,
       children: (
         <Text size="sm">
-          Switch from {selectedNetwork} to {value}? The wallet will connect to the {value} network
-          — the active account is deselected, and the accounts, balances, and history shown will
-          be those of {value}.
+          Switch from {selectedNetwork} to {value}? The wallet will connect to the {value} network —
+          the active account is deselected, and the accounts, balances, and history shown will be
+          those of {value}.
         </Text>
       ),
       labels: { confirm: "Switch network", cancel: "Cancel" },

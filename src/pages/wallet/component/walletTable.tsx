@@ -41,8 +41,8 @@ function DeleteAccountConfirm({ wallet, onConfirm }: { wallet: Wallet; onConfirm
   return (
     <Flex direction={"column"} gap={16}>
       <Text size="sm">
-        Are you sure you want to delete "{wallet.name}"? Its keys will be erased from this device
-        — without its recovery phrase you will permanently lose access to its funds.
+        Are you sure you want to delete "{wallet.name}"? Its keys will be erased from this device —
+        without its recovery phrase you will permanently lose access to its funds.
       </Text>
       <Checkbox
         size="sm"
@@ -220,7 +220,9 @@ export default function WalletTable() {
       <Table.Td>
         {
           <Flex direction={"row"} align={"center"} gap={8} justify={"center"}>
-            <Text fw={600} c="var(--color-positive)">{amount_to_fixed(element.balance ?? "0")}</Text>
+            <Text fw={600} c="var(--color-positive)">
+              {amount_to_fixed(element.balance ?? "0")}
+            </Text>
             NPT
           </Flex>
         }

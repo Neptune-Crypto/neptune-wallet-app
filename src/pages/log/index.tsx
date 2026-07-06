@@ -27,8 +27,7 @@ export function LogView() {
 
   // Jump straight to the bottom. No smooth animation, which is slow to travel the
   // full height of a long log on open.
-  const scrollToBottom = () =>
-    viewport.current?.scrollTo({ top: viewport.current.scrollHeight });
+  const scrollToBottom = () => viewport.current?.scrollTo({ top: viewport.current.scrollHeight });
 
   useEffect(() => {
     // Fetch immediately on open (the interval's first tick is only after 1s).

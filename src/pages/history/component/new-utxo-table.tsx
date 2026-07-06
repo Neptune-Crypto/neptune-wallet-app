@@ -6,9 +6,9 @@ import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
+import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsisFormatLen } from "@/utils/ellipsis-format";
 import { amount_to_fixed } from "@/utils/math-util";
-import { bigNumberPlusToString } from "@/utils/common";
 import {
   Box,
   Button,
@@ -64,6 +64,7 @@ export default function NewUtxoTable() {
           <Checkbox
             aria-label="Select row"
             disabled={element.locked}
+            styles={{ input: { cursor: element.locked ? "not-allowed" : "pointer" } }}
             checked={selectedRows.includes(element.id)}
             onChange={(event) =>
               setSelectedRows(
@@ -117,7 +118,10 @@ export default function NewUtxoTable() {
     ));
 
   function navigateToSend() {
-    navigate("/send", { state: selectedRows });
+    // Pass the full selected UTXOs (id + amount) so the Send page has their
+    // values directly, instead of re-looking them up from the store there.
+    const selected = (availableUtxos ?? []).filter((u) => selectedRows.includes(u.id));
+    navigate("/send", { state: selected });
   }
 
   const selectableIds = (availableUtxos ?? []).filter((u) => !u.locked).map((u) => u.id);
@@ -128,6 +132,10 @@ export default function NewUtxoTable() {
     "0"
   );
   const utxoCount = availableUtxos?.length ?? 0;
+  // Same summation as the totals line above, filtered to the selected rows.
+  const selectedTotal = (availableUtxos ?? [])
+    .filter((u) => selectedRows.includes(u.id))
+    .reduce((sum, u) => bigNumberPlusToString(sum, u.amount), "0");
 
   return (
     <Flex direction={"column"} gap={8}>
@@ -145,7 +153,8 @@ export default function NewUtxoTable() {
                 Send
               </Button>
               <Text c="dimmed" style={{ fontSize: "14px" }}>
-                {`(${selectedRows.length} selected)`}
+                ({selectedRows.length} selected, totalling{" "}
+                <NumberFormatter value={selectedTotal} thousandSeparator decimalScale={4} /> NPT)
               </Text>
             </>
           )}
@@ -212,6 +221,7 @@ export default function NewUtxoTable() {
                 <Table.Th>
                   <Checkbox
                     aria-label="Select all UTXOs"
+                    styles={{ input: { cursor: "pointer" } }}
                     checked={allSelected}
                     indeterminate={selectedRows.length > 0 && !allSelected}
                     onChange={() => setSelectedRows(allSelected ? [] : selectableIds)}
