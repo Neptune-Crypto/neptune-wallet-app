@@ -1,7 +1,7 @@
 import { generateNewAddress, knownAddresses } from "@/commands/wallet";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import CopyedIcon from "@/components/copyed-icon";
-import { useCurrentWalledId } from "@/store/wallet/hooks";
+import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { AddressRecord, NeptuneKeyType } from "@/utils/api/types";
 import {
   ActionIcon,
@@ -34,6 +34,8 @@ export default function AddressesPage() {
   // Refetch when the active account changes (e.g. via the sidebar switcher):
   // addresses are account-scoped, so a switch must not show the old account's list.
   const currentWalletID = useCurrentWalledId();
+  const wallets = useWallets();
+  const activeAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
   const [addresses, setAddresses] = useState<AddressRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -215,8 +217,17 @@ export default function AddressesPage() {
             <Tabs.Tab value="viewing">Viewing</Tabs.Tab>
           </Tabs.List>
 
+          <Flex direction={"row"} gap={6} align={"center"} mb="sm">
+            <Text size="sm" c="dimmed">
+              Active account:
+            </Text>
+            <Text size="sm" fw={600}>
+              {activeAccountName || "—"}
+            </Text>
+          </Flex>
+
           <Tabs.Panel value={activeTab || generation_tab} className="page-tab-panel">
-            <Flex direction="column" align="flex-start" mb="sm" gap="sm">
+            <Flex direction="column" align="flex-start" mb="sm" gap="lg">
               <Text c="dimmed" size="sm">
                 {activeTab ? ADDRESS_DESCRIPTIONS[activeTab] : ""}
               </Text>
