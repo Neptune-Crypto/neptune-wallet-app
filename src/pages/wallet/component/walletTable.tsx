@@ -15,6 +15,7 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   Flex,
   Group,
   LoadingOverlay,
@@ -32,6 +33,42 @@ import { useState } from "react";
 import ActionMenu from "./action-menu";
 import AddWalletModal from "./add-wallet-modal";
 import ExportWalletModal from "./export-wallet-modal";
+
+// Body of the delete-account confirmation. Stateful (acknowledgement checkbox
+// gates the Delete button), which modals.openConfirmModal cannot express.
+function DeleteAccountConfirm({ wallet, onConfirm }: { wallet: Wallet; onConfirm: () => void }) {
+  const [acknowledged, setAcknowledged] = useState(false);
+  return (
+    <Flex direction={"column"} gap={16}>
+      <Text size="sm">
+        Are you sure you want to delete "{wallet.name}"? Its keys will be erased from this device
+        — without its recovery phrase you will permanently lose access to its funds.
+      </Text>
+      <Checkbox
+        size="sm"
+        label="I understand this cannot be undone"
+        checked={acknowledged}
+        onChange={(event) => setAcknowledged(event.currentTarget.checked)}
+      />
+      <Group justify="flex-end">
+        <Button variant="default" onClick={() => modals.closeAll()}>
+          Cancel
+        </Button>
+        <Button
+          color="red"
+          variant="light"
+          disabled={!acknowledged}
+          onClick={() => {
+            modals.closeAll();
+            onConfirm();
+          }}
+        >
+          Delete
+        </Button>
+      </Group>
+    </Flex>
+  );
+}
 
 export default function WalletTable() {
   const loading = useLoadingWallets();
@@ -120,20 +157,16 @@ export default function WalletTable() {
     stack.closeAll();
   }
 
-  // Styled to match the Contacts page's delete confirmation.
+  // Styled to match the Contacts page's delete confirmation, plus an explicit
+  // acknowledgement checkbox: deletion irrecoverably erases the account's keys,
+  // so a reflexive confirm-click alone is not enough.
   function onClickRemoveWallet(wallet: Wallet) {
-    modals.openConfirmModal({
+    modals.open({
       title: "Delete this account?",
       centered: true,
       children: (
-        <Text size="sm">
-          Are you sure you want to delete "{wallet.name}"? Its keys will be erased from this
-          device — without its recovery phrase you will permanently lose access to its funds.
-        </Text>
+        <DeleteAccountConfirm wallet={wallet} onConfirm={() => confirmRemoveWallet(wallet)} />
       ),
-      labels: { confirm: "Delete", cancel: "Cancel" },
-      confirmProps: { color: "red", variant: "light" },
-      onConfirm: () => confirmRemoveWallet(wallet),
     });
   }
 
