@@ -2,7 +2,7 @@ import RustySessionStore from "@/commands/store";
 import { Box, Flex, Group, Image, Space } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { linkdata } from "../../routers";
+import { bottomLinkdata, linkdata } from "../../routers";
 import { LinksGroup } from "../base/navbar-links-group";
 import SyncBlockCard from "../card/sync-block-card";
 import AccountSwitcher from "./account-switcher";
@@ -30,16 +30,19 @@ function Navbar() {
     }
   }
 
-  const links = linkdata.map((item) => (
-    <LinksGroup
-      active={active}
-      changeActive={function (active: string): void {
-        setActive(active);
-      }}
-      {...item}
-      key={item.label}
-    />
-  ));
+  const renderLinks = (items: typeof linkdata) =>
+    items.map((item) => (
+      <LinksGroup
+        active={active}
+        changeActive={function (active: string): void {
+          setActive(active);
+        }}
+        {...item}
+        key={item.label}
+      />
+    ));
+  const links = renderLinks(linkdata);
+  const bottomLinks = renderLinks(bottomLinkdata);
 
   return (
     <Box>
@@ -47,12 +50,13 @@ function Navbar() {
         <nav data-tauri-drag-region className={classes.navbar}>
           <Space data-tauri-drag-region h={34} />
           <Flex justify={"center"} align={"center"}>
+            {/* No drag region on the logo itself: it would swallow the click.
+                The spacers above/below keep this strip draggable. */}
             <Image
-              data-tauri-drag-region
-              style={{ cursor: "pointer" }}
               src={"/icon-wallet.png"}
               w={"100%"}
               h={29}
+              onClick={() => navigate("/wallet")}
             />
           </Flex>
           <Space data-tauri-drag-region h={16} />
@@ -61,6 +65,7 @@ function Navbar() {
           <div data-tauri-drag-region className={classes.navbarMain}>
             {links}
           </div>
+          {bottomLinks}
           <div className={classes.footer}>
             <SyncBlockCard />
           </div>

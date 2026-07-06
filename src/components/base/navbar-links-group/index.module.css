@@ -17,8 +17,9 @@
   &[data-active] {
     &,
     &:hover {
-      /* Active page: subtle background tint. */
-      background-color: var(--navbarhovercolor);
+      /* Active page: a clearly stronger tint than hover, so the current page
+         stays distinguishable while other items are hovered. */
+      background-color: var(--navbaractivebackground);
       color: var(--navbaractivecolor);
     }
   }

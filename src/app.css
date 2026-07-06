@@ -7,10 +7,10 @@
   --foreground: #171717;
   --navbarbackground: #141432;
   --navbarhovercolor: #202038;
+  --navbaractivebackground: #32325f;
   --navbarcolor: #b5b6c9;
   --navbaractivecolor: #ffffff;
   --synccardbackground: #141432;
-  --synccardbordecolor: var(--synccardbackground);
   --balancebackground: #6672b0;
   --lockbalancebackground: #a96400;
   --primaryhighlight: #6972ff;

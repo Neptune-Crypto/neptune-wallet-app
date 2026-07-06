@@ -79,5 +79,7 @@ export const linkdata = [
   { label: "Receive", href: "/addresses", icon: IconArrowDownCircle },
   { label: "Contacts", href: "/contacts", icon: IconUsers },
   { label: "History", href: "/history", icon: IconHistory },
-  { label: "Settings", href: "/settings", icon: IconSettings },
 ];
+
+// Rendered pinned to the bottom of the sidebar, above the sync card.
+export const bottomLinkdata = [{ label: "Settings", href: "/settings", icon: IconSettings }];
