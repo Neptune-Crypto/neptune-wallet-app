@@ -60,3 +60,18 @@
   /* border-top: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4)); */
   /* padding-top: var(--mantine-spacing-md); */
 }
+
+/* Account switcher: a soft filled "slot" in the same borderless language as the
+   nav items (which tint on hover), instead of an outlined pill. */
+.accountSwitcher {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.05);
+  transition: background-color 120ms ease;
+
+  &:hover {
+    background-color: var(--navbarhovercolor);
+  }
+}

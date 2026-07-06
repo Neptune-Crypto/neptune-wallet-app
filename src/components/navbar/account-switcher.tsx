@@ -7,8 +7,9 @@ import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
 import { notify } from "@/utils/notify";
 import { Box, Group, Menu, Text, UnstyledButton } from "@mantine/core";
-import { IconCheck, IconChevronDown, IconWallet } from "@tabler/icons-react";
+import { IconCheck, IconChevronDown } from "@tabler/icons-react";
 import { useEffect } from "react";
+import classes from "./navbar.module.css";
 
 // Active-account indicator + switcher, shown at the top of the sidebar so the
 // current account is visible on every page and can be changed from anywhere.
@@ -40,17 +41,8 @@ export default function AccountSwitcher() {
     <Box px={12}>
       <Menu shadow="md" width="target" position="bottom" withinPortal>
         <Menu.Target>
-          <UnstyledButton
-            style={{
-              width: "100%",
-              padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              color: "#fff",
-            }}
-          >
+          <UnstyledButton className={classes.accountSwitcher}>
             <Group gap={8} wrap="nowrap">
-              <IconWallet size={18} style={{ flexShrink: 0 }} />
               <Text size="sm" fw={600} truncate style={{ flex: 1, minWidth: 0 }}>
                 {current?.name ?? "—"}
               </Text>

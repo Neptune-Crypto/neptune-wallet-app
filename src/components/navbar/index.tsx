@@ -50,12 +50,15 @@ function Navbar() {
         <nav data-tauri-drag-region className={classes.navbar}>
           <Space data-tauri-drag-region h={34} />
           <Flex justify={"center"} align={"center"}>
-            {/* No drag region on the logo itself: it would swallow the click.
-                The spacers above/below keep this strip draggable. */}
+            {/* N monogram (white-filled SVG — crisp at any DPI; the app name stays
+                on the lock screen and window title). No drag region on the logo:
+                it would swallow the click. The spacers above/below keep this strip
+                draggable. */}
             <Image
-              src={"/icon-wallet.png"}
-              w={"100%"}
-              h={29}
+              src={"/neptune-logo.svg?v=3"}
+              w={44}
+              h={44}
+              fit="contain"
               onClick={() => navigate("/wallet")}
             />
           </Flex>
