@@ -48,10 +48,11 @@ export default function ActionMenu({
         <Menu.Divider />
         <Menu.Item
           disabled={isCurrentWallet}
+          color="red"
           leftSection={<IconTrash size={14} />}
           onClick={removeWallet}
         >
-          <Text>Remove account</Text>
+          <Text>Delete account</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item

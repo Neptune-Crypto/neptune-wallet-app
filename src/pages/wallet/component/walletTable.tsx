@@ -26,6 +26,7 @@ import {
   TextInput,
   useModalsStack,
 } from "@mantine/core";
+import { modals } from "@mantine/modals";
 import { IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
 import ActionMenu from "./action-menu";
@@ -39,7 +40,6 @@ export default function WalletTable() {
   const { serverUrl } = useSettingActionData();
   const dispatch = useAppDispatch();
   const [showAddWalletModal, setShowAddWalletModal] = useState(false);
-  const [removeWalletData, setRemoveWalletData] = useState({} as Wallet);
 
   const [showExportWalletModal, setShowExportWalletModal] = useState(false);
   const [exportWalletData, setExportWalletData] = useState({} as Wallet);
@@ -81,22 +81,19 @@ export default function WalletTable() {
     } catch (error) {}
   }
 
-  const stack = useModalsStack(["delete-page", "export-page", "rename-page"]);
-  async function confirmRemoveWallet() {
-    if (removeWalletData && removeWalletData.id) {
-      try {
-        await removeWallet(removeWalletData.id);
-        remoceContact(removeWalletData.address);
-        dispatch(queryWallets());
-        notify.success("Account " + removeWalletData.name + " has been removed", "Account removed");
-      } catch (error: any) {
-        notify.error(
-          error,
-          "An error occurred while removing the account.",
-          "Failed to remove account"
-        );
-      }
-      stack.closeAll();
+  const stack = useModalsStack(["export-page", "rename-page"]);
+  async function confirmRemoveWallet(wallet: Wallet) {
+    try {
+      await removeWallet(wallet.id);
+      remoceContact(wallet.address);
+      dispatch(queryWallets());
+      notify.success("Account " + wallet.name + " has been deleted", "Account deleted");
+    } catch (error: any) {
+      notify.error(
+        error,
+        "An error occurred while deleting the account.",
+        "Failed to delete account"
+      );
     }
   }
 
@@ -123,11 +120,21 @@ export default function WalletTable() {
     stack.closeAll();
   }
 
+  // Styled to match the Contacts page's delete confirmation.
   function onClickRemoveWallet(wallet: Wallet) {
-    setRemoveWalletData(wallet);
-    setTimeout(() => {
-      stack.open("delete-page");
-    }, 200);
+    modals.openConfirmModal({
+      title: "Delete this account?",
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete "{wallet.name}"? Its keys will be erased from this
+          device — without its recovery phrase you will permanently lose access to its funds.
+        </Text>
+      ),
+      labels: { confirm: "Delete", cancel: "Cancel" },
+      confirmProps: { color: "red", variant: "light" },
+      onConfirm: () => confirmRemoveWallet(wallet),
+    });
   }
 
   function onClickRenameWallet(wallet: Wallet) {
@@ -207,19 +214,6 @@ export default function WalletTable() {
         closeModal={() => setShowExportWalletModal(false)}
       />
       <Modal.Stack>
-        <Modal {...stack.register("delete-page")} title="Delete this account?">
-          Are you sure you want to remove this account? You will lose control of this account after
-          you remove it.
-          <Group mt="lg" justify="flex-end">
-            <Button onClick={stack.closeAll} variant="light">
-              Cancel
-            </Button>
-            <Button onClick={() => confirmRemoveWallet()} variant="light" color="red">
-              Delete
-            </Button>
-          </Group>
-        </Modal>
-
         <Modal {...stack.register("export-page")} title="Export account">
           <Group mt="lg" justify="flex-end">
             <Button onClick={stack.closeAll} variant="default">
