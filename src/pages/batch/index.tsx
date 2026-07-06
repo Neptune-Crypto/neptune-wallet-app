@@ -108,7 +108,10 @@ export default function BatchTranferPage() {
     "0"
   );
   const totalWithFee = bigNumberPlusToString(totalOut, feeInvalid ? "0" : fee || "0");
-  const overBalance = bigNumberMinus(availableBalance, totalWithFee) < 0;
+  // Only meaningful once the user has actually entered an amount somewhere —
+  // otherwise a pristine form (fee alone vs an empty balance) would already warn.
+  const hasAnyAmount = sendInputs.some((item) => item.amount !== "");
+  const overBalance = hasAnyAmount && bigNumberMinus(availableBalance, totalWithFee) < 0;
   // Rows repeating an address already used by an earlier row.
   const duplicateIndexes = new Set<number>();
   {
