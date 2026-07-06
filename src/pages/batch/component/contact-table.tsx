@@ -38,9 +38,9 @@ export default function ContactTable() {
     try {
       await deleteContactAddress({ address });
       dispatch(queryAllContacts());
-      notify.success("Delete contact successfully");
+      notify.success("Contact deleted successfully");
     } catch (error: any) {
-      notify.error(error, "Delete contact failed");
+      notify.error(error, "Failed to delete contact");
     }
   }
 
