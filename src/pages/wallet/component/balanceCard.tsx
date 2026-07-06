@@ -1,4 +1,9 @@
-import { useBalanceData, useLoadingBalance } from "@/store/wallet/hooks";
+import {
+  useBalanceData,
+  useCurrentWalledId,
+  useLoadingBalance,
+  useWallets,
+} from "@/store/wallet/hooks";
 import { bigNumberMinus } from "@/utils/common";
 import {
   Box,
@@ -17,6 +22,11 @@ export default function BalanceCard() {
   const [options, setOptions] = useState([] as any[]);
   const loading = useLoadingBalance();
   const balanceData = useBalanceData();
+  // The cards show the ACTIVE account's balances; name it so that is unambiguous
+  // (the accounts table below shows per-account and portfolio totals).
+  const wallets = useWallets();
+  const currentWalletID = useCurrentWalledId();
+  const activeAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
   useEffect(() => {
     handleOverviewData();
   }, [balanceData]);
@@ -89,7 +99,7 @@ export default function BalanceCard() {
                 visible={loading}
                 zIndex={1000}
                 overlayProps={{ radius: "sm", blur: 3 }}
-                loaderProps={{ color: "orange", type: "dots" }}
+                loaderProps={{ color: "blue", type: "dots" }}
               />
               <Text style={{ color: textColor, fontWeight: "500", fontSize: "32px" }}>
                 {children}
@@ -106,6 +116,14 @@ export default function BalanceCard() {
 
   return (
     <Flex direction={"column"} w={"100%"} gap={8}>
+      <Flex direction={"row"} gap={6} align={"center"}>
+        <Text size="sm" c="dimmed">
+          Active account:
+        </Text>
+        <Text size="sm" fw={600}>
+          {activeAccountName || "—"}
+        </Text>
+      </Flex>
       <Box pos="relative">
         <LoadingOverlay visible={false} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
         <Grid grow gutter={"lg"}>

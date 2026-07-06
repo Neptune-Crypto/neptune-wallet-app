@@ -64,10 +64,10 @@ export default function WalletTable() {
   async function changeWallet(wallet: Wallet) {
     let canChange = currentWalletID != wallet.id;
     if (canChange) {
-      const id = notify.loading("Changing account", "Change account to " + wallet.name);
+      const id = notify.loading("Changing account", "Switching to " + wallet.name);
       await setCurrentWallet(wallet.id);
       await refreshWalletData();
-      notify.done(id, "Account changed", "Change account to " + wallet.name);
+      notify.done(id, "Account changed", "Switched to " + wallet.name);
     }
   }
 
@@ -151,10 +151,12 @@ export default function WalletTable() {
     <Table.Tr
       key={index}
       bg={currentWalletID === element.id ? "var(--mantine-color-blue-light)" : undefined}
+      // Row click switches the active account (the menu's Switch item remains);
+      // interactive cells below stop propagation so they don't trigger a switch.
+      onClick={() => changeWallet(element)}
+      title={currentWalletID === element.id ? undefined : "Switch to this account"}
+      style={{ cursor: currentWalletID === element.id ? "default" : "pointer" }}
     >
-      <Table.Td>
-        <Flex>{`#${index + 1}`}</Flex>
-      </Table.Td>
       <Table.Td>
         <Flex direction={"row"} align={"center"} gap={8}>
           <Text>{element.name}</Text>
@@ -170,7 +172,9 @@ export default function WalletTable() {
           <Text w={340} truncate>
             {ellipsis(element.address)}
           </Text>
-          <CopyedIcon size={16} value={element.address} />
+          <span style={{ display: "inline-flex" }} onClick={(e) => e.stopPropagation()}>
+            <CopyedIcon size={16} value={element.address} />
+          </span>
         </Flex>
       </Table.Td>
       <Table.Td>
@@ -181,7 +185,7 @@ export default function WalletTable() {
           </Flex>
         }
       </Table.Td>
-      <Table.Td>
+      <Table.Td onClick={(e) => e.stopPropagation()}>
         <ActionMenu
           isCurrentWallet={currentWalletID == element.id}
           switchWallet={() => changeWallet(element)}
@@ -275,7 +279,7 @@ export default function WalletTable() {
             visible={loading}
             zIndex={1000}
             overlayProps={{ radius: "sm", blur: 2 }}
-            loaderProps={{ color: "pink" }}
+            loaderProps={{ color: "blue" }}
           />
           <Table
             stickyHeader
@@ -291,7 +295,6 @@ export default function WalletTable() {
           >
             <Table.Thead>
               <Table.Tr>
-                <Table.Th>#</Table.Th>
                 <Table.Th>Account name</Table.Th>
                 <Table.Th>Address</Table.Th>
                 <Table.Th>Total balance</Table.Th>
