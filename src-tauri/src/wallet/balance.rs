@@ -5,25 +5,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 impl super::WalletState {
-    // Available (spendable-now) balance. Retained for tests; the sync loop now
-    // persists the total balance via get_all_balance for the accounts list.
-    #[allow(dead_code)]
-    pub(crate) async fn get_balance(&self) -> Result<NativeCurrencyAmount> {
-        let utxos = self.get_utxos().await?;
-
-        let now = Timestamp::now();
-
-        let mut balance = 0i128;
-        for utxo in utxos {
-            if utxo.spent_in_block.is_none() && utxo.recovery_data.utxo.can_spend_at(now) {
-                let value = utxo.recovery_data.utxo.get_native_currency_amount();
-                balance += value.to_nau();
-            }
-        }
-
-        Ok(NativeCurrencyAmount::from_nau(balance))
-    }
-
     pub(crate) async fn get_balance_history(&self) -> Result<Vec<WalletHistory>> {
         let utxos = self.get_utxos().await?;
         let mut history = Vec::new();
