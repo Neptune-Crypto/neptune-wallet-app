@@ -11,8 +11,12 @@
   --navbarcolor: #b5b6c9;
   --navbaractivecolor: #ffffff;
   --synccardbackground: #141432;
+  /* Balance-card gradients: the light end is the contrast-tuned base (>=4.5:1
+     with white text); the deep end only darkens, so contrast never drops. */
   --balancebackground: #6672b0;
+  --balancebackgrounddeep: #3a4373;
   --lockbalancebackground: #a96400;
+  --lockbalancebackgrounddeep: #653c00;
   --primaryhighlight: #6972ff;
   --primaryhighlight2: #fab347;
   --primaryhighlight3: #e8533c;
@@ -35,6 +39,33 @@ body {
   background: var(--background);
   border-radius: var(--body-radius) 0 0 var(--body-radius);
   height: 100vh;
+}
+
+/* Balance cards: gradient surfaces. Classes (with !important) rather than inline
+   styles so they reliably beat the Card/Paper background-color. */
+.balance-card-available {
+  /* Faint concentric arcs sweeping in from past the top-right corner, over the
+     base gradient — subtle texture, kept well below the figures' legibility. */
+  background:
+    repeating-radial-gradient(
+      circle at 112% -18%,
+      transparent 0 26px,
+      rgba(255, 255, 255, 0.045) 26px 27.5px
+    ),
+    linear-gradient(135deg, var(--balancebackground) 0%, var(--balancebackgrounddeep) 100%) !important;
+}
+.balance-card-locked {
+  background:
+    repeating-radial-gradient(
+      circle at 112% -18%,
+      transparent 0 26px,
+      rgba(255, 255, 255, 0.045) 26px 27.5px
+    ),
+    linear-gradient(
+        135deg,
+        var(--lockbalancebackground) 0%,
+        var(--lockbalancebackgrounddeep) 100%
+      ) !important;
 }
 
 /* Calmer tables: soft near-black data rows so they read a touch lighter than pure

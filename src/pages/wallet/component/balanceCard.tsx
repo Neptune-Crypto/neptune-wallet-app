@@ -63,26 +63,28 @@ export default function BalanceCard() {
     hideButton?: boolean;
     tooltip?: string;
   }) {
-    // Both cards use white text; their backgrounds are dark enough for it to clear
-    // WCAG AA (the locked card's amber was darkened for this — see app.css).
+    // Both cards use white text; the gradients' light end is contrast-tuned to
+    // clear WCAG AA, and the deep end only darkens (see app.css, where the
+    // gradient classes live).
     const textColor = "white";
     return (
       <Card
-        radius="md"
-        bg={hideButton ? "var(--lockbalancebackground)" : "var(--balancebackground)"}
+        radius="lg"
+        p="lg"
         w={"100%"}
+        className={hideButton ? "balance-card-locked" : "balance-card-available"}
       >
-        <Flex direction={"column"} w={"100%"} gap={16}>
+        <Flex direction={"column"} w={"100%"} gap={8}>
           <Flex
             direction={"row"}
             gap={4}
             justify="center"
             align="center"
-            style={{
-              whiteSpace: "nowrap",
-            }}
+            style={{ whiteSpace: "nowrap" }}
           >
-            <Text style={{ color: textColor, fontWeight: "500", fontSize: "14px" }}>{title}</Text>
+            <Text style={{ color: textColor, opacity: 0.8, fontWeight: "500", fontSize: "13px" }}>
+              {title}
+            </Text>
             {tooltip && (
               <Tooltip label={tooltip} multiline w={240} withArrow position="top">
                 <IconInfoCircle
@@ -101,11 +103,20 @@ export default function BalanceCard() {
                 overlayProps={{ radius: "sm", blur: 3 }}
                 loaderProps={{ color: "blue", type: "dots" }}
               />
-              <Text style={{ color: textColor, fontWeight: "500", fontSize: "32px" }}>
+              <Text
+                style={{
+                  color: textColor,
+                  fontWeight: "500",
+                  fontSize: "32px",
+                  letterSpacing: "-0.02em",
+                  fontVariantNumeric: "tabular-nums",
+                  lineHeight: 1.1,
+                }}
+              >
                 {children}
               </Text>
             </Box>
-            <Text style={{ color: textColor, fontWeight: "500", fontSize: "16px", opacity: 0.75 }}>
+            <Text style={{ color: textColor, fontWeight: "500", fontSize: "13px", opacity: 0.65 }}>
               NPT
             </Text>
           </Flex>
