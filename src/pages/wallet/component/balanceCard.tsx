@@ -97,12 +97,9 @@ export default function BalanceCard() {
           </Flex>
           <Flex direction={"row"} gap={6} justify="center" align="baseline">
             <Box pos="relative">
-              <LoadingOverlay
-                visible={loading}
-                zIndex={1000}
-                overlayProps={{ radius: "sm", blur: 3 }}
-                loaderProps={{ color: "blue", type: "dots" }}
-              />
+              {/* While refreshing (e.g. after an account switch) the value is kept
+                  in state, so just dim it gently — a white LoadingOverlay flashed
+                  over the figure on the colored card. */}
               <Text
                 style={{
                   color: textColor,
@@ -111,6 +108,8 @@ export default function BalanceCard() {
                   letterSpacing: "-0.02em",
                   fontVariantNumeric: "tabular-nums",
                   lineHeight: 1.1,
+                  opacity: loading ? 0.5 : 1,
+                  transition: "opacity 150ms ease",
                 }}
               >
                 {children}
