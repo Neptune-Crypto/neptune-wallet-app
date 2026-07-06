@@ -196,7 +196,7 @@ export default function NewUtxoTable() {
           visible={loading}
           zIndex={1000}
           overlayProps={{ radius: "sm", blur: 2 }}
-          loaderProps={{ color: "pink" }}
+          loaderProps={{ color: "blue" }}
         />
         {!loading && availableUtxos && availableUtxos.length > 0 ? (
           <Table

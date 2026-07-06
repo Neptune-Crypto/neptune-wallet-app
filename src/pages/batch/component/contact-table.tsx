@@ -88,7 +88,7 @@ export default function ContactTable() {
           visible={loading}
           zIndex={1000}
           overlayProps={{ radius: "sm", blur: 2 }}
-          loaderProps={{ color: "pink" }}
+          loaderProps={{ color: "blue" }}
         />
         {!loading && customContacts.length > 0 ? (
           <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars>

@@ -49,7 +49,7 @@ export default function ActivityTableCard({ historyType }: { historyType: string
           visible={loading}
           zIndex={1000}
           overlayProps={{ radius: "sm", blur: 2 }}
-          loaderProps={{ color: "pink" }}
+          loaderProps={{ color: "blue" }}
         />
         {!loading && historyList && historyList.length > 0 ? (
           <Table

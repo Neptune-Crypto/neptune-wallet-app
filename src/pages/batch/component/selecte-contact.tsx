@@ -111,7 +111,7 @@ export default function SelecteContact({
             visible={loading}
             zIndex={1000}
             overlayProps={{ radius: "sm", blur: 2 }}
-            loaderProps={{ color: "pink" }}
+            loaderProps={{ color: "blue" }}
           />
           <Tabs value={activeTab} onChange={setActiveTab}>
             <Tabs.List mb="sm">
