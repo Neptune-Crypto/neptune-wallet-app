@@ -1,5 +1,6 @@
 import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
+import { useAllContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
 import { sleep_milliseconds } from "@/utils/common";
 import { notify } from "@/utils/notify";
@@ -17,12 +18,20 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
   } as Contact);
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
+  const contacts = useAllContacts();
+
+  // The backend keys update/delete on the address, so duplicates would be edited
+  // and deleted together — block saving an address that already exists.
+  const trimmedAddress = (contact.address ?? "").trim();
+  const isDuplicate =
+    trimmedAddress !== "" && (contacts ?? []).some((c) => c.address === trimmedAddress);
 
   async function handleSubmit() {
+    if (isDuplicate) return;
     try {
       setLoading(true);
       contact.createdTime = new Date().getTime();
-      addContactAddress({ contact });
+      addContactAddress({ contact: { ...contact, address: trimmedAddress } });
       notify.success("Contact added successfully");
       await sleep_milliseconds(100);
       dispatch(queryAllContacts());
@@ -55,6 +64,7 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
             autosize
             minRows={4}
             value={contact.address ?? ""}
+            error={isDuplicate ? "A contact with this address already exists" : undefined}
             onChange={(event) =>
               setContact({
                 ...contact,
@@ -66,7 +76,7 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
         <Button
           variant="light"
           loading={loading}
-          disabled={!contact.aliasName || !contact.address}
+          disabled={!contact.aliasName || !contact.address || isDuplicate}
           onClick={handleSubmit}
         >
           Add

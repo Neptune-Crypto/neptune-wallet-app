@@ -7,7 +7,18 @@ import { Contact } from "@/database/types/contact";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { notify } from "@/utils/notify";
 import { deleteContactAddress } from "@/utils/storage";
-import { Box, Button, Center, Flex, LoadingOverlay, ScrollArea, Table, Text } from "@mantine/core";
+import {
+  ActionIcon,
+  Box,
+  Button,
+  Center,
+  Flex,
+  LoadingOverlay,
+  ScrollArea,
+  Table,
+  Text,
+} from "@mantine/core";
+import { modals } from "@mantine/modals";
 import { IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import AddContact from "./add-contact";
@@ -32,6 +43,23 @@ export default function ContactTable() {
       notify.error(error, "Delete contact failed");
     }
   }
+
+  // Deleting a saved payment address is destructive; require confirmation.
+  function confirmDelete(contact: Contact) {
+    modals.openConfirmModal({
+      title: "Delete this contact?",
+      centered: true,
+      children: (
+        <Text size="sm">
+          Are you sure you want to delete "{contact.aliasName}"? You will need to obtain the
+          address again to re-add it.
+        </Text>
+      ),
+      labels: { confirm: "Delete", cancel: "Cancel" },
+      confirmProps: { color: "red", variant: "light" },
+      onConfirm: () => handleDelete(contact.address),
+    });
+  }
   const rows = customContacts.map((element) => (
     <Table.Tr key={element.address}>
       <Table.Td>
@@ -45,19 +73,23 @@ export default function ContactTable() {
       </Table.Td>
       <Table.Td>
         <Center>
-          <Flex direction={"row"} gap={12} align={"center"}>
-            <IconPencil
-              size={18}
-              color="var(--mantine-color-blue-6)"
-              style={{ cursor: "pointer" }}
+          <Flex direction={"row"} gap={4} align={"center"}>
+            <ActionIcon
+              variant="subtle"
+              color="blue"
+              aria-label="Edit contact"
               onClick={() => setEditingContact(element)}
-            />
-            <IconTrash
-              size={18}
+            >
+              <IconPencil size={18} />
+            </ActionIcon>
+            <ActionIcon
+              variant="subtle"
               color="red"
-              style={{ cursor: "pointer" }}
-              onClick={() => handleDelete(element.address)}
-            ></IconTrash>
+              aria-label="Delete contact"
+              onClick={() => confirmDelete(element)}
+            >
+              <IconTrash size={18} />
+            </ActionIcon>
           </Flex>
         </Center>
       </Table.Td>
