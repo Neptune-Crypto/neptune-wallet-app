@@ -29,7 +29,7 @@ export default function HistoryPage() {
   // Series order is bottom-to-top of the stack: Sent on the bottom, Received on top.
   const series = [
     ...(historyType !== "Received" ? [{ name: "Sent", color: "red.6" }] : []),
-    ...(historyType !== "Sent" ? [{ name: "Received", color: "#0A8430" }] : []),
+    ...(historyType !== "Sent" ? [{ name: "Received", color: "var(--color-positive)" }] : []),
   ];
 
   const valueFormatter = (value: number) =>
@@ -112,7 +112,7 @@ export default function HistoryPage() {
                         <Box
                           w={12}
                           h={12}
-                          style={{ borderRadius: 2, backgroundColor: "#0A8430" }}
+                          style={{ borderRadius: 2, backgroundColor: "var(--color-positive)" }}
                         />
                         <Text size="sm">Received</Text>
                       </Group>

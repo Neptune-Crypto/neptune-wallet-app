@@ -16,7 +16,7 @@ export default function CopyedIcon({
   return (
     <>
       {copyed ? (
-        <IconCircleCheck color="green" size={size} />
+        <IconCircleCheck color="var(--color-positive)" size={size} />
       ) : (
         <Tooltip label={tooltipLable} withArrow>
           {/* A real button so the copy action is keyboard-focusable and labelled. */}

@@ -13,18 +13,19 @@ export default function ActivityTableItem(props: Props) {
   return (
     <Table.Tr>
       <Table.Td>
-        <Text c={"#0A8430"}>
+        {/* Block height is not money — neutral text (green means amounts only). */}
+        <Text>
           <NumberFormatter value={element.height} thousandSeparator />
         </Text>
       </Table.Td>
       <Table.Td>
         <Center>
           {element.changeAmount.startsWith("-") ? (
-            <Text fw={600} c={"#C92A2A"}>
+            <Text fw={600} c={"var(--color-negative)"}>
               {element.changeAmount}
             </Text>
           ) : (
-            <Text fw={600} c={"#0A8430"}>
+            <Text fw={600} c={"var(--color-positive)"}>
               {element.changeAmount}
             </Text>
           )}

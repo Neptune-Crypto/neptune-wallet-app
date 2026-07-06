@@ -86,7 +86,7 @@ export default function NewUtxoTable() {
         </Table.Td>
         <Table.Td>
           <Center>
-            <Text fw={600} c={"#0A8430"}>
+            <Text fw={600} c={"var(--color-positive)"}>
               <NumberFormatter value={amount_to_fixed(element.amount)} thousandSeparator />
             </Text>
           </Center>

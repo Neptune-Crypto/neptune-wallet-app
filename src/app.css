@@ -18,15 +18,19 @@
   --lockbalancebackground: #a96400;
   --lockbalancebackgrounddeep: #653c00;
   --primaryhighlight: #6972ff;
-  --primaryhighlight2: #fab347;
-  --primaryhighlight3: #e8533c;
+  /* Semantic money colors: green = gains/positive amounts ONLY, red = losses
+     (same red-9 as destructive buttons). Tune the whole app here. */
+  --color-positive: #2b8a3e;
+  --color-negative: #c92a2a;
   --body-radius: 13px;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Same stack as the Mantine theme (Inter Variable is bundled via main.tsx),
+     so Mantine components and raw elements render in one typeface. */
+  font-family: "Inter Variable", "Segoe UI", system-ui, sans-serif;
   overflow: hidden;
 }
 

@@ -119,7 +119,7 @@ export default function DetailModal(props: Props) {
                           <CopyedIcon size={16} value={output.toAddress} />
                           <Flex direction={"row"} gap={3}>
                             <Text c={"#6c757d"}>{`(Sent: `}</Text>
-                            <Text fw={600} c={"#C92A2A"}>
+                            <Text fw={600} c={"var(--color-negative)"}>
                               <NumberFormatter
                                 value={amount_to_positive_fixed(output.amount)}
                                 thousandSeparator
@@ -140,7 +140,7 @@ export default function DetailModal(props: Props) {
               <Table.Th>Amount:</Table.Th>
               <Table.Td>
                 <Flex w={"100%"} justify={"end"}>
-                  <Text fw={600} c={"#C92A2A"}>
+                  <Text fw={600} c={"var(--color-negative)"}>
                     <NumberFormatter value={handleAmount()} thousandSeparator />
                   </Text>
                 </Flex>
@@ -176,7 +176,7 @@ export default function DetailModal(props: Props) {
               <Table.Th>Fee:</Table.Th>
               <Table.Td>
                 <Flex w={"100%"} justify={"end"}>
-                  <Text fw={600} c={"#C92A2A"}>
+                  <Text fw={600} c={"var(--color-negative)"}>
                     <NumberFormatter
                       value={amount_to_positive_fixed(history.fee)}
                       thousandSeparator

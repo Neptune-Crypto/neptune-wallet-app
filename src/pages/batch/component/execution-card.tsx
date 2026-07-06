@@ -154,12 +154,8 @@ export default function ExecutionCard() {
                   <Table.Tbody>
                     <Table.Tr>
                       <Table.Th>
-                        <TimeClock
-                          style={{
-                            color: "#0A8430",
-                          }}
-                          timeStamp={Math.floor(item.timestamp / 1000)}
-                        />
+                        {/* Elapsed time is not money — neutral (green means amounts only). */}
+                        <TimeClock timeStamp={Math.floor(item.timestamp / 1000)} />
                       </Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
@@ -240,7 +236,7 @@ export default function ExecutionCard() {
                       <Table.Th>Amount:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
-                          <Text c={"#0A8430"}>
+                          <Text c={"var(--color-positive)"}>
                             <NumberFormatter
                               value={handleAmount(item)}
                               thousandSeparator
@@ -254,7 +250,7 @@ export default function ExecutionCard() {
                       <Table.Th>Fee:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
-                          <Text c={"#0A8430"}>
+                          <Text c={"var(--color-positive)"}>
                             <NumberFormatter
                               value={amount_to_positive_fixed(item.fee)}
                               thousandSeparator
@@ -270,7 +266,7 @@ export default function ExecutionCard() {
                         <Table.Th>Priority fee:</Table.Th>
                         <Table.Td>
                           <Flex w={"100%"} justify={"end"}>
-                            <Text c={"#0A8430"}>
+                            <Text c={"var(--color-positive)"}>
                               <NumberFormatter
                                 value={amount_to_positive_fixed(item.priorityFee)}
                                 thousandSeparator
@@ -285,7 +281,7 @@ export default function ExecutionCard() {
                       <Table.Th>Total:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
-                          <Text c={"#0A8430"} fw={700}>
+                          <Text c={"var(--color-positive)"} fw={700}>
                             <NumberFormatter
                               value={handleTotal(item)}
                               thousandSeparator
