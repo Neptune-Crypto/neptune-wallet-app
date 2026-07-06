@@ -14,7 +14,9 @@ export default function SyncBlockCard() {
     if (latestBlock === 0) {
       return 0;
     }
-    return (syncedBlock / latestBlock) * 100;
+    // Clamp: during an account switch the synced height can briefly exceed a
+    // stale latest height, which would render as "100.0%" (or >100%).
+    return Math.min(100, (syncedBlock / latestBlock) * 100);
   }
   useEffect(() => {
     if (latestBlock < syncedBlock) {
