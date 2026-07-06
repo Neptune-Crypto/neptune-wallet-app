@@ -95,7 +95,7 @@ export function ChacheFileItem({ item }: { item: BlockCacheFile }) {
         )}
       </Table.Td>
       <Table.Td>
-        <Button color="red" loading={loading} size="compact-xs" onClick={() => deleteCache()}>
+        <Button color="red.9" loading={loading} size="compact-xs" onClick={() => deleteCache()}>
           {" "}
           Delete{" "}
         </Button>

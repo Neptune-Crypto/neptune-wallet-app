@@ -55,7 +55,7 @@ function DeleteAccountConfirm({ wallet, onConfirm }: { wallet: Wallet; onConfirm
           Cancel
         </Button>
         <Button
-          color="red"
+          color="red.9"
           variant="light"
           disabled={!acknowledged}
           onClick={() => {
@@ -252,7 +252,7 @@ export default function WalletTable() {
             <Button onClick={stack.closeAll} variant="default">
               Cancel
             </Button>
-            <Button onClick={() => confirmExportWallet()} color="red">
+            <Button onClick={() => confirmExportWallet()} color="red.9">
               Confirm
             </Button>
           </Group>

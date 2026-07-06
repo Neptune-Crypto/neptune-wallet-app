@@ -56,7 +56,7 @@ export default function ContactTable() {
         </Text>
       ),
       labels: { confirm: "Delete", cancel: "Cancel" },
-      confirmProps: { color: "red", variant: "light" },
+      confirmProps: { color: "red.9", variant: "light" },
       onConfirm: () => handleDelete(contact.address),
     });
   }

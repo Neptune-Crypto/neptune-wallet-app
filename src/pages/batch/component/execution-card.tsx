@@ -169,7 +169,7 @@ export default function ExecutionCard() {
                             size="xs"
                             onClick={() => forgetTx(item.txid)}
                             className={styles.cancleBtn}
-                            color="red"
+                            color="red.9"
                           >
                             Forget
                           </Button>

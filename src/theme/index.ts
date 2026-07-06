@@ -57,6 +57,15 @@ const theme = createTheme({
       defaultProps: {
         color: "blue",
       },
+      vars: (_theme: any, props: any) => {
+        // Light-variant blue text deepened one shade (blue[6] -> blue[7]): on its
+        // pale tint, blue[6] is only ~4.6:1 against AA's 4.5 — this buys margin
+        // (~5.8:1) without touching filled buttons or other colors.
+        if (props.variant === "light" && (!props.color || props.color === "blue")) {
+          return { root: { "--button-color": "#4c5897" } };
+        }
+        return { root: {} };
+      },
     },
     Text: {
       styles: () => ({
