@@ -120,7 +120,7 @@ export default function ExportWalletModal(props: Props) {
                 }}
               >
                 {showMnemonic ? <IconEyeOff size={14} /> : <IconEye size={14} />}
-                <Text fz={14} fw={600}>
+                <Text fz={14} fw={500}>
                   {showMnemonic ? "Hide recovery phrase" : "Reveal recovery phrase"}
                 </Text>
               </Flex>
@@ -140,8 +140,8 @@ export default function ExportWalletModal(props: Props) {
                   }, 2000);
                 }}
               >
-                {copyed ? <IconCircleCheck size={14} color="green" /> : <IconCopy size={14} />}
-                <Text fz={14} fw={600}>
+                {copyed ? <IconCircleCheck size={14} color="var(--color-positive)" /> : <IconCopy size={14} />}
+                <Text fz={14} fw={500}>
                   {copyed ? "Copied" : "Copy to clipboard"}
                 </Text>
               </Flex>

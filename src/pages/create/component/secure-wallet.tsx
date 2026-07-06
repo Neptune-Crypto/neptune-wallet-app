@@ -58,9 +58,10 @@ export default function SecureWallet(props: Props) {
         <Box
           style={{
             width: "100%",
-            border: "1px solid #000000",
-            borderRadius: "5px",
+            border: "1px solid var(--mantine-color-gray-3)",
+            borderRadius: "8px",
             padding: "16px",
+            backgroundColor: "var(--mantine-color-gray-0)",
           }}
         >
           <Grid>
@@ -71,14 +72,17 @@ export default function SecureWallet(props: Props) {
                     <Flex direction={"row"} justify={"center"} align={"center"} gap={8}>
                       <Text
                         style={{ minWidth: "18px", textAlign: "center" }}
-                        fw={"bold"}
+                        size="sm"
+                        c="dimmed"
+                        fw={500}
                       >{`${index + 1}.`}</Text>
                       <Flex
                         style={{
-                          border: "1px solid #000000",
-                          borderRadius: "5px",
-                          padding: "4px",
+                          border: "1px solid var(--mantine-color-gray-3)",
+                          borderRadius: "6px",
+                          padding: "4px 8px",
                           minWidth: "120px",
+                          backgroundColor: "#ffffff",
                         }}
                         justify={"center"}
                       >
@@ -99,7 +103,7 @@ export default function SecureWallet(props: Props) {
           justify={"space-between"}
           align={"center"}
           w={"100%"}
-          mt={2}
+          mt="sm"
         >
           <Flex
             direction={"row"}
@@ -112,8 +116,8 @@ export default function SecureWallet(props: Props) {
               notify.success("New recovery phrase generated");
             }}
           >
-            <IconReload />
-            <Text fz={14} fw={600}>
+            <IconReload size={16} />
+            <Text fz={14} fw={500}>
               {"Change recovery phrase"}
             </Text>
           </Flex>
@@ -133,8 +137,8 @@ export default function SecureWallet(props: Props) {
               }, 2000);
             }}
           >
-            {copyed ? <IconCircleCheck color="green" /> : <IconCopy />}
-            <Text fz={14} fw={600}>
+            {copyed ? <IconCircleCheck size={16} color="var(--color-positive)" /> : <IconCopy size={16} />}
+            <Text fz={14} fw={500}>
               {copyed ? "Copied" : "Copy to clipboard"}
             </Text>
           </Flex>

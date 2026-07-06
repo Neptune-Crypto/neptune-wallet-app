@@ -1,6 +1,7 @@
 import { addWallet, setCurrentWallet } from "@/commands/wallet";
 import { notify } from "@/utils/notify";
-import { Button, Flex, NumberInput, Textarea, TextInput } from "@mantine/core";
+import { Button, Flex, NumberInput, Textarea, TextInput, Tooltip } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { useState } from "react";
 
 export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
@@ -78,7 +79,20 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
       />
       <Flex direction={"row"} gap={16}>
         <NumberInput
-          label="Number of keys"
+          label={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              Number of keys
+              <Tooltip
+                label="How many derived addresses are scanned for funds. Set this to at least the number of addresses this account has ever created — too few silently misses funds. The default of 25 suits accounts with few addresses."
+                multiline
+                w={280}
+                withArrow
+                position="top"
+              >
+                <IconInfoCircle size={13} style={{ opacity: 0.6, cursor: "help" }} />
+              </Tooltip>
+            </span>
+          }
           w={"50%"}
           placeholder="Enter the number of keys"
           min={1}
@@ -95,10 +109,23 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
           }
         />
         <NumberInput
-          label="Start height"
+          label={
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              Start block height
+              <Tooltip
+                label="Scanning for this account's funds starts from this block. Earlier blocks are skipped, so use a height at or before the account's first transaction — or leave 0 to scan the whole chain."
+                multiline
+                w={280}
+                withArrow
+                position="top"
+              >
+                <IconInfoCircle size={13} style={{ opacity: 0.6, cursor: "help" }} />
+              </Tooltip>
+            </span>
+          }
           thousandSeparator
           w={"50%"}
-          placeholder="Enter the start height"
+          placeholder="Enter the start block height"
           min={0}
           hideControls
           allowDecimal={false}
@@ -112,7 +139,13 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
           }
         />
       </Flex>
-      <Button variant="light" disabled={checkDisabled()} loading={loading} onClick={handleImport}>
+      <Button
+        variant="light"
+        mt="md"
+        disabled={checkDisabled()}
+        loading={loading}
+        onClick={handleImport}
+      >
         Import
       </Button>
     </Flex>

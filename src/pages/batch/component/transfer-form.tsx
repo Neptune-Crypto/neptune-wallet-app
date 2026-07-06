@@ -83,7 +83,7 @@ export default function TransferForm(props: Props) {
         />
         <NumberInput
           w={200}
-          placeholder="Enter amount"
+          placeholder="Amount"
           allowNegative={false}
           value={data.amount}
           onChange={(value) => {

@@ -24,7 +24,7 @@ export default function ActionMenu({
   importRandomness: () => void;
 }) {
   return (
-    <Menu shadow="md" width={165} position="bottom-end">
+    <Menu shadow="md" width={230} position="bottom-end">
       <Menu.Target>
         <Center>
           <ActionIcon size="sm" variant="default">
@@ -61,6 +61,11 @@ export default function ActionMenu({
           disabled={!isCurrentWallet}
         >
           <Text>Import randomness</Text>
+          {/* Menus don't tooltip well (hover selects, keyboards never see it), so
+              explain inline — same label + description pattern as Settings rows. */}
+          <Text size="xs" c="dimmed">
+            Recover funds from an incoming-randomness (.dat) file
+          </Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item leftSection={<IconArrowBarToUp size={14} />} onClick={exportWallet}>

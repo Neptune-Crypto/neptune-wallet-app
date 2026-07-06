@@ -319,7 +319,7 @@ export default function BatchTranferPage() {
                     <HoverCard.Target>
                       <Text
                         fw={600}
-                        c="#0A8430"
+                        c="var(--color-positive)"
                         style={{
                           wordWrap: "break-word",
                           overflowWrap: "break-word",
@@ -348,7 +348,7 @@ export default function BatchTranferPage() {
 
             <Flex direction={"row"} gap={8}>
               <Text c="dimmed">Available balance:</Text>
-              <Text fw={600} c="#0A8430">
+              <Text fw={600} c="var(--color-positive)">
                 {balanceData.available_balance}{" "}
                 <Text span c="dimmed" fw={400}>
                   NPT
@@ -455,8 +455,7 @@ export default function BatchTranferPage() {
           <Switch
             mt="sm"
             label="Accept lustrations"
-            labelPosition="left"
-            size="md"
+            size="sm"
             checked={accept_lustrations}
             onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
           />

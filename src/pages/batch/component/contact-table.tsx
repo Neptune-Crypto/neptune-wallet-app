@@ -67,7 +67,11 @@ export default function ContactTable() {
       </Table.Td>
       <Table.Td>
         <Flex direction={"row"} gap={8} align={"center"}>
-          <Text>{ellipsis(element.address)}</Text>
+          {/* Fixed width pins every row's copy icon at the same x — the same
+              icon rail as the Wallet accounts table. */}
+          <Text w={340} truncate>
+            {ellipsis(element.address)}
+          </Text>
           <CopyedIcon tooltipLable="Copy address" size={16} value={element.address} />
         </Flex>
       </Table.Td>

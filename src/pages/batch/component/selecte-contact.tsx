@@ -66,7 +66,9 @@ export default function SelecteContact({
         <Text style={{ minWidth: "115px" }}>{element.aliasName}</Text>
       </Table.Td>
       <Table.Td>
-        <Flex direction={"row"} gap={8} align={"center"}>
+        {/* space-between pins the copy icon to the column edge, forming a clean
+            icon rail without a dedicated Actions column. */}
+        <Flex direction={"row"} gap={8} align={"center"} justify={"space-between"}>
           <Text>{ellipsis(element.address)}</Text>
           <CopyedIcon size={16} value={element.address} />
         </Flex>
@@ -104,7 +106,7 @@ export default function SelecteContact({
     );
 
   return (
-    <Modal size={"xl"} opened={opened} onClose={close} title="Select contact to send">
+    <Modal size={"lg"} opened={opened} onClose={close} title="Select contact to send">
       <Flex direction={"column"} gap={16}>
         <Box pos="relative">
           <LoadingOverlay

@@ -4,7 +4,8 @@ import { useAppDispatch } from "@/store/hooks";
 import { useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
 import { setOneTimePassword } from "@/store/wallet/wallet-slice";
 import { notify } from "@/utils/notify";
-import { Button, Flex, NumberInput, Stack, Text, Textarea } from "@mantine/core";
+import { Button, Flex, NumberInput, Stack, Text, Textarea, Tooltip } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { useState } from "react";
 
 export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
@@ -68,7 +69,20 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
         <Flex direction={"row"} gap={16} w={"100%"}>
           <NumberInput
             w={"50%"}
-            label="Number of keys"
+            label={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                Number of keys
+                <Tooltip
+                  label="How many derived addresses are scanned for funds. Set this to at least the number of addresses this account has ever created — too few silently misses funds. The default of 25 suits accounts with few addresses."
+                  multiline
+                  w={280}
+                  withArrow
+                  position="top"
+                >
+                  <IconInfoCircle size={13} style={{ opacity: 0.6, cursor: "help" }} />
+                </Tooltip>
+              </span>
+            }
             placeholder="Enter the number of keys"
             min={1}
             hideControls
@@ -85,9 +99,22 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
           />
           <NumberInput
             w={"50%"}
-            label="Start height"
+            label={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                Start block height
+                <Tooltip
+                  label="Scanning for this account's funds starts from this block. Earlier blocks are skipped, so use a height at or before the account's first transaction — or leave 0 to scan the whole chain."
+                  multiline
+                  w={280}
+                  withArrow
+                  position="top"
+                >
+                  <IconInfoCircle size={13} style={{ opacity: 0.6, cursor: "help" }} />
+                </Tooltip>
+              </span>
+            }
             thousandSeparator
-            placeholder="Enter the start height"
+            placeholder="Enter the start block height"
             min={0}
             hideControls
             allowDecimal={false}
@@ -103,7 +130,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
         </Flex>
       </Stack>
 
-      <Flex justify={"center"} align={"center"} w={"100%"} style={{ marginTop: "10px" }}>
+      <Flex justify={"center"} align={"center"} w={"100%"} style={{ marginTop: "16px" }}>
         <Button
           variant="light"
           fullWidth

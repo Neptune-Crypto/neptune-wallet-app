@@ -118,9 +118,10 @@ export default function ConfirmSecret(props: Props) {
       <Box
         style={{
           width: "100%",
-          border: "1px solid #000000",
-          borderRadius: "5px",
+          border: "1px solid var(--mantine-color-gray-3)",
+          borderRadius: "8px",
           padding: "16px",
+          backgroundColor: "var(--mantine-color-gray-0)",
           caretColor: "transparent",
         }}
       >
@@ -133,22 +134,25 @@ export default function ConfirmSecret(props: Props) {
                   <Flex direction={"row"} justify={"center"} align={"center"} gap={8}>
                     <Text
                       style={{ minWidth: "18px", textAlign: "center" }}
-                      fw={"bold"}
+                      size="sm"
+                      c="dimmed"
+                      fw={500}
                     >{`${index + 1}.`}</Text>
                     <Flex
                       direction={"row"}
                       style={{
-                        border: "1px solid #000000",
-                        borderRadius: "5px",
-                        padding: "4px",
+                        border: "1px solid var(--mantine-color-gray-3)",
+                        borderRadius: "6px",
+                        padding: "4px 8px",
                         minWidth: "120px",
                         minHeight: "32px",
+                        backgroundColor: "#ffffff",
                         caretColor: "transparent",
                       }}
                       justify={"center"}
                       align={"center"}
                     >
-                      <Text style={{ fontWeight: "bold" }}>{word}</Text>
+                      <Text fw={500}>{word}</Text>
                       {word && numbers.includes(index) && (
                         <IconX
                           size={14}
@@ -185,15 +189,19 @@ export default function ConfirmSecret(props: Props) {
                     <Text fw={"bold"} style={{ color: "transparent" }}>{`${index + 1}.`}</Text>
                     <Flex
                       style={{
-                        border: "2px solid #000000",
-                        borderRadius: "5px",
-                        padding: "4px",
+                        // Slightly stronger border than the slots above: these
+                        // word-bank chips are clickable.
+                        border: "1px solid var(--mantine-color-gray-4)",
+                        borderRadius: "6px",
+                        padding: "4px 8px",
                         minWidth: "120px",
+                        backgroundColor: "#ffffff",
+                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
                         caretColor: "transparent",
                       }}
                       justify={"center"}
                     >
-                      <Text style={{ fontWeight: "bold" }}>{word}</Text>
+                      <Text fw={500}>{word}</Text>
                     </Flex>
                   </Flex>
                 </Grid.Col>
