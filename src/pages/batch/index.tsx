@@ -38,7 +38,7 @@ import { Fragment, useEffect, useState } from "react";
 
 import { useAvailableUtxos } from "@/store/history/hooks";
 import { queryCurrentWalletID, queryWalletBalance } from "@/store/wallet/wallet-slice.ts";
-import { bigNumberPlusToString } from "@/utils/common";
+import { bigNumberMinus, bigNumberPlusToString } from "@/utils/common";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
@@ -99,6 +99,44 @@ export default function BatchTranferPage() {
     dispatch(queryExecutionHistorys({ addressId: currentWalletID, serverUrl }));
   }, [dispatch, currentWalletID, serverUrl]);
 
+  // --- Composing-time validation (feedback before the confirm modal) ---
+  const availableBalance =
+    (balanceData?.available_balance ?? "0").toString().replace(/\.$/, "") || "0";
+  const feeInvalid = fee.toString().trim() === "" || Number.isNaN(Number(fee));
+  const totalOut = sendInputs.reduce(
+    (sum, item) => bigNumberPlusToString(sum, item.amount || "0"),
+    "0"
+  );
+  const totalWithFee = bigNumberPlusToString(totalOut, feeInvalid ? "0" : fee || "0");
+  const overBalance = bigNumberMinus(availableBalance, totalWithFee) < 0;
+  // Rows repeating an address already used by an earlier row.
+  const duplicateIndexes = new Set<number>();
+  {
+    const seen = new Map<string, number>();
+    sendInputs.forEach((item, i) => {
+      const addr = item.toAddress.trim();
+      if (!addr) return;
+      if (seen.has(addr)) duplicateIndexes.add(i);
+      else seen.set(addr, i);
+    });
+  }
+  const zeroAmountIndexes = new Set(
+    sendInputs
+      .map((item, i) => (item.amount !== "" && Number(item.amount) === 0 ? i : -1))
+      .filter((i) => i >= 0)
+  );
+
+  // Max an individual recipient can receive: available minus fee and the other rows.
+  function maxAmountFor(index: number) {
+    let others = "0";
+    sendInputs.forEach((item, i) => {
+      if (i !== index) others = bigNumberPlusToString(others, item.amount || "0");
+    });
+    const spent = bigNumberPlusToString(others, feeInvalid ? "0" : fee || "0");
+    const max = bigNumberMinus(availableBalance, spent);
+    return max > 0 ? max.toString() : "0";
+  }
+
   function checkButtonDisabled() {
     let disabledButton = false;
     if (loading) {
@@ -109,6 +147,9 @@ export default function BatchTranferPage() {
     }
     let findInput = sendInputs.find((item) => !item.toAddress || !item.amount);
     if (findInput) {
+      disabledButton = true;
+    }
+    if (feeInvalid || overBalance || duplicateIndexes.size > 0 || zeroAmountIndexes.size > 0) {
       disabledButton = true;
     }
     return disabledButton;
@@ -262,7 +303,7 @@ export default function BatchTranferPage() {
             <Flex direction={"row"} gap={8} align={"center"}>
               <Flex direction={"row"} gap={6} align={"center"}>
                 <Text size="sm" c="dimmed">
-                  Sending from
+                  Sending from:
                 </Text>
                 <Text size="sm" fw={600}>
                   {currentAccountName || "—"}
@@ -322,6 +363,18 @@ export default function BatchTranferPage() {
                     key={index}
                     keyIndex={index}
                     showRemove={sendInputs.length > 1}
+                    addressError={
+                      duplicateIndexes.has(index) ? "Duplicate recipient address" : undefined
+                    }
+                    amountError={
+                      zeroAmountIndexes.has(index) ? "Amount must be greater than 0" : undefined
+                    }
+                    onMax={() => {
+                      const max = maxAmountFor(index);
+                      setSendInputs((prev) =>
+                        prev.map((item, i) => (i === index ? { ...item, amount: max } : item))
+                      );
+                    }}
                     onChangeAmount={(amount) => {
                       setSendInputs((prev) =>
                         prev.map((item, i) => (i === index ? { ...item, amount: amount } : item))
@@ -360,22 +413,41 @@ export default function BatchTranferPage() {
             </Button>
           </Flex>
 
-          <NumberInput
-            mt="sm"
-            label={"Fee"}
-            w={200}
-            value={fee}
-            onChange={(value) => setFee(value.toString())}
-            required
-            placeholder="Enter fee"
-            hideControls
-            rightSection={
-              <Text size="sm" c="dimmed">
-                NPT
-              </Text>
-            }
-            rightSectionWidth={48}
-          />
+          <Flex direction={"column"} gap={6} mt="sm">
+            <NumberInput
+              label={"Fee"}
+              w={200}
+              value={fee}
+              onChange={(value) => setFee(value.toString())}
+              required
+              allowNegative={false}
+              placeholder="Enter fee"
+              hideControls
+              error={feeInvalid ? "Enter a fee" : undefined}
+              rightSection={
+                <Text size="sm" c="dimmed">
+                  NPT
+                </Text>
+              }
+              rightSectionWidth={48}
+            />
+            <Flex direction={"row"} gap={6}>
+              {[
+                { label: "Low", value: "0.1" },
+                { label: "Normal", value: "0.5" },
+                { label: "High", value: "1" },
+              ].map((preset) => (
+                <Button
+                  key={preset.value}
+                  size="compact-xs"
+                  variant={fee === preset.value ? "filled" : "light"}
+                  onClick={() => setFee(preset.value)}
+                >
+                  {preset.label} {preset.value}
+                </Button>
+              ))}
+            </Flex>
+          </Flex>
 
           <Switch
             mt="sm"
@@ -386,6 +458,11 @@ export default function BatchTranferPage() {
             onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
           />
 
+          {overBalance && (
+            <Text c="red" size="sm">
+              Amounts plus fee exceed your available balance ({availableBalance} NPT).
+            </Text>
+          )}
           <Flex>
             <Button
               variant="filled"

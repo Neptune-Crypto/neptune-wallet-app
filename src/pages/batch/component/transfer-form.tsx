@@ -1,5 +1,5 @@
 import { SendInputItem } from "@/utils/api/types.ts";
-import { ActionIcon, Flex, NumberInput, Text, TextInput } from "@mantine/core";
+import { ActionIcon, Flex, NumberInput, Text, TextInput, UnstyledButton } from "@mantine/core";
 import { IconAddressBook, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import SelecteContact from "./selecte-contact";
@@ -8,13 +8,26 @@ interface Props {
   keyIndex: number;
   data: SendInputItem;
   showRemove: boolean;
+  addressError?: string;
+  amountError?: string;
+  onMax: () => void;
   onChangeToAddress: (address: string) => void;
   onChangeAmount: (amount: string) => void;
   onRemoveWallet?: (index: number) => void;
 }
 
 export default function TransferForm(props: Props) {
-  const { keyIndex, showRemove, data, onRemoveWallet, onChangeToAddress, onChangeAmount } = props;
+  const {
+    keyIndex,
+    showRemove,
+    data,
+    addressError,
+    amountError,
+    onMax,
+    onRemoveWallet,
+    onChangeToAddress,
+    onChangeAmount,
+  } = props;
   const [showSelectContactModal, setShowSelectContactModal] = useState(false);
   return (
     <Flex direction={"column"} gap={4} key={data.index}>
@@ -66,6 +79,7 @@ export default function TransferForm(props: Props) {
           }}
           required
           placeholder="Enter address"
+          error={addressError}
         />
         <NumberInput
           w={200}
@@ -77,12 +91,23 @@ export default function TransferForm(props: Props) {
           }}
           required
           hideControls
+          error={amountError}
+          rightSectionPointerEvents="all"
           rightSection={
-            <Text size="sm" c="dimmed">
-              NPT
-            </Text>
+            <Flex align="center" gap={4} pr={4}>
+              <UnstyledButton
+                onClick={onMax}
+                style={{ fontSize: 12, fontWeight: 600, color: "var(--mantine-color-blue-6)" }}
+                aria-label="Use maximum available amount"
+              >
+                Max
+              </UnstyledButton>
+              <Text size="sm" c="dimmed">
+                NPT
+              </Text>
+            </Flex>
           }
-          rightSectionWidth={48}
+          rightSectionWidth={84}
         />
       </Flex>
     </Flex>
