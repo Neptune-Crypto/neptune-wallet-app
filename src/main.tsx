@@ -1,3 +1,6 @@
+// Self-hosted variable font (single file, weights 100-900) — bundled so it works
+// offline and under the Tauri CSP; no network fetch.
+import "@fontsource-variable/inter";
 import { MantineProvider, type CSSVariablesResolver } from "@mantine/core";
 import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
