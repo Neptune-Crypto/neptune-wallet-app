@@ -1,7 +1,8 @@
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
-import { useActivityPerDay } from "@/store/history/hooks";
+import { useActivityPerDay, useActivityTransactions } from "@/store/history/hooks";
+import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { BarChart, ChartTooltip } from "@mantine/charts";
-import { Box, Group, ScrollArea, Select, Tabs, Text } from "@mantine/core";
+import { Box, Flex, Group, ScrollArea, Select, Tabs, Text } from "@mantine/core";
 import { useState } from "react";
 import ActivityTableCard from "./component/activity-table-card";
 import NewUtxoTable from "./component/new-utxo-table";
@@ -10,6 +11,10 @@ export default function HistoryPage() {
   const [section, setSection] = useState("activity");
   const [historyType, setHistoryType] = useState("All");
   const perDay = useActivityPerDay();
+  const activityTransactions = useActivityTransactions();
+  const wallets = useWallets();
+  const currentWalletID = useCurrentWalledId();
+  const activeAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
 
   // Y轴刻度格式化函数
   const formatYAxisTick = (value: number) => {
@@ -65,6 +70,16 @@ export default function HistoryPage() {
             </Group>
           )}
         </Box>
+
+        <Flex direction={"row"} gap={6} align={"center"} mb="sm">
+          <Text size="sm" c="dimmed">
+            Active account:
+          </Text>
+          <Text size="sm" fw={600}>
+            {activeAccountName || "—"}
+          </Text>
+        </Flex>
+
         <Tabs.Panel value="activity" className="page-tab-panel">
           <ScrollArea
             type="auto"
@@ -72,6 +87,13 @@ export default function HistoryPage() {
             style={{ flex: 1, minHeight: 0, marginRight: -24 }}
             styles={{ viewport: { paddingRight: 24 } }}
           >
+            {/* Only worth noting when there IS older history below — with no
+                activity at all, the table's own empty state covers it. */}
+            {(!perDay || perDay.length === 0) && (activityTransactions?.length ?? 0) > 0 && (
+              <Text size="sm" c="dimmed" mb="md">
+                No activity in the last 14 days.
+              </Text>
+            )}
             {perDay && perDay.length > 0 && (
               <>
                 <Box pos="relative" mb="xs">

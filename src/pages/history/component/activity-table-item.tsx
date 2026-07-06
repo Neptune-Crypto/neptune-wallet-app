@@ -33,7 +33,7 @@ export default function ActivityTableItem(props: Props) {
       <Table.Td>
         <Center>
           <Stack gap={0} align="center">
-            <Text c={"#0A8430"}>{format(element.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+            <Text>{format(element.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
             <Text size="xs" c="dimmed">
               {formatDistanceToNow(element.timestamp, { addSuffix: true })}
             </Text>

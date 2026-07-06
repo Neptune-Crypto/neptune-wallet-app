@@ -100,7 +100,7 @@ export default function NewUtxoTable() {
 
         <Table.Td>
           <Center>
-            <Text c={element.locked ? "grey" : "#0A8430"}>{element.locked ? "Yes" : "No"}</Text>
+            <Text>{element.locked ? "Yes" : "No"}</Text>
           </Center>
         </Table.Td>
         <Table.Td>

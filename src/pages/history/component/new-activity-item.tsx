@@ -86,7 +86,7 @@ export default function NewActivityItem(props: Props) {
               <Table.Th>Time:</Table.Th>
               <Table.Td>
                 <Flex w={"100%"} justify={"end"}>
-                  <Text c={"#0A8430"}>{format(item.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+                  <Text>{format(item.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
                 </Flex>
               </Table.Td>
             </Table.Tr>
