@@ -1,23 +1,32 @@
-import { useBalanceData, useLoadingBalance } from "@/store/wallet/hooks";
+import {
+  useBalanceData,
+  useCurrentWalledId,
+  useLoadingBalance,
+  useWallets,
+} from "@/store/wallet/hooks";
 import { bigNumberMinus } from "@/utils/common";
 import {
   Box,
-  Button,
   Card,
   Flex,
   Grid,
   LoadingOverlay,
   NumberFormatter,
   Text,
+  Tooltip,
 } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 export default function BalanceCard() {
   const [options, setOptions] = useState([] as any[]);
-  const navigate = useNavigate();
   const loading = useLoadingBalance();
   const balanceData = useBalanceData();
+  // The cards show the ACTIVE account's balances; name it so that is unambiguous
+  // (the accounts table below shows per-account and portfolio totals).
+  const wallets = useWallets();
+  const currentWalletID = useCurrentWalledId();
+  const activeAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
   useEffect(() => {
     handleOverviewData();
   }, [balanceData]);
@@ -31,11 +40,13 @@ export default function BalanceCard() {
         : "0.0000";
     const options = [
       {
-        title: "Available Balance",
+        title: "Available balance",
         value: <NumberFormatter value={available_balance} thousandSeparator />,
       },
       {
-        title: "Lock Balance",
+        title: "Locked balance",
+        tooltip:
+          "Funds you own that aren't spendable yet — e.g. time-locked outputs or coins still awaiting confirmation.",
         value: <NumberFormatter value={lock_balance} thousandSeparator />,
       },
     ];
@@ -45,65 +56,69 @@ export default function BalanceCard() {
     title,
     children,
     hideButton,
+    tooltip,
   }: {
     title: string;
     children: React.ReactNode;
     hideButton?: boolean;
+    tooltip?: string;
   }) {
+    // Both cards use white text; the gradients' light end is contrast-tuned to
+    // clear WCAG AA, and the deep end only darkens (see app.css, where the
+    // gradient classes live).
+    const textColor = "white";
     return (
       <Card
-        radius="md"
-        bg={hideButton ? "var(--lockbalancebackground)" : "var(--balancebackground)"}
+        radius="lg"
+        p="lg"
         w={"100%"}
+        className={hideButton ? "balance-card-locked" : "balance-card-available"}
       >
-        <Flex direction={"column"} w={"100%"} gap={16}>
+        <Flex direction={"column"} w={"100%"} gap={8}>
           <Flex
             direction={"row"}
             gap={4}
             justify="center"
             align="center"
-            style={{
-              whiteSpace: "nowrap",
-            }}
+            style={{ whiteSpace: "nowrap" }}
           >
-            <Text style={{ color: "white", fontWeight: "500", fontSize: "14px" }}>{title}</Text>
+            <Text style={{ color: textColor, opacity: 0.8, fontWeight: "500", fontSize: "13px" }}>
+              {title}
+            </Text>
+            {tooltip && (
+              <Tooltip label={tooltip} multiline w={240} withArrow position="top">
+                <IconInfoCircle
+                  size={14}
+                  color={textColor}
+                  style={{ opacity: 0.75, cursor: "help" }}
+                />
+              </Tooltip>
+            )}
           </Flex>
-          <Flex direction={"row"} gap={4} justify="center" align="center">
+          <Flex direction={"row"} gap={6} justify="center" align="baseline">
             <Box pos="relative">
-              <LoadingOverlay
-                visible={loading}
-                zIndex={1000}
-                overlayProps={{ radius: "sm", blur: 3 }}
-                loaderProps={{ color: "orange", type: "dots" }}
-              />
-              <Text style={{ color: "white", fontWeight: "500", fontSize: "32px" }}>
+              {/* While refreshing (e.g. after an account switch) the value is kept
+                  in state, so just dim it gently — a white LoadingOverlay flashed
+                  over the figure on the colored card. */}
+              <Text
+                style={{
+                  color: textColor,
+                  fontWeight: "500",
+                  fontSize: "32px",
+                  letterSpacing: "-0.02em",
+                  fontVariantNumeric: "tabular-nums",
+                  lineHeight: 1.1,
+                  opacity: loading ? 0.5 : 1,
+                  transition: "opacity 150ms ease",
+                }}
+              >
                 {children}
               </Text>
             </Box>
+            <Text style={{ color: textColor, fontWeight: "500", fontSize: "13px", opacity: 0.65 }}>
+              NPT
+            </Text>
           </Flex>
-          {hideButton ? (
-            <Flex direction={"row"} justify="center" align="center">
-              <Button
-                color="transparent"
-                style={{
-                  backgroundColor: "transparent",
-                  cursor: "default",
-                  color: "transparent",
-                }}
-              ></Button>
-            </Flex>
-          ) : (
-            <Flex direction={"row"} justify="center" align="center">
-              <Button
-                color="#332526"
-                onClick={() => {
-                  navigate("/send");
-                }}
-              >
-                Send
-              </Button>
-            </Flex>
-          )}
         </Flex>
       </Card>
     );
@@ -111,13 +126,21 @@ export default function BalanceCard() {
 
   return (
     <Flex direction={"column"} w={"100%"} gap={8}>
+      <Flex direction={"row"} gap={6} align={"center"}>
+        <Text size="sm" c="dimmed">
+          Active account:
+        </Text>
+        <Text size="sm" fw={600}>
+          {activeAccountName || "—"}
+        </Text>
+      </Flex>
       <Box pos="relative">
         <LoadingOverlay visible={false} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
         <Grid grow gutter={"lg"}>
           {options.map((item, index) => {
             return (
               <Grid.Col key={index} span={6}>
-                <BaseCard title={item.title} hideButton={index === 1}>
+                <BaseCard title={item.title} hideButton={index === 1} tooltip={item.tooltip}>
                   {item.value}
                 </BaseCard>
               </Grid.Col>

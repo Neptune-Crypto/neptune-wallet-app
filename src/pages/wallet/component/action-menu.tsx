@@ -24,11 +24,11 @@ export default function ActionMenu({
   importRandomness: () => void;
 }) {
   return (
-    <Menu shadow="md" width={165} position="bottom-end">
+    <Menu shadow="md" width={230} position="bottom-end">
       <Menu.Target>
         <Center>
           <ActionIcon size="sm" variant="default">
-            <IconDots size={16} />
+            <IconDots size={14} />
           </ActionIcon>
         </Center>
       </Menu.Target>
@@ -39,19 +39,20 @@ export default function ActionMenu({
           leftSection={<IconExchange size={14} />}
           onClick={switchWallet}
         >
-          <Text>Switch Wallet</Text>
+          <Text>Set as active</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item leftSection={<IconPencil size={14} />} onClick={renameWallet}>
-          <Text>Rename Wallet</Text>
+          <Text>Rename account</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item
           disabled={isCurrentWallet}
+          color="red"
           leftSection={<IconTrash size={14} />}
           onClick={removeWallet}
         >
-          <Text>Remove Wallet</Text>
+          <Text>Delete account</Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item
@@ -59,11 +60,16 @@ export default function ActionMenu({
           onClick={importRandomness}
           disabled={!isCurrentWallet}
         >
-          <Text>Import Randomness</Text>
+          <Text>Import randomness</Text>
+          {/* Menus don't tooltip well (hover selects, keyboards never see it), so
+              explain inline — same label + description pattern as Settings rows. */}
+          <Text size="xs" c="dimmed">
+            Recover funds from an incoming-randomness (.dat) file
+          </Text>
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item leftSection={<IconArrowBarToUp size={14} />} onClick={exportWallet}>
-          <Text>Export Wallet</Text>
+          <Text>Export account</Text>
         </Menu.Item>
       </Menu.Dropdown>
     </Menu>

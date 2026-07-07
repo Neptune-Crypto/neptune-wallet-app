@@ -1,4 +1,7 @@
 import { generateNewAddress, knownAddresses } from "@/commands/wallet";
+import CopyedIcon from "@/components/copyed-icon";
+import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
+import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { AddressRecord, NeptuneKeyType } from "@/utils/api/types";
 import {
   ActionIcon,
@@ -10,18 +13,16 @@ import {
   Group,
   Loader,
   Modal,
-  Paper,
   ScrollArea,
   Table,
   Tabs,
   Text,
-  Title,
   Tooltip,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { IconCheck, IconCopy, IconPlus, IconQrcode } from "@tabler/icons-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const generation_tab = "generation";
 const viewing_tab = "viewing";
@@ -30,27 +31,35 @@ const uri_scheme_prefix = "NPT";
 
 export default function AddressesPage() {
   const [activeTab, setActiveTab] = useState<string | null>(generation_tab);
+  // Refetch when the active account changes (e.g. via the sidebar switcher):
+  // addresses are account-scoped, so a switch must not show the old account's list.
+  const currentWalletID = useCurrentWalledId();
+  const wallets = useWallets();
+  const activeAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
   const [addresses, setAddresses] = useState<AddressRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  // Tracks whether the first fetch has completed, so the loading spinner only
+  // shows on the initial load, not on every tab switch.
+  const hasLoadedOnce = useRef(false);
 
   // State for managing the QR modal
   const [qrModalOpened, { open: openQrModal, close: closeQrModal }] = useDisclosure(false);
   const [selectedAddress, setSelectedAddress] = useState("");
 
   const BUTTON_LABELS: Record<string, string> = {
-    [generation_tab]: "New Generation Address",
-    [ec_hybrid_tab]: "New EC Hybrid Address",
-    [viewing_tab]: "New Viewing Address",
+    [generation_tab]: "New generation address",
+    [ec_hybrid_tab]: "New EC hybrid address",
+    [viewing_tab]: "New viewing address",
   };
 
   const ADDRESS_DESCRIPTIONS: Record<string, string> = {
     [generation_tab]:
-      "Generation addresses: Will not leak privacy if you reuse it and share it with multiple people.",
+      "The most private option and a good default for everyday use. It is safe to reuse without harming your on-chain privacy, though publicly posting the same address under different names can still connect those identities.",
     [ec_hybrid_tab]:
-      "EC hybrid addresses: It's recommended to only share each address with one other party. Otherwise, an attacker with a powerful quantum computer might expose (but not steal) your incoming transactions.",
+      "A shorter, more compact address that is easier to share. Give each one to a single person only: if reused more widely, a future quantum attacker could reveal (but never spend) the funds sent to it.",
     [viewing_tab]:
-      "Viewing address: Only share each address with one other party. Anyone seeing one of your addresses can see anything that address has ever received.",
+      "A view-only address, best given to a single person. Anyone holding it can see every payment the address has ever received — which is useful for auditing — but can never move or spend any of those funds.",
   };
 
   const getQrPayload = (address: string) => `${uri_scheme_prefix}:${address.toUpperCase()}`;
@@ -72,8 +81,15 @@ export default function AddressesPage() {
       console.error("Failed to fetch addresses from backend:", error);
     } finally {
       setIsLoading(false);
+      hasLoadedOnce.current = true;
     }
-  }, [activeTab]);
+  }, [activeTab, currentWalletID]);
+
+  // Clear the previous account's rows as soon as the account switches, so stale
+  // addresses never linger while the refetch below is in flight.
+  useEffect(() => {
+    setAddresses([]);
+  }, [currentWalletID]);
 
   useEffect(() => {
     fetchAddresses();
@@ -101,7 +117,7 @@ export default function AddressesPage() {
   const qr_button = (item: AddressRecord) => {
     return (
       has_qr_codes && (
-        <Tooltip label="Show QR Code" withArrow position="top">
+        <Tooltip label="Show QR code" withArrow position="top">
           <ActionIcon
             color="blue"
             variant="subtle"
@@ -110,7 +126,7 @@ export default function AddressesPage() {
               openQrModal();
             }}
           >
-            <IconQrcode size={16} />
+            <IconQrcode size={14} />
           </ActionIcon>
         </Tooltip>
       )
@@ -121,7 +137,7 @@ export default function AddressesPage() {
     <Modal
       opened={qrModalOpened}
       onClose={closeQrModal}
-      title="Receive Funds"
+      title="Receive funds"
       centered
       overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
     >
@@ -153,6 +169,20 @@ export default function AddressesPage() {
             >
               {selectedAddress}
             </Text>
+            <CopyButton value={selectedAddress} timeout={2000}>
+              {({ copied, copy }) => (
+                <Button
+                  mt="md"
+                  size="xs"
+                  variant="light"
+                  color={copied ? "teal" : "blue"}
+                  leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  onClick={copy}
+                >
+                  {copied ? "Copied" : "Copy address"}
+                </Button>
+              )}
+            </CopyButton>
           </>
         )}
       </Box>
@@ -162,118 +192,129 @@ export default function AddressesPage() {
   const addressRepresentation = (address: AddressRecord): string =>
     activeTab === generation_tab ? address.address_short_form : address.address;
 
-  const AddressTable = ({ data }: { data: AddressRecord[] }) => {
-    // Show a spinner while Tauri is fetching
-    if (isLoading) {
-      return (
-        <Center p="xl">
-          <Loader color="blue" />
-        </Center>
-      );
-    }
-
-    if (data.length === 0) {
-      return (
-        <Box p="md" ta="center" c="dimmed">
-          No addresses found.
-        </Box>
-      );
-    }
-
-    // Sort the data in reverse chronological order, showing the address with
-    // the highest index first.
-    const sortedData = [...data].sort((a, b) => b.key_index - a.key_index);
-
-    return (
-      <ScrollArea h="calc(100vh - 220px)" type="auto" offsetScrollbars>
-        <Table verticalSpacing="sm" striped highlightOnHover>
-          <Table.Thead
-            style={{
-              position: "sticky",
-              top: 0,
-              backgroundColor: "var(--mantine-color-body)",
-              zIndex: 1,
-            }}
-          >
-            <Table.Tr>
-              <Table.Th>Key index</Table.Th>
-              <Table.Th>Address</Table.Th>
-              <Table.Th w={80} ta="right">
-                Action
-              </Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {sortedData.map((item) => (
-              <Table.Tr key={item.key_index}>
-                <Table.Td>{item.key_index}</Table.Td>
-                <Table.Td>
-                  <Box style={{ wordBreak: "break-all" }}>{addressRepresentation(item)}</Box>
-                </Table.Td>
-                <Table.Td>
-                  <Group gap="xs" justify="flex-end" wrap="nowrap">
-                    {/* QR button */}
-                    {qr_button(item)}
-
-                    {/* Copy Button */}
-                    <CopyButton value={item.address} timeout={2000}>
-                      {({ copied, copy }) => (
-                        <Tooltip label={copied ? "Copied" : "Copy"} withArrow position="top">
-                          <ActionIcon
-                            color={copied ? "teal" : "gray"}
-                            variant="subtle"
-                            onClick={copy}
-                          >
-                            {copied ? <IconCheck size={16} /> : <IconCopy size={16} />}
-                          </ActionIcon>
-                        </Tooltip>
-                      )}
-                    </CopyButton>
-                  </Group>
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </ScrollArea>
-    );
-  };
-
   return (
-    <Box p="md">
-      <Title order={2} fw={500}>
-        Addresses
-      </Title>
-
+    <WithTitlePageHeader title="Receive addresses">
       {qr_modal}
 
-      <Paper withBorder radius="md" p="md">
-        <Tabs value={activeTab} onChange={setActiveTab}>
-          <Tabs.List mb="md">
-            <Tabs.Tab value="generation">Generation</Tabs.Tab>
-            <Tabs.Tab value="echybrid">EC hybrid</Tabs.Tab>
-            <Tabs.Tab value="viewing">Viewing</Tabs.Tab>
-          </Tabs.List>
+      <Tabs
+        value={activeTab}
+        onChange={(value) => {
+          // Ignore repeat clicks on the already-active tab (e.g. a double-click) and
+          // deactivation: otherwise we'd clear the list and enter loading without a
+          // refetch (fetchAddresses is keyed on activeTab), leaving the table blank.
+          if (!value || value === activeTab) return;
+          // Clear rows and enter loading synchronously with the tab change, so the
+          // previous tab's addresses never render for a frame under the new tab.
+          setActiveTab(value);
+          setAddresses([]);
+          setIsLoading(true);
+        }}
+        style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+      >
+        <Tabs.List mb="md">
+          <Tabs.Tab value="generation">Generation</Tabs.Tab>
+          <Tabs.Tab value="echybrid">EC hybrid</Tabs.Tab>
+          <Tabs.Tab value="viewing">Viewing</Tabs.Tab>
+        </Tabs.List>
 
-          <Tabs.Panel value={activeTab || generation_tab}>
-            <Flex justify="space-between" align="center" mb="sm" wrap="wrap" gap="sm">
-              <Text c="dimmed" size="sm" style={{ flex: 1 }}>
-                {activeTab ? ADDRESS_DESCRIPTIONS[activeTab] : ""}
-              </Text>
+        <Flex direction={"row"} gap={6} align={"center"} mb="sm">
+          <Text size="sm" c="dimmed">
+            Active account:
+          </Text>
+          <Text size="sm" fw={600}>
+            {activeAccountName || "—"}
+          </Text>
+        </Flex>
 
-              <Button
-                leftSection={<IconPlus size={15} />}
-                onClick={handleGenerate}
-                loading={isGenerating}
+        <Tabs.Panel value={activeTab || generation_tab} className="page-tab-panel">
+          <Flex direction="column" align="flex-start" mb="sm" gap="lg">
+            <Text c="dimmed" size="sm">
+              {activeTab ? ADDRESS_DESCRIPTIONS[activeTab] : ""}
+            </Text>
+            <Button
+              variant="light"
+              size="xs"
+              leftSection={<IconPlus size={14} />}
+              onClick={handleGenerate}
+              loading={isGenerating}
+            >
+              {activeTab ? BUTTON_LABELS[activeTab] : "Generate new address"}
+            </Button>
+          </Flex>
+
+          {isLoading && addresses.length === 0 && !hasLoadedOnce.current ? (
+            <Center p="xl">
+              <Loader color="blue" />
+            </Center>
+          ) : isLoading && addresses.length === 0 ? (
+            // Switching tabs: hold a stable empty area (no spinner, no message)
+            // until the new tab's addresses arrive.
+            <ScrollArea
+              style={{ flex: 1, minHeight: 0 }}
+              type="auto"
+              scrollbarSize={8}
+              offsetScrollbars
+            />
+          ) : addresses.length === 0 ? (
+            <Box p="md" ta="center" c="dimmed">
+              No addresses found.
+            </Box>
+          ) : (
+            <ScrollArea
+              style={{ flex: 1, minHeight: 0 }}
+              type="auto"
+              scrollbarSize={8}
+              offsetScrollbars
+            >
+              <Table
+                verticalSpacing="sm"
+                striped
+                highlightOnHover
+                layout="fixed"
+                w="100%"
+                styles={{ td: { verticalAlign: "top" } }}
               >
-                {activeTab ? BUTTON_LABELS[activeTab] : "Generate New Address"}
-              </Button>
-            </Flex>
-
-            <AddressTable data={addresses} />
-          </Tabs.Panel>
-        </Tabs>
-      </Paper>
-    </Box>
+                <Table.Thead
+                  style={{
+                    position: "sticky",
+                    top: 0,
+                    backgroundColor: "var(--mantine-color-body)",
+                    zIndex: 1,
+                  }}
+                >
+                  <Table.Tr>
+                    <Table.Th w={110}>Key index</Table.Th>
+                    <Table.Th>Address</Table.Th>
+                    <Table.Th w={80} ta="right">
+                      Actions
+                    </Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {[...addresses]
+                    .sort((a, b) => b.key_index - a.key_index)
+                    .map((item) => (
+                      <Table.Tr key={item.key_index}>
+                        <Table.Td>{item.key_index}</Table.Td>
+                        <Table.Td>
+                          <Box style={{ wordBreak: "break-all" }}>
+                            {addressRepresentation(item)}
+                          </Box>
+                        </Table.Td>
+                        <Table.Td>
+                          <Group gap="xs" justify="flex-end" wrap="nowrap">
+                            {qr_button(item)}
+                            <CopyedIcon size={16} value={item.address} />
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+          )}
+        </Tabs.Panel>
+      </Tabs>
+    </WithTitlePageHeader>
   );
 }

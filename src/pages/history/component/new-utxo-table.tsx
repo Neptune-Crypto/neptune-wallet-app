@@ -6,6 +6,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
+import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsisFormatLen } from "@/utils/ellipsis-format";
 import { amount_to_fixed } from "@/utils/math-util";
 import {
@@ -17,13 +18,13 @@ import {
   LoadingOverlay,
   Menu,
   NumberFormatter,
-  ScrollArea,
+  Stack,
   Switch,
   Table,
   Text,
 } from "@mantine/core";
 import { IconSortDescending } from "@tabler/icons-react";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -63,6 +64,7 @@ export default function NewUtxoTable() {
           <Checkbox
             aria-label="Select row"
             disabled={element.locked}
+            styles={{ input: { cursor: element.locked ? "not-allowed" : "pointer" } }}
             checked={selectedRows.includes(element.id)}
             onChange={(event) =>
               setSelectedRows(
@@ -79,13 +81,13 @@ export default function NewUtxoTable() {
           </Center>
         </Table.Td>
         <Table.Td>
-          <Text c={"#0A8030"}>
+          <Text>
             <NumberFormatter value={element.confirm_height} thousandSeparator />
           </Text>
         </Table.Td>
         <Table.Td>
           <Center>
-            <Text c={"#0A8030"}>
+            <Text fw={600} c={"var(--color-positive)"}>
               <NumberFormatter value={amount_to_fixed(element.amount)} thousandSeparator />
             </Text>
           </Center>
@@ -99,40 +101,67 @@ export default function NewUtxoTable() {
 
         <Table.Td>
           <Center>
-            <Text c={element.locked ? "grey" : "green"}>{element.locked ? "True" : "False"}</Text>
+            <Text>{element.locked ? "Yes" : "No"}</Text>
           </Center>
         </Table.Td>
         <Table.Td>
           <Center>
-            <Text c={"#0A8030"}>{format(element.confirm_timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+            <Stack gap={0} align="center">
+              <Text>{format(element.confirm_timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+              <Text size="xs" c="dimmed">
+                {formatDistanceToNow(element.confirm_timestamp, { addSuffix: true })}
+              </Text>
+            </Stack>
           </Center>
         </Table.Td>
       </Table.Tr>
     ));
 
   function navigateToSend() {
-    navigate("/send", { state: selectedRows });
+    // Pass the full selected UTXOs (id + amount) so the Send page has their
+    // values directly, instead of re-looking them up from the store there.
+    const selected = (availableUtxos ?? []).filter((u) => selectedRows.includes(u.id));
+    navigate("/send", { state: selected });
   }
+
+  const selectableIds = (availableUtxos ?? []).filter((u) => !u.locked).map((u) => u.id);
+  const allSelected =
+    selectableIds.length > 0 && selectableIds.every((id) => selectedRows.includes(id));
+  const totalAmount = (availableUtxos ?? []).reduce(
+    (sum, u) => bigNumberPlusToString(sum, u.amount),
+    "0"
+  );
+  const utxoCount = availableUtxos?.length ?? 0;
+  // Same summation as the totals line above, filtered to the selected rows.
+  const selectedTotal = (availableUtxos ?? [])
+    .filter((u) => selectedRows.includes(u.id))
+    .reduce((sum, u) => bigNumberPlusToString(sum, u.amount), "0");
+
   return (
     <Flex direction={"column"} gap={8}>
       <Flex direction={"row"} justify={"space-between"} align={"center"}>
-        {selectedRows.length > 0 ? (
-          <Flex direction={"row"} gap={16}>
-            <Button size="compact-xs" variant="light" onClick={navigateToSend}>
-              Send
-            </Button>
-            <Text
-              c={"#858585"}
-              style={{ fontSize: "14px" }}
-            >{`(${selectedRows.length} Utxos)`}</Text>
-          </Flex>
-        ) : (
-          <Flex direction={"row"} gap={16}></Flex>
-        )}
-        <Flex justify={"end"} gap={16}>
-          <Flex direction={"row"} gap={8}>
-            <Text>UTXO count:{availableUtxos?.length}</Text>
-            <Text>{"Contain Locked"}</Text>
+        <Flex direction={"row"} align={"center"} gap={16}>
+          {utxoCount > 0 && (
+            <Text size="sm" fw={500}>
+              {utxoCount} UTXO{utxoCount === 1 ? "" : "s"} totalling{" "}
+              <NumberFormatter value={totalAmount} thousandSeparator decimalScale={4} /> NPT
+            </Text>
+          )}
+          {selectedRows.length > 0 && (
+            <>
+              <Button size="xs" variant="light" onClick={navigateToSend}>
+                Send
+              </Button>
+              <Text c="dimmed" style={{ fontSize: "14px" }}>
+                ({selectedRows.length} selected, totalling{" "}
+                <NumberFormatter value={selectedTotal} thousandSeparator decimalScale={4} /> NPT)
+              </Text>
+            </>
+          )}
+        </Flex>
+        <Flex justify={"end"} align={"center"} gap={16}>
+          <Flex direction={"row"} align={"center"} gap={8}>
+            <Text c="dimmed">Include locked</Text>
             <Switch
               checked={containLocked}
               onChange={(event) => {
@@ -140,38 +169,35 @@ export default function NewUtxoTable() {
               }}
             />
           </Flex>
-          <Flex direction={"row"} gap={8}>
-            <Text c={"#858585"} style={{ textAlign: "end" }}>
-              Sort by
-            </Text>
-            <Menu shadow="md" width={120}>
-              <Menu.Target>
-                <Flex direction={"row"} gap={2} align={"center"} style={{ cursor: "pointer" }}>
-                  <Text
-                    c={"var(--primaryhighlight)"}
-                    style={{ textAlign: "end", fontSize: "14px" }}
+          {utxoCount > 0 && (
+            <Flex direction={"row"} align={"center"} gap={8}>
+              <Text c="dimmed">Sort by</Text>
+              <Menu shadow="md" width={120}>
+                <Menu.Target>
+                  <Flex direction={"row"} gap={2} align={"center"} style={{ cursor: "pointer" }}>
+                    <Text c={"var(--primaryhighlight)"} style={{ fontSize: "14px" }}>
+                      {sortType}
+                    </Text>
+                    <IconSortDescending size={14} style={{ color: "var(--primaryhighlight)" }} />
+                  </Flex>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  <Menu.Item
+                    color={sortType == "Amount" ? "var(--primaryhighlight)" : ""}
+                    onClick={() => onchangeSortType("Amount")}
                   >
-                    {sortType}
-                  </Text>
-                  <IconSortDescending size={14} style={{ color: "var(--primaryhighlight)" }} />
-                </Flex>
-              </Menu.Target>
-              <Menu.Dropdown>
-                <Menu.Item
-                  color={sortType == "Amount" ? "var(--primaryhighlight)" : ""}
-                  onClick={() => onchangeSortType("Amount")}
-                >
-                  Amount
-                </Menu.Item>
-                <Menu.Item
-                  color={sortType == "ID" ? "var(--primaryhighlight)" : ""}
-                  onClick={() => onchangeSortType("ID")}
-                >
-                  ID
-                </Menu.Item>
-              </Menu.Dropdown>
-            </Menu>
-          </Flex>
+                    Amount
+                  </Menu.Item>
+                  <Menu.Item
+                    color={sortType == "ID" ? "var(--primaryhighlight)" : ""}
+                    onClick={() => onchangeSortType("ID")}
+                  >
+                    ID
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </Flex>
+          )}
         </Flex>
       </Flex>
       <Box pos="relative">
@@ -179,40 +205,46 @@ export default function NewUtxoTable() {
           visible={loading}
           zIndex={1000}
           overlayProps={{ radius: "sm", blur: 2 }}
-          loaderProps={{ color: "pink" }}
+          loaderProps={{ color: "blue" }}
         />
         {!loading && availableUtxos && availableUtxos.length > 0 ? (
-          <ScrollArea h={"calc(100vh - 420px)"} scrollbarSize={0}>
-            <Table
-              striped
-              highlightOnHover
-              stickyHeaderOffset={0}
-              stickyHeader
-              verticalSpacing={"sm"}
-              withRowBorders={false}
-            >
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th />
-                  <Table.Th>
-                    <Center>ID</Center>
-                  </Table.Th>
-                  <Table.Th>Height</Table.Th>
-                  <Table.Th>
-                    <Center>Amount</Center>
-                  </Table.Th>
-                  <Table.Th>Hash</Table.Th>
-                  <Table.Th>
-                    <Center>Locked</Center>
-                  </Table.Th>
-                  <Table.Th>
-                    <Center>Time</Center>
-                  </Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{rows}</Table.Tbody>
-            </Table>
-          </ScrollArea>
+          <Table
+            striped
+            highlightOnHover
+            stickyHeaderOffset={0}
+            stickyHeader
+            verticalSpacing={"sm"}
+            withRowBorders={false}
+          >
+            <Table.Thead>
+              <Table.Tr>
+                <Table.Th>
+                  <Checkbox
+                    aria-label="Select all UTXOs"
+                    styles={{ input: { cursor: "pointer" } }}
+                    checked={allSelected}
+                    indeterminate={selectedRows.length > 0 && !allSelected}
+                    onChange={() => setSelectedRows(allSelected ? [] : selectableIds)}
+                  />
+                </Table.Th>
+                <Table.Th>
+                  <Center>ID</Center>
+                </Table.Th>
+                <Table.Th>Block height</Table.Th>
+                <Table.Th>
+                  <Center>Amount (NPT)</Center>
+                </Table.Th>
+                <Table.Th>Hash</Table.Th>
+                <Table.Th>
+                  <Center>Locked</Center>
+                </Table.Th>
+                <Table.Th>
+                  <Center>Time</Center>
+                </Table.Th>
+              </Table.Tr>
+            </Table.Thead>
+            <Table.Tbody>{rows}</Table.Tbody>
+          </Table>
         ) : (
           <EmptyTable />
         )}

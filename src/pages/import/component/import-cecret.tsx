@@ -3,8 +3,9 @@ import { addWallet } from "@/commands/wallet";
 import { useAppDispatch } from "@/store/hooks";
 import { useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
 import { setOneTimePassword } from "@/store/wallet/wallet-slice";
-import { Button, Flex, NumberInput, Stack, Text, Textarea } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@/utils/notify";
+import { Button, Flex, NumberInput, Stack, Text, Textarea, Tooltip } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { useState } from "react";
 
 export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
@@ -33,12 +34,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {
-      notifications.show({
-        position: "top-right",
-        message: error || "Failed to import wallet",
-        color: "red",
-        title: "Error",
-      });
+      notify.error(error, "Failed to import wallet");
     }
     setLoading(false);
   }
@@ -46,11 +42,11 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={14} fw={600} style={{ textAlign: "center" }}>
-        Access your wallet with your Secret Recovery Phrase.
+        Access your account with your recovery phrase.
       </Text>
       <Stack w={"100%"}>
         <Textarea
-          label="18-word Phrase"
+          label="Recovery phrase"
           value={importData.mnemonic}
           onChange={(event) => {
             if (event && event.target.value) {
@@ -66,15 +62,28 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
               });
             }
           }}
-          placeholder="Enter your secret recovery phrase here"
+          placeholder="Enter your recovery phrase"
           rows={4}
         />
 
         <Flex direction={"row"} gap={16} w={"100%"}>
           <NumberInput
             w={"50%"}
-            label="Num Keys"
-            placeholder="Enter the number keys"
+            label={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                Number of keys
+                <Tooltip
+                  label="How many derived addresses are scanned for funds. Set this to at least the number of addresses this account has ever created — too few silently misses funds. The default of 25 suits accounts with few addresses."
+                  multiline
+                  w={280}
+                  withArrow
+                  position="top"
+                >
+                  <IconInfoCircle size={13} style={{ opacity: 0.6, cursor: "help" }} />
+                </Tooltip>
+              </span>
+            }
+            placeholder="Enter the number of keys"
             min={1}
             hideControls
             thousandSeparator
@@ -90,9 +99,22 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
           />
           <NumberInput
             w={"50%"}
-            label="Start Height"
+            label={
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                Start block height
+                <Tooltip
+                  label="Scanning for this account's funds starts from this block. Earlier blocks are skipped, so use a height at or before the account's first transaction — or leave 0 to scan the whole chain."
+                  multiline
+                  w={280}
+                  withArrow
+                  position="top"
+                >
+                  <IconInfoCircle size={13} style={{ opacity: 0.6, cursor: "help" }} />
+                </Tooltip>
+              </span>
+            }
             thousandSeparator
-            placeholder="Enter the start height"
+            placeholder="Enter the start block height"
             min={0}
             hideControls
             allowDecimal={false}
@@ -108,7 +130,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
         </Flex>
       </Stack>
 
-      <Flex justify={"center"} align={"center"} w={"100%"} style={{ marginTop: "10px" }}>
+      <Flex justify={"center"} align={"center"} w={"100%"} style={{ marginTop: "16px" }}>
         <Button
           variant="light"
           fullWidth

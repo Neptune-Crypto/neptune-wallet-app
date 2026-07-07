@@ -5,6 +5,7 @@ import { bigNumberPlusToString } from "@/utils/common";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { getExecutionHistory } from "@/utils/storage";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { format } from "date-fns";
 import { DayHistory, HistoryState, HistoryUtxo, MerageHistory, UtxoItem } from "../types";
 
 const initialState: HistoryState = {
@@ -90,14 +91,14 @@ function getTotalPerDay(activitys: MerageHistory[]) {
   let timestamp = new Date().getTime();
   let perDay = [] as DayHistory[];
 
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 14; i++) {
     perDay.push({
       start_height: 0,
       end_height: 0,
       Received: 0,
-      Spent: 0,
+      Sent: 0,
       timestamp: timestamp - i * 24 * 60 * 60 * 1000,
-      data: i === 0 ? "Today" : new Date(timestamp - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
+      data: i === 0 ? "Today" : format(new Date(timestamp - i * 24 * 60 * 60 * 1000), "MMM d"),
     });
   }
   perDay.reverse();
@@ -109,15 +110,9 @@ function getTotalPerDay(activitys: MerageHistory[]) {
         new Date(perDay[i].timestamp).toLocaleDateString()
       ) {
         if (activity.changeAmount.startsWith("-")) {
-          perDay[i].Spent = bigNumberPlusToString(
-            perDay[i].Spent,
-            activity.changeAmount.substring(2)
-          );
+          perDay[i].Sent += Number(activity.changeAmount.substring(2));
         } else {
-          perDay[i].Received = bigNumberPlusToString(
-            perDay[i].Received,
-            activity.changeAmount.substring(2)
-          );
+          perDay[i].Received += Number(activity.changeAmount.substring(2));
         }
         if (activity.height < perDay[i].start_height || perDay[i].start_height === 0) {
           perDay[i].start_height = activity.height;
@@ -129,9 +124,11 @@ function getTotalPerDay(activitys: MerageHistory[]) {
     }
   });
 
-  return perDay.filter((item) => {
-    return item.end_height !== 0;
-  });
+  // Keep the full 14-day window (including days with no transactions) so the
+  // chart x-axis stays a continuous timeline instead of collapsing gaps. But
+  // if the whole window is empty, return nothing so the chart hides entirely.
+  const hasActivity = perDay.some((item) => item.end_height !== 0);
+  return hasActivity ? perDay : [];
 }
 
 async function handleTransaction(data: HistoryData[], addressId: number, historyType: string) {
@@ -187,11 +184,11 @@ async function handleTransaction(data: HistoryData[], addressId: number, history
       history.index = element.index;
       history.release_date = element.release_date;
       history.utxos = findUtxoHistoryByHeight(data, element.height);
-      if (historyType == "Send") {
+      if (historyType == "Sent") {
         if (!isPositive) {
           merageHistorys.push(history);
         }
-      } else if (historyType == "Receive") {
+      } else if (historyType == "Received") {
         if (isPositive) {
           merageHistorys.push(history);
         }
