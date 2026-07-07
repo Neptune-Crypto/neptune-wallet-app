@@ -19,6 +19,7 @@ import {
   useCurrentWalledId,
   useWallets,
 } from "@/store/wallet/hooks.ts";
+import { requiresLustrationRequest } from "@/utils/api/apis.ts";
 import { Output, SendInputItem, SendTransactionParam } from "@/utils/api/types.ts";
 import {
   Box,
@@ -26,11 +27,11 @@ import {
   Divider,
   Flex,
   HoverCard,
+  List,
   NumberFormatter,
   NumberInput,
   ScrollArea,
   Stack,
-  Switch,
   Text,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
@@ -61,8 +62,6 @@ export default function BatchTranferPage() {
   ] as SendInputItem[]);
   const [fee, setFee] = useState<string>("0.5");
 
-  const [accept_lustrations, setLustrationAcceptance] = useState<boolean>(false);
-
   const latestBlock = useLatestBlock();
   const currentWalletID = useCurrentWalledId();
   const wallets = useWallets();
@@ -72,6 +71,8 @@ export default function BatchTranferPage() {
   const requesTransactionResponse = useRequesetSendTransactionResponse();
   const [selectedInputs, setSelectedInputs] = useState([] as number[]);
   const [selectedAmount, setSelectedAmount] = useState("");
+  // True while the cheap lustration pre-check RPC is in flight (before proving).
+  const [preflighting, setPreflighting] = useState(false);
   const balanceData = useBalanceData();
   useEffect(() => {
     dispatch(queryCurrentWalletID());
@@ -264,7 +265,9 @@ export default function BatchTranferPage() {
     });
   }
 
-  function sendTransaction() {
+  // acceptLustrations defaults to false; the wallet only sets it to true after the
+  // user confirms the just-in-time lustration prompt below.
+  async function sendTransaction(acceptLustrations = false) {
     let outputs = [] as Output[];
     sendInputs.forEach((item) => {
       outputs.push({ address: item.toAddress, amount: item.amount.toString() });
@@ -274,10 +277,31 @@ export default function BatchTranferPage() {
       fee: fee.toString(),
       input_rule: "maximum",
       inputs: selectedInputs,
-      accept_lustrations,
+      accept_lustrations: acceptLustrations,
     } as SendTransactionParam;
 
-    dispatch(
+    // Cheap pre-check before the minutes-long proving step: if the selected inputs
+    // are old enough to require lustration and the user hasn't accepted yet, ask
+    // once (explaining the privacy trade-off) and stop here. Proving only happens
+    // after this returns false or the user accepts, so we never prove twice.
+    if (!acceptLustrations) {
+      try {
+        setPreflighting(true);
+        const rep = await requiresLustrationRequest({ serverUrl, param });
+        if (rep.data === true) {
+          promptLustration();
+          return;
+        }
+      } catch (error) {
+        // If the pre-check itself fails, fall through and send anyway; the backend
+        // still enforces lustration and the safety net below re-prompts if needed.
+        console.log(error);
+      } finally {
+        setPreflighting(false);
+      }
+    }
+
+    const action = await dispatch(
       requestSedExecutionTransaction({
         serverUrl,
         param,
@@ -287,6 +311,47 @@ export default function BatchTranferPage() {
         sendInputs,
       })
     );
+
+    // Safety net: the pre-check and the real send select inputs independently, so
+    // if the wallet's available UTXOs change in between (a new block lands, or
+    // another spend marks some pending), the send may pick a different input set —
+    // one that includes an old, below-barrier coin the pre-check didn't. The
+    // backend then rejects; prompt once and retry with acceptance.
+    const result = (action as any)?.payload?.data;
+    if (!acceptLustrations && result && !result.transaction && result.requiresLustration) {
+      promptLustration();
+    }
+  }
+
+  function promptLustration() {
+    modals.openConfirmModal({
+      title: "Reveal older coins to spend them?",
+      centered: true,
+      children: (
+        <Stack gap={12}>
+          <Text size="sm">
+            Some coins in this transaction are old enough that the network requires them to be made
+            public before you can spend them — a standard rule for older coins.
+          </Text>
+          <List size="sm" spacing={8}>
+            <List.Item>
+              <b>Revealed:</b> these coins' amount, and the address that holds them (one of yours),
+              become public on the blockchain.
+            </List.Item>
+            <List.Item>
+              <b>Not affected:</b> your other coins aren't revealed by this transaction.
+            </List.Item>
+            <List.Item>
+              <b>Going forward:</b> newer coins aren't affected — you'd only see this again if you
+              later spend other old coins.
+            </List.Item>
+          </List>
+        </Stack>
+      ),
+      labels: { confirm: "Reveal & send", cancel: "Cancel" },
+      confirmProps: { color: "green" },
+      onConfirm: () => sendTransaction(true),
+    });
   }
 
   useEffect(() => {
@@ -305,7 +370,8 @@ export default function BatchTranferPage() {
         amount: "",
       },
     ] as SendInputItem[]);
-    (setFee("0.5"), setSelectedInputs([]), setLustrationAcceptance(false));
+    setFee("0.5");
+    setSelectedInputs([]);
     // Hide the progress panel: the backend's last status would otherwise linger
     // indefinitely (nothing else ever clears it). The success toast and the
     // Pending transactions section take over from here.
@@ -483,15 +549,6 @@ export default function BatchTranferPage() {
             </Flex>
           </Flex>
 
-          <Switch
-            mt="sm"
-            label="Accept lustrations"
-            size="sm"
-            styles={{ track: { cursor: "pointer" }, label: { cursor: "pointer" } }}
-            checked={accept_lustrations}
-            onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
-          />
-
           {/* Live total (recipient amounts + fee), so the user sees what will
               leave the wallet before the confirm modal. Set off with a divider and
               an emphasized value so it reads as the summary, not another field.
@@ -520,8 +577,8 @@ export default function BatchTranferPage() {
             <Button
               variant="filled"
               size="sm"
-              disabled={checkButtonDisabled()}
-              loading={loading}
+              disabled={checkButtonDisabled() || preflighting}
+              loading={loading || preflighting}
               onClick={handleSendButtonClick}
             >
               Send

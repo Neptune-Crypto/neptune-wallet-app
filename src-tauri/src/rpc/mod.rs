@@ -252,6 +252,38 @@ pub(crate) trait WalletRpc {
                 .collect::<Vec<_>>(),
         })
     }
+
+    /// Cheap pre-check for the UI: would sending with these parameters require
+    /// lustration? Runs the same input selection as [`Self::send_to_address`] but
+    /// stops before proving, so the UI can prompt the user once, up front, instead
+    /// of proving the transaction twice. `accept_lustrations` is ignored here.
+    async fn requires_lustration(params: SendToAddressParams) -> Result<bool, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+
+        let mut outputs = Vec::with_capacity(params.outputs.len());
+        for output in params.outputs {
+            let address = ReceivingAddress::from_bech32m(&output.address, wallet.network)?;
+            let amount = NativeCurrencyAmount::coins_from_str(&output.amount)?;
+            outputs.push((address, amount));
+        }
+
+        let fee = NativeCurrencyAmount::coins_from_str(&params.fee)?;
+
+        let rule = if let Some(input_rule) = params.input_rule {
+            InputSelectionRule::from_str(&input_rule)
+                .ok()
+                .unwrap_or_default()
+        } else {
+            InputSelectionRule::default()
+        };
+
+        let requires = wallet
+            .requires_lustration(outputs, fee, rule, params.inputs)
+            .await
+            .map_err(|e| RestError(e.to_string()))?;
+
+        Ok(requires)
+    }
 }
 
 pub(crate) async fn start_rpc_server() -> Result<(), anyhow::Error> {
@@ -281,6 +313,7 @@ pub(crate) async fn start_rpc_server() -> Result<(), anyhow::Error> {
             .route("/rpc/mempool/pendingtx", get(get_pending_transaction))
             .route("/rpc/forget_tx/{id}", get(forget_tx))
             .route("/rpc/send", post(send_to_address))
+            .route("/rpc/requires_lustration", post(requires_lustration))
             .route("/rpc/block/tip_height", get(get_tip_height));
 
         routes
@@ -426,6 +459,14 @@ pub(crate) struct SendResponse {
 async fn send_to_address(Json(params): Json<SendToAddressParams>) -> Result<ErasedJson, RestError> {
     Ok(ErasedJson::pretty(
         WalletRpcImpl::send_to_address(params).await?,
+    ))
+}
+
+async fn requires_lustration(
+    Json(params): Json<SendToAddressParams>,
+) -> Result<ErasedJson, RestError> {
+    Ok(ErasedJson::pretty(
+        WalletRpcImpl::requires_lustration(params).await?,
     ))
 }
 

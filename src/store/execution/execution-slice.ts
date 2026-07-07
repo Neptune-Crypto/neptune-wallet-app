@@ -189,10 +189,17 @@ export const requestSedExecutionTransaction = createAsyncThunk<
       message = errorMessage;
     }
 
+    // The backend rejects with a "lustration" message when the chosen inputs are
+    // old enough that the protocol requires revealing their amounts. Surface it as
+    // a flag so the Send page can prompt just-in-time (rather than an always-on
+    // "Accept lustrations" checkbox) and retry with acceptance.
+    const requiresLustration = typeof message === "string" && /lustrat/i.test(message);
+
     return {
       data: {
         transaction,
         message: message,
+        requiresLustration,
       },
       newLocalHistory,
     };

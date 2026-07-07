@@ -191,6 +191,9 @@ export interface ExecutionState {
   requesetSendTransactionResponse: {
     transaction: SendTransactionResponse | null;
     message: string;
+    // Set when the send failed because the chosen inputs require lustration
+    // (revealing their amounts); the Send page prompts and retries just-in-time.
+    requiresLustration?: boolean;
   };
 }
 

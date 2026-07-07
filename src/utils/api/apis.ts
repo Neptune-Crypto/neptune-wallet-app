@@ -6,6 +6,7 @@ import {
   WALLET_BALANCE,
   WALLET_FORGET_TX,
   WALLET_PENDING_HISTORY,
+  WALLET_REQUIRES_LUSTRATION,
   WALLET_SEND_TRANSACTION,
 } from "@/constant";
 import service, { url } from "@/utils/api/service";
@@ -76,6 +77,23 @@ export const sendTransactionRequest = ({
   let { rpc } = handleServiceUrl(serverUrl);
   return service({
     url: url(`${rpc}${WALLET_SEND_TRANSACTION}`),
+    method: "POST",
+    data: { ...param },
+  });
+};
+
+// Cheap pre-check: reports whether a send with these params requires lustration,
+// without running the (minutes-long) proving step. Response body is a boolean.
+export const requiresLustrationRequest = ({
+  serverUrl,
+  param,
+}: {
+  serverUrl: string;
+  param: SendTransactionParam;
+}) => {
+  let { rpc } = handleServiceUrl(serverUrl);
+  return service({
+    url: url(`${rpc}${WALLET_REQUIRES_LUSTRATION}`),
     method: "POST",
     data: { ...param },
   });
