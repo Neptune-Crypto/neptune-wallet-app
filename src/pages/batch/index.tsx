@@ -3,7 +3,6 @@ import TransferForm from "@/pages/batch/component/transfer-form.tsx";
 import {
   queryExecutionHistorys,
   requestSedExecutionTransaction,
-  updateSendState,
 } from "@/store/execution/execution-slice.ts";
 import {
   usePendingExecution,
@@ -13,20 +12,15 @@ import {
 import { useAppDispatch } from "@/store/hooks.ts";
 import { useSettingActionData } from "@/store/settings/hooks.ts";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks.ts";
-import {
-  useBalanceData,
-  useCurrentAddress,
-  useCurrentWalledId,
-  useWallets,
-} from "@/store/wallet/hooks.ts";
+import { useBalanceData, useCurrentAddress, useCurrentWalledId } from "@/store/wallet/hooks.ts";
 import { Output, SendInputItem, SendTransactionParam } from "@/utils/api/types.ts";
 import {
+  Alert,
   Box,
   Button,
   Divider,
   Flex,
   HoverCard,
-  NumberFormatter,
   NumberInput,
   ScrollArea,
   Stack,
@@ -34,17 +28,18 @@ import {
   Text,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
-import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import { IconAddressBook, IconAlertTriangle, IconInfoCircle, IconPlus } from "@tabler/icons-react";
 import { Fragment, useEffect, useState } from "react";
 
+import { useAvailableUtxos } from "@/store/history/hooks";
 import { queryCurrentWalletID, queryWalletBalance } from "@/store/wallet/wallet-slice.ts";
-import { bigNumberMinus, bigNumberPlusToString } from "@/utils/common";
+import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsis } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
-import { notify } from "@/utils/notify";
 import { useLocation } from "react-router-dom";
+import ContactModal from "./component/contact-modal";
 import ExecutionCard from "./component/execution-card";
-import SendProgress from "./component/send-progress";
 
 export default function BatchTranferPage() {
   const { serverUrl } = useSettingActionData();
@@ -65,13 +60,13 @@ export default function BatchTranferPage() {
 
   const latestBlock = useLatestBlock();
   const currentWalletID = useCurrentWalledId();
-  const wallets = useWallets();
-  const currentAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
   const currentAddress = useCurrentAddress();
   const syncedBlock = useSyncedBlock();
+  const [showContactModal, setShowContactModal] = useState(false);
   const requesTransactionResponse = useRequesetSendTransactionResponse();
   const [selectedInputs, setSelectedInputs] = useState([] as number[]);
   const [selectedAmount, setSelectedAmount] = useState("");
+  const availableUtxos = useAvailableUtxos();
   const balanceData = useBalanceData();
   useEffect(() => {
     dispatch(queryCurrentWalletID());
@@ -79,80 +74,25 @@ export default function BatchTranferPage() {
   }, [serverUrl]);
   useEffect(() => {
     if (location.state) {
-      // The selected UTXOs (id + amount) travel through navigation, so this page
-      // has their values directly — no cross-page store lookup and no id
-      // string/number mismatch (UtxoItem.id is a string; the input field is i64).
-      const utxos = location.state as { id: string; amount: string }[];
-      setSelectedInputs(utxos.map((u) => Number(u.id)));
-      const total = utxos.reduce((sum, u) => bigNumberPlusToString(sum, u.amount || "0"), "0");
-      const totalFixed = amount_to_positive_fixed(total);
-      setSelectedAmount(totalFixed);
-      // Sweep prefill: arriving from UTXO selection, the common intent is to send
-      // those coins — prefill the single empty recipient with (total - fee).
-      // Prefill only; never overwrite typed values.
-      const sweep = bigNumberMinus(totalFixed, fee || "0");
-      if (sweep > 0) {
-        const sweepAmount = sweep.toFixed(4).replace(/\.?0+$/, "");
-        setSendInputs((prev) =>
-          prev.length === 1 && prev[0].amount === "" && prev[0].toAddress === ""
-            ? [{ ...prev[0], amount: sweepAmount }]
-            : prev
-        );
-      }
+      setSelectedInputs(location.state);
+      handleSelectedAmount(location.state);
     }
   }, [location]);
+
+  function handleSelectedAmount(inputs: number[]) {
+    let selectedAmount = "0";
+    inputs.forEach((item) => {
+      let seleced = availableUtxos.find((data) => Number(data.id) === item);
+      if (seleced) {
+        selectedAmount = bigNumberPlusToString(selectedAmount, seleced.amount);
+      }
+    });
+    setSelectedAmount(amount_to_positive_fixed(selectedAmount));
+  }
 
   useEffect(() => {
     dispatch(queryExecutionHistorys({ addressId: currentWalletID, serverUrl }));
   }, [dispatch, currentWalletID, serverUrl]);
-
-  // --- Composing-time validation (feedback before the confirm modal) ---
-  const availableBalance =
-    (balanceData?.available_balance ?? "0").toString().replace(/\.$/, "") || "0";
-  const feeInvalid = fee.toString().trim() === "" || Number.isNaN(Number(fee));
-  const totalOut = sendInputs.reduce(
-    (sum, item) => bigNumberPlusToString(sum, item.amount || "0"),
-    "0"
-  );
-  const totalWithFee = bigNumberPlusToString(totalOut, feeInvalid ? "0" : fee || "0");
-  // Only meaningful once the user has actually entered an amount somewhere —
-  // otherwise a pristine form (fee alone vs an empty balance) would already warn.
-  const hasAnyAmount = sendInputs.some((item) => item.amount !== "");
-  // With UTXOs selected, the backend funds the transaction ONLY from them — so
-  // the selection (not the whole wallet) is the spending ceiling. Fall back to
-  // the wallet balance if the selected total isn't known yet (e.g. the UTXO list
-  // hasn't loaded on this page), so the form is never wrongly disabled.
-  const hasSelection = selectedInputs && selectedInputs.length > 0;
-  const selectionKnown = hasSelection && Number(selectedAmount) > 0;
-  const spendCeiling = selectionKnown ? selectedAmount : availableBalance;
-  const overBalance = hasAnyAmount && bigNumberMinus(spendCeiling, totalWithFee) < 0;
-  // Rows repeating an address already used by an earlier row.
-  const duplicateIndexes = new Set<number>();
-  {
-    const seen = new Map<string, number>();
-    sendInputs.forEach((item, i) => {
-      const addr = item.toAddress.trim();
-      if (!addr) return;
-      if (seen.has(addr)) duplicateIndexes.add(i);
-      else seen.set(addr, i);
-    });
-  }
-  const zeroAmountIndexes = new Set(
-    sendInputs
-      .map((item, i) => (item.amount !== "" && Number(item.amount) === 0 ? i : -1))
-      .filter((i) => i >= 0)
-  );
-
-  // Max an individual recipient can receive: available minus fee and the other rows.
-  function maxAmountFor(index: number) {
-    let others = "0";
-    sendInputs.forEach((item, i) => {
-      if (i !== index) others = bigNumberPlusToString(others, item.amount || "0");
-    });
-    const spent = bigNumberPlusToString(others, feeInvalid ? "0" : fee || "0");
-    const max = bigNumberMinus(spendCeiling, spent);
-    return max > 0 ? max.toString() : "0";
-  }
 
   function checkButtonDisabled() {
     let disabledButton = false;
@@ -164,9 +104,6 @@ export default function BatchTranferPage() {
     }
     let findInput = sendInputs.find((item) => !item.toAddress || !item.amount);
     if (findInput) {
-      disabledButton = true;
-    }
-    if (feeInvalid || overBalance || duplicateIndexes.size > 0 || zeroAmountIndexes.size > 0) {
       disabledButton = true;
     }
     return disabledButton;
@@ -189,7 +126,12 @@ export default function BatchTranferPage() {
       hasEmptyInput = true;
     }
     if (hasEmptyInput) {
-      notify.error(undefined, "Please complete all required fields.");
+      notifications.show({
+        position: "top-right",
+        color: "red",
+        title: "Error",
+        message: "Please complete all required fields.",
+      });
       return;
     }
 
@@ -229,7 +171,7 @@ export default function BatchTranferPage() {
               <Fragment key={index}>
                 {index > 0 && <Divider style={{ gridColumn: "1 / -1" }} variant="dashed" />}
                 <Text size="sm" c="dimmed">
-                  {sendInputs.length > 1 ? `Address ${index + 1}` : "Address"}
+                  {sendInputs.length > 1 ? `Recipient ${index + 1}` : "Recipient"}
                 </Text>
                 <Text size="sm" ta="right" style={{ whiteSpace: "nowrap" }}>
                   {ellipsis(item.toAddress)}
@@ -258,7 +200,7 @@ export default function BatchTranferPage() {
           </Box>
         </Stack>
       ),
-      labels: { confirm: "Confirm & send", cancel: "Cancel" },
+      labels: { confirm: "Confirm & Send", cancel: "Cancel" },
       confirmProps: { color: "green" },
       onConfirm: () => sendTransaction(),
     });
@@ -306,237 +248,173 @@ export default function BatchTranferPage() {
       },
     ] as SendInputItem[]);
     (setFee("0.5"), setSelectedInputs([]), setLustrationAcceptance(false));
-    // Hide the progress panel: the backend's last status would otherwise linger
-    // indefinitely (nothing else ever clears it). The success toast and the
-    // Pending transactions section take over from here.
-    dispatch(updateSendState(""));
   }
   return (
-    <WithTitlePageHeader title="Send">
-      <ScrollArea
-        type="auto"
-        scrollbarSize={8}
-        style={{ flex: 1, minHeight: 0, marginLeft: -24, marginRight: -24 }}
-        styles={{ viewport: { paddingLeft: 24, paddingRight: 24 } }}
+    <ScrollArea w={"100%"} h={"calc(100vh - 12px)"} scrollbarSize={8}>
+      <ExecutionCard />
+      <ContactModal opened={showContactModal} close={() => setShowContactModal(false)} />
+      <WithTitlePageHeader
+        title="​Send"
+        buttons={
+          <Button
+            onClick={() => setShowContactModal(true)}
+            variant="light"
+            size="xs"
+            leftSection={<IconAddressBook size={14} />}
+          >
+            Contact
+          </Button>
+        }
       >
-        <Stack gap="md">
-          <Flex direction={"row"} justify={"space-between"} align={"center"} wrap={"wrap"} gap={8}>
-            <Flex direction={"row"} gap={8} align={"center"}>
-              <Flex direction={"row"} gap={6} align={"center"}>
-                <Text size="sm" c="dimmed">
-                  Sending from:
-                </Text>
-                <Text size="sm" fw={600}>
-                  {currentAccountName || "—"}
-                </Text>
+        <Flex direction={"row"} justify={"space-between"}>
+          <Flex direction={"row"} gap={8}>
+            {selectedInputs && selectedInputs.length > 0 && (
+              <Flex direction={"row"} gap={8}>
+                <Text c="gray">{`Selected ${selectedInputs.length} Utxos Amount:`}</Text>
+                <HoverCard width={320} shadow="md" withArrow openDelay={200} closeDelay={400}>
+                  <HoverCard.Target>
+                    <Text
+                      fw={600}
+                      c="green"
+                      style={{
+                        wordWrap: "break-word",
+                        overflowWrap: "break-word",
+                      }}
+                    >
+                      {`${selectedAmount}`}
+                    </Text>
+                  </HoverCard.Target>
+                  <HoverCard.Dropdown>
+                    <Stack gap={5}>
+                      <Text size="sm" fw={700} style={{ lineHeight: 1 }}>
+                        Selected Utxo IDs
+                      </Text>
+                    </Stack>
+                    <Text size="xs" mt="xs">
+                      {`[${selectedInputs.join(", ")}]`}
+                    </Text>
+                  </HoverCard.Dropdown>
+                </HoverCard>
               </Flex>
-              {selectedInputs && selectedInputs.length > 0 && (
-                <Flex direction={"row"} gap={8} align={"center"}>
-                  <Text c="dimmed">{`Selected ${selectedInputs.length} UTXOs amount:`}</Text>
-                  <HoverCard width={320} shadow="md" withArrow openDelay={200} closeDelay={400}>
-                    <HoverCard.Target>
-                      <Text
-                        fw={600}
-                        c="var(--color-positive)"
-                        style={{
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                        }}
-                      >
-                        {selectedAmount}{" "}
-                        <Text span c="dimmed" fw={400}>
-                          NPT
-                        </Text>
-                      </Text>
-                    </HoverCard.Target>
-                    <HoverCard.Dropdown>
-                      <Stack gap={5}>
-                        <Text size="sm" fw={700} style={{ lineHeight: 1 }}>
-                          Selected UTXO IDs
-                        </Text>
-                      </Stack>
-                      <Text size="xs" mt="xs">
-                        {`[${selectedInputs.join(", ")}]`}
-                      </Text>
-                    </HoverCard.Dropdown>
-                  </HoverCard>
-                  {/* Drop the input constraint without going back to History. */}
-                  <Button
-                    size="compact-xs"
-                    variant="light"
-                    onClick={() => {
-                      setSelectedInputs([]);
-                      setSelectedAmount("");
-                    }}
-                  >
-                    Clear
-                  </Button>
-                </Flex>
-              )}
-            </Flex>
-
-            <Flex direction={"row"} gap={8}>
-              <Text c="dimmed">Available balance:</Text>
-              <Text fw={600} c="var(--color-positive)">
-                {balanceData.available_balance}{" "}
-                <Text span c="dimmed" fw={400}>
-                  NPT
-                </Text>
-              </Text>
-            </Flex>
+            )}
           </Flex>
 
-          <Stack gap={16}>
-            {sendInputs &&
-              sendInputs.length > 0 &&
-              sendInputs.map((item, index) => {
-                return (
-                  <TransferForm
-                    key={index}
-                    keyIndex={index}
-                    showRemove={sendInputs.length > 1}
-                    addressError={
-                      duplicateIndexes.has(index) ? "Duplicate recipient address" : undefined
-                    }
-                    amountError={
-                      zeroAmountIndexes.has(index) ? "Amount must be greater than 0" : undefined
-                    }
-                    onMax={() => {
-                      const max = maxAmountFor(index);
-                      setSendInputs((prev) =>
-                        prev.map((item, i) => (i === index ? { ...item, amount: max } : item))
-                      );
-                    }}
-                    onChangeAmount={(amount) => {
-                      setSendInputs((prev) =>
-                        prev.map((item, i) => (i === index ? { ...item, amount: amount } : item))
-                      );
-                    }}
-                    onChangeToAddress={(address) => {
-                      setSendInputs((prev) =>
-                        prev.map((item, i) =>
-                          i === index ? { ...item, toAddress: address } : item
-                        )
-                      );
-                    }}
-                    onRemoveWallet={(removeIndex) => {
-                      const newItems = sendInputs.filter((input) => input.index !== removeIndex);
-                      setSendInputs(newItems);
-                    }}
-                    data={item}
-                  />
-                );
-              })}
-          </Stack>
-
-          <Flex>
-            <Button
-              size="xs"
-              variant="light"
-              leftSection={<IconPlus size={14} />}
-              onClick={() => {
-                let newSendInput = {
-                  index: queryNextIndex(),
-                  toAddress: "",
-                  amount: "",
-                };
-                setSendInputs([...sendInputs, newSendInput]);
-              }}
-            >
-              Add address
-            </Button>
+          <Flex direction={"row"} gap={8}>
+            <Text c="gray">Available balance:</Text>
+            <Text fw={600} c="green">
+              {balanceData.available_balance}
+            </Text>
           </Flex>
+        </Flex>
+        <Flex justify={"end"} direction={"row"}></Flex>
+        <Flex direction={"column"} gap={16} style={{ marginTop: "8px" }}>
+          {sendInputs &&
+            sendInputs.length > 0 &&
+            sendInputs.map((item, index) => {
+              return (
+                <TransferForm
+                  key={index}
+                  keyIndex={index}
+                  showRemove={sendInputs.length > 1}
+                  onChangeAmount={(amount) => {
+                    setSendInputs((prev) =>
+                      prev.map((item, i) => (i === index ? { ...item, amount: amount } : item))
+                    );
+                  }}
+                  onChangeToAddress={(address) => {
+                    setSendInputs((prev) =>
+                      prev.map((item, i) => (i === index ? { ...item, toAddress: address } : item))
+                    );
+                  }}
+                  onRemoveWallet={(removeIndex) => {
+                    const newItems = sendInputs.filter((input) => input.index !== removeIndex);
+                    setSendInputs(newItems);
+                  }}
+                  data={item}
+                />
+              );
+            })}
+        </Flex>
+        <Flex direction={"column"} justify={"center"} align={"start"} style={{ marginTop: "16px" }}>
+          <Button
+            size="compact-xs"
+            variant="light"
+            leftSection={<IconPlus size={14} />}
+            onClick={() => {
+              let newSendInput = {
+                index: queryNextIndex(),
+                toAddress: "",
+                amount: "",
+              };
+              setSendInputs([...sendInputs, newSendInput]);
+            }}
+          >
+            Add Address
+          </Button>
+        </Flex>
 
-          <Flex direction={"column"} gap={6} mt="sm">
-            <NumberInput
-              label={"Fee"}
-              w={200}
-              value={fee}
-              onChange={(value) => setFee(value.toString())}
-              required
-              allowNegative={false}
-              placeholder="Enter fee"
-              hideControls
-              error={feeInvalid ? "Enter a fee" : undefined}
-              rightSection={
-                <Text size="sm" c="dimmed">
-                  NPT
-                </Text>
-              }
-              rightSectionWidth={48}
-            />
-            <Flex direction={"row"} gap={6}>
-              {[
-                { label: "Low", value: "0.1" },
-                { label: "Normal", value: "0.5" },
-                { label: "High", value: "1" },
-              ].map((preset) => (
-                <Button
-                  key={preset.value}
-                  size="compact-xs"
-                  variant={fee === preset.value ? "filled" : "light"}
-                  onClick={() => setFee(preset.value)}
-                >
-                  {preset.label} {preset.value}
-                </Button>
-              ))}
-            </Flex>
-          </Flex>
+        <Flex direction={"column"} style={{ marginTop: "16px" }}>
+          <NumberInput
+            label={"Fee"}
+            styles={{
+              label: {
+                fontSize: "16px",
+                fontWeight: "bold",
+              },
+            }}
+            value={fee}
+            onChange={(value) => setFee(value.toString())}
+            required
+            placeholder="Input fee to send"
+            hideControls
+          />
+        </Flex>
 
+        <Flex direction={"column"} style={{ marginTop: "16px" }}>
           <Switch
-            mt="sm"
-            label="Accept lustrations"
-            size="sm"
-            styles={{ track: { cursor: "pointer" }, label: { cursor: "pointer" } }}
+            label="Accept Lustrations"
+            labelPosition="left"
+            size="md"
             checked={accept_lustrations}
             onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
+            styles={{
+              label: {
+                fontSize: "16px",
+                fontWeight: "bold",
+              },
+            }}
           />
+        </Flex>
 
-          {/* Live total (recipient amounts + fee), so the user sees what will
-              leave the wallet before the confirm modal. Set off with a divider and
-              an emphasized value so it reads as the summary, not another field.
-              Shown once an amount is entered — a fee-only total is noise. */}
-          {hasAnyAmount && (
-            <>
-              <Divider mt={4} />
-              <Flex direction={"row"} justify={"space-between"} align={"center"}>
-                <Text size="sm" c="dimmed">
-                  Total (amount + fee)
-                </Text>
-                <Text size="sm" fw={600} c={overBalance ? "red" : undefined}>
-                  <NumberFormatter value={totalWithFee} thousandSeparator /> NPT
-                </Text>
-              </Flex>
-            </>
-          )}
-          {overBalance && (
-            <Text c="red" size="sm">
-              {selectionKnown
-                ? `Amounts plus fee exceed the selected UTXOs' value (${spendCeiling} NPT).`
-                : `Amounts plus fee exceed your available balance (${availableBalance} NPT).`}
-            </Text>
-          )}
-          <Flex mt="md">
-            <Button
-              variant="filled"
-              size="sm"
-              disabled={checkButtonDisabled()}
-              loading={loading}
-              onClick={handleSendButtonClick}
-            >
-              Send
-            </Button>
+        <Flex direction={"column"} justify={"center"} align={"center"} gap={16}>
+          <Flex justify={"center"} style={{ marginTop: "16px" }}>
+            <Flex direction={"row"} gap={24}>
+              <Button
+                variant={"light"}
+                disabled={checkButtonDisabled()}
+                loading={loading}
+                onClick={handleSendButtonClick}
+              >
+                Send
+              </Button>
+            </Flex>
           </Flex>
-
           {syncedBlock != 0 && syncedBlock < latestBlock ? (
-            <Text c={"red"} ta="center">
-              * Wait for syncing...
-            </Text>
+            <Text c={"red"}>* Wait for syncing...</Text>
           ) : null}
-          {sendStatus ? <SendProgress status={sendStatus} /> : null}
-          <ExecutionCard />
-        </Stack>
-      </ScrollArea>
-    </WithTitlePageHeader>
+          {sendStatus ? (
+            <Alert
+              variant="light"
+              color="blue"
+              title="Send Transaction status"
+              style={{ minWidth: "480px" }}
+              icon={<IconInfoCircle />}
+            >
+              {sendStatus}
+            </Alert>
+          ) : null}
+        </Flex>
+      </WithTitlePageHeader>
+    </ScrollArea>
   );
 }

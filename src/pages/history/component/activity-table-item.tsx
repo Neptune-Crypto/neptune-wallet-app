@@ -1,7 +1,6 @@
 import { MerageHistory } from "@/store/types";
-import { ActionIcon, Center, NumberFormatter, Stack, Table, Text } from "@mantine/core";
-import { IconInfoCircle } from "@tabler/icons-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { Center, NumberFormatter, Table, Text } from "@mantine/core";
+import { format } from "date-fns";
 import "./index.css";
 
 interface Props {
@@ -13,19 +12,18 @@ export default function ActivityTableItem(props: Props) {
   return (
     <Table.Tr>
       <Table.Td>
-        {/* Block height is not money — neutral text (green means amounts only). */}
-        <Text>
+        <Text c={"#0A8030"}>
           <NumberFormatter value={element.height} thousandSeparator />
         </Text>
       </Table.Td>
       <Table.Td>
         <Center>
           {element.changeAmount.startsWith("-") ? (
-            <Text fw={600} c={"var(--color-negative)"}>
+            <Text fw={600} c={"red"}>
               {element.changeAmount}
             </Text>
           ) : (
-            <Text fw={600} c={"var(--color-positive)"}>
+            <Text fw={600} c={"green"}>
               {element.changeAmount}
             </Text>
           )}
@@ -33,23 +31,13 @@ export default function ActivityTableItem(props: Props) {
       </Table.Td>
       <Table.Td>
         <Center>
-          <Stack gap={0} align="center">
-            <Text>{format(element.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
-            <Text size="xs" c="dimmed">
-              {formatDistanceToNow(element.timestamp, { addSuffix: true })}
-            </Text>
-          </Stack>
+          <Text c={"#0A8030"}>{format(element.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
         </Center>
       </Table.Td>
       <Table.Td>
-        <ActionIcon
-          variant="subtle"
-          color="gray"
-          aria-label="View transaction details"
-          onClick={() => showMoreDetail()}
-        >
-          <IconInfoCircle size={18} />
-        </ActionIcon>
+        <Text className="more" onClick={() => showMoreDetail()}>
+          More
+        </Text>
       </Table.Td>
     </Table.Tr>
   );

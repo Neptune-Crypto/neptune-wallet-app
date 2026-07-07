@@ -1,11 +1,11 @@
-import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
-import { Flex } from "@mantine/core";
+import { Container, Flex } from "@mantine/core";
 import { useEffect } from "react";
 import BalanceCard from "./component/balanceCard";
+import BlockSyncCard from "./component/block-sync-card";
 import WalletTable from "./component/walletTable";
 
 export default function WalletPage() {
@@ -25,11 +25,12 @@ export default function WalletPage() {
   }, [latestBlock, syncedBlock]);
 
   return (
-    <WithTitlePageHeader title="Wallet">
-      <Flex direction={"column"} style={{ width: "100%", flex: 1, minHeight: 0 }} gap={16}>
+    <Container fluid w={"100%"}>
+      <Flex direction={"column"} style={{ width: "100%" }} gap={16} px={24}>
+        <BlockSyncCard />
         <BalanceCard />
         <WalletTable />
       </Flex>
-    </WithTitlePageHeader>
+    </Container>
   );
 }

@@ -1,9 +1,9 @@
 import { set_password } from "@/commands/password";
 import { useAppDispatch } from "@/store/hooks";
 import { querySettingActionData } from "@/store/settings/settings-slice";
-import { notify } from "@/utils/notify";
 import { Button, Flex, Modal, PasswordInput, Stack } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 
 export default function ResetPasswordModal({
@@ -28,17 +28,32 @@ export default function ResetPasswordModal({
       try {
         await set_password(oldpassword, password);
         dispatch(querySettingActionData());
-        notify.success("Password updated successfully");
+        notifications.show({
+          position: "top-right",
+          title: "Success",
+          message: "Password updated successfully",
+          color: "green",
+        });
         close();
       } catch (error: any) {
-        notify.error(error, "Failed to set password");
+        notifications.show({
+          position: "top-right",
+          title: "Error",
+          message: error || "Failed to set password",
+          color: "red",
+        });
       }
     } else {
-      notify.error(undefined, "Please enter the same password in both fields");
+      notifications.show({
+        position: "top-right",
+        title: "Error",
+        message: "Please enter the same password in both fields",
+        color: "red",
+      });
     }
   }
   return (
-    <Modal opened={opened} onClose={close} title="Reset password" centered>
+    <Modal opened={opened} onClose={close} title="Reset Password" centered>
       <Flex direction="column" gap={16}>
         <Stack>
           <PasswordInput

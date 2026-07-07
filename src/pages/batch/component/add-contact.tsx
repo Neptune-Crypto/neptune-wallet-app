@@ -1,11 +1,10 @@
 import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
-import { useAllContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
 import { sleep_milliseconds } from "@/utils/common";
-import { notify } from "@/utils/notify";
 import { addContactAddress } from "@/utils/storage";
 import { Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { useState } from "react";
 
 export default function AddContact({ opened, close }: { opened: boolean; close: () => void }) {
@@ -18,39 +17,39 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
   } as Contact);
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
-  const contacts = useAllContacts();
-
-  // The backend keys update/delete on the address, so duplicates would be edited
-  // and deleted together — block saving an address that already exists.
-  const trimmedAddress = (contact.address ?? "").trim();
-  const isDuplicate =
-    trimmedAddress !== "" && (contacts ?? []).some((c) => c.address === trimmedAddress);
 
   async function handleSubmit() {
-    if (isDuplicate) return;
     try {
       setLoading(true);
       contact.createdTime = new Date().getTime();
-      addContactAddress({ contact: { ...contact, address: trimmedAddress } });
-      notify.success("Contact added successfully");
+      addContactAddress({ contact });
+      notifications.show({
+        position: "top-right",
+        message: "Contact added successfully",
+        color: "green",
+      });
       await sleep_milliseconds(100);
       dispatch(queryAllContacts());
       close();
     } catch (error: any) {
       console.error(error);
-      notify.error(error, "Failed to add contact");
+      notifications.show({
+        position: "top-right",
+        message: error || "Failed to add contact",
+        color: "red",
+      });
     }
     setLoading(false);
   }
   return (
-    <Modal opened={opened} onClose={close} title="Add contact">
+    <Modal opened={opened} onClose={close} title="Add Contact">
       <Flex direction="column" gap="md">
         <TextInput
           data-autofocus
           label="Name"
           value={contact.aliasName ?? ""}
           onChange={(event) => setContact({ ...contact, aliasName: event.target.value })}
-          placeholder="Enter a name for this address"
+          placeholder="Enter a name for address"
         />
         <Flex direction={"column"}>
           <Flex direction={"row"} justify={"space-between"}>
@@ -64,7 +63,6 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
             autosize
             minRows={4}
             value={contact.address ?? ""}
-            error={isDuplicate ? "A contact with this address already exists" : undefined}
             onChange={(event) =>
               setContact({
                 ...contact,
@@ -76,7 +74,7 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
         <Button
           variant="light"
           loading={loading}
-          disabled={!contact.aliasName || !contact.address || isDuplicate}
+          disabled={!contact.aliasName || !contact.address}
           onClick={handleSubmit}
         >
           Add

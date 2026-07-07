@@ -57,11 +57,7 @@ export const querySyncBlockStatus = createAsyncThunk<
 >("/api/sync/querySyncBlockStatus", async ({ serverUrl }) => {
   const req = await requestStartScanBlockStatus({ serverUrl });
   let data = req.data;
-  // The backend's `height` is a cursor to the NEXT block it will fetch (after
-  // processing block N it stores N+1), so the last synced block is height - 1.
-  // The live sync events already emit the processed height directly; without
-  // this the X/Y counter briefly shows tip+1/tip after an account switch.
-  let syncedBlock = Math.max(0, (data.height ?? 0) - 1);
+  let syncedBlock = data.height;
   return {
     data,
     syncedBlock,

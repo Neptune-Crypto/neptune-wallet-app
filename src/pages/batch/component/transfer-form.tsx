@@ -1,5 +1,5 @@
 import { SendInputItem } from "@/utils/api/types.ts";
-import { ActionIcon, Button, Divider, Flex, NumberInput, Text, TextInput } from "@mantine/core";
+import { Flex, NumberInput, Text, TextInput } from "@mantine/core";
 import { IconAddressBook, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import SelecteContact from "./selecte-contact";
@@ -8,26 +8,13 @@ interface Props {
   keyIndex: number;
   data: SendInputItem;
   showRemove: boolean;
-  addressError?: string;
-  amountError?: string;
-  onMax: () => void;
   onChangeToAddress: (address: string) => void;
   onChangeAmount: (amount: string) => void;
   onRemoveWallet?: (index: number) => void;
 }
 
 export default function TransferForm(props: Props) {
-  const {
-    keyIndex,
-    showRemove,
-    data,
-    addressError,
-    amountError,
-    onMax,
-    onRemoveWallet,
-    onChangeToAddress,
-    onChangeAmount,
-  } = props;
+  const { keyIndex, showRemove, data, onRemoveWallet, onChangeToAddress, onChangeAmount } = props;
   const [showSelectContactModal, setShowSelectContactModal] = useState(false);
   return (
     <Flex direction={"column"} gap={4} key={data.index}>
@@ -40,50 +27,40 @@ export default function TransferForm(props: Props) {
         }}
       />
       <Flex direction={"row"} justify={"space-between"} align={"center"}>
-        <Flex direction={"row"} gap={4} align={"center"}>
-          <Text fz={14} fw={500}>
-            {showRemove ? `Address ${keyIndex + 1}` : "Address"}
-          </Text>
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="lg"
-            aria-label="Choose from contacts"
-            onClick={() => setShowSelectContactModal(true)}
-          >
-            <IconAddressBook size={18} />
-          </ActionIcon>
-        </Flex>
-        {showRemove && (
-          <ActionIcon
-            variant="subtle"
-            color="red"
-            size="lg"
-            aria-label="Remove address"
-            onClick={() => {
-              if (onRemoveWallet) {
-                onRemoveWallet(data.index);
-              }
+        <Text style={{ fontSize: "16px", fontWeight: 600 }}>{`To Address # ${keyIndex + 1}`}</Text>
+        <Flex direction={"row"} gap={8} align={"center"}>
+          <IconAddressBook
+            style={{
+              color: "#332526",
             }}
-          >
-            <IconTrash size={18} />
-          </ActionIcon>
-        )}
+            size={20}
+            cursor={"pointer"}
+            onClick={() => setShowSelectContactModal(true)}
+          />
+          {showRemove && (
+            <IconTrash
+              style={{ cursor: "pointer", color: "red" }}
+              size={14}
+              onClick={() => {
+                if (onRemoveWallet) {
+                  onRemoveWallet(data.index);
+                }
+              }}
+            />
+          )}
+        </Flex>
       </Flex>
-      <Flex direction={"row"} gap={16} align={"flex-start"} wrap={"wrap"}>
+      <Flex direction={"column"} gap={16}>
         <TextInput
-          style={{ flex: 1, minWidth: 240 }}
           value={data.toAddress}
           onChange={(event) => {
             onChangeToAddress(event.target.value.trim());
           }}
           required
-          placeholder="Enter address"
-          error={addressError}
+          placeholder="Input to address"
         />
         <NumberInput
-          w={200}
-          placeholder="Amount"
+          placeholder="Input amount to send"
           allowNegative={false}
           value={data.amount}
           onChange={(value) => {
@@ -91,25 +68,6 @@ export default function TransferForm(props: Props) {
           }}
           required
           hideControls
-          error={amountError}
-          rightSectionPointerEvents="all"
-          rightSection={
-            <Flex align="center" gap={8} pr={8}>
-              <Button
-                variant="light"
-                size="compact-xs"
-                onClick={onMax}
-                aria-label="Use maximum available amount"
-              >
-                Max
-              </Button>
-              <Divider orientation="vertical" my={8} />
-              <Text size="sm" c="dimmed">
-                NPT
-              </Text>
-            </Flex>
-          }
-          rightSectionWidth={100}
         />
       </Flex>
     </Flex>

@@ -1,87 +1,72 @@
+import { clear_logs } from "@/commands/log";
+import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import { useAppDispatch } from "@/store/hooks";
 import { useLogs } from "@/store/log/hooks";
 import { queryLogMessages } from "@/store/log/log-slice";
-import { Flex, ScrollArea } from "@mantine/core";
+import { Button, Flex, ScrollArea } from "@mantine/core";
 import Ansi from "ansi-to-react";
-import { memo, useEffect, useRef, useState } from "react";
-import "./index.css";
+import { useEffect, useRef, useState } from "react";
 
-// Memoized so an existing line is not re-parsed (ansi-to-react is not cheap) when
-// new lines arrive; only lines whose text actually changed re-render.
-const LogLine = memo(function LogLine({ line }: { line: string }) {
-  return <Ansi useClasses>{line}</Ansi>;
-});
-
-// The log viewer, rendered as the "Logs" tab inside Settings. It manages its own
-// polling and tails the latest output: it jumps to the bottom instantly as new
-// lines arrive, unless the user has scrolled up. ("Clear logs" lives in the tab
-// strip of the Settings page.)
-export function LogView() {
+export default function LogPage() {
   const dispatch = useAppDispatch();
   const logs = useLogs();
-  const viewport = useRef<HTMLDivElement>(null);
-  const [followTail, setFollowTail] = useState(true);
-  // Ref mirror so the ResizeObserver callback below always sees the current value.
-  const followTailRef = useRef(true);
-  followTailRef.current = followTail;
-
-  // Jump straight to the bottom. No smooth animation, which is slow to travel the
-  // full height of a long log on open.
-  const scrollToBottom = () => viewport.current?.scrollTo({ top: viewport.current.scrollHeight });
-
+  let timerId: any = null;
+  const [isAtBottom, setIsAtBottom] = useState(false);
   useEffect(() => {
-    // Fetch immediately on open (the interval's first tick is only after 1s).
-    dispatch(queryLogMessages());
-    const timerId = setInterval(() => {
+    timerId = setInterval(async () => {
       dispatch(queryLogMessages());
-    }, 1000);
-    return () => clearInterval(timerId);
-  }, [dispatch]);
-
-  // Tail-follow must survive timing races (tab opens before logs arrive, flex
-  // layout settling, line wrapping): observe the viewport and its content, and
-  // re-pin to the bottom whenever their size changes while following.
-  useEffect(() => {
-    const el = viewport.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      if (followTailRef.current) {
-        scrollToBottom();
-      }
-    });
-    observer.observe(el);
-    if (el.firstElementChild) {
-      observer.observe(el.firstElementChild);
-    }
-    return () => observer.disconnect();
-  }, []);
-
-  // While following the tail, stay pinned to the bottom as new lines arrive.
-  useEffect(() => {
-    if (followTail) {
+    }, 100);
+    setTimeout(() => {
       scrollToBottom();
+    }, 500);
+    return () => {
+      clearInterval(timerId);
+    };
+  }, []);
+  useEffect(() => {
+    if (isAtBottom) {
+      scrollToBottom();
+      setIsAtBottom(true);
     }
-  }, [logs, followTail]);
+  }, [logs]);
+  const viewport = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () =>
+    viewport.current?.scrollTo({
+      top: viewport.current.scrollHeight,
+      behavior: "smooth",
+    });
 
   const handleScroll = ({ y }: { x: number; y: number }) => {
-    const el = viewport.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - (y + el.clientHeight) < 20;
-    setFollowTail(atBottom);
+    const scrollArea = document.querySelector(".mantine-ScrollArea-viewport");
+    if (!scrollArea) return;
+    const { scrollHeight, clientHeight, scrollTop } = scrollArea;
+    const isBottom = scrollHeight - (scrollTop + clientHeight) < 20;
+    setIsAtBottom(isBottom);
   };
 
   return (
-    <>
+    <WithTitlePageHeader
+      title="Log"
+      buttons={
+        <Button
+          size="xs"
+          variant="light"
+          onClick={async () => {
+            await clear_logs();
+          }}
+        >
+          Clear logs
+        </Button>
+      }
+    >
       <ScrollArea
-        type="auto"
+        h={"calc(100vh - 110px)"}
         scrollbarSize={8}
         viewportRef={viewport}
         onScrollPositionChange={handleScroll}
-        style={{ flex: 1, minHeight: 0, marginRight: -24 }}
-        styles={{ viewport: { paddingRight: 24 } }}
       >
         <Flex
-          className="log-view"
           direction="column"
           gap="16"
           style={{
@@ -93,12 +78,10 @@ export function LogView() {
           {logs &&
             logs.length > 0 &&
             logs.map((log, index) => {
-              return <LogLine key={index} line={log} />;
+              return <Ansi key={index}>{log}</Ansi>;
             })}
         </Flex>
       </ScrollArea>
-    </>
+    </WithTitlePageHeader>
   );
 }
-
-export default LogView;

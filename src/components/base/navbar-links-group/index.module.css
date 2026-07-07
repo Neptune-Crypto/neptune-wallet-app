@@ -1,27 +1,42 @@
 .control {
+  font-weight: 500;
   display: block;
   width: 100%;
   padding: var(--mantine-spacing-xs) 24px;
-  margin: 8px 0;
   color: var(--navbarcolor);
   font-weight: 500;
-  transition:
-    background-color 120ms ease,
-    color 120ms ease;
+  margin: 15px 0px;
 
   &:hover {
     background-color: var(--navbarhovercolor);
     color: var(--navbaractivecolor);
+    background: linear-gradient(to right, white 3px, transparent 3px);
+    background-repeat: no-repeat;
+    background-size: 3px 70%;
+    background-position: left center;
+    animation: lineGrow 0.3s ease-out forwards;
   }
 
   &[data-active] {
     &,
     &:hover {
-      /* Active page: a clearly stronger tint than hover, so the current page
-         stays distinguishable while other items are hovered. */
-      background-color: var(--navbaractivebackground);
+      background-color: var(--navbarhovercolor);
       color: var(--navbaractivecolor);
+      background: linear-gradient(to right, white 3px, transparent 3px);
+      background-repeat: no-repeat;
+      background-size: 3px 70%;
+      background-position: left center;
+      animation: lineGrow 0.3s ease-out forwards;
     }
+  }
+}
+
+@keyframes lineGrow {
+  0% {
+    background-size: 3px 0%;
+  }
+  100% {
+    background-size: 3px 70%;
   }
 }
 

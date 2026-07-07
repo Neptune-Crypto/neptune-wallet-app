@@ -1,8 +1,8 @@
 import { useAppDispatch } from "@/store/hooks";
 import { setOneTimePassword, setOneTimeWalletName } from "@/store/wallet/wallet-slice";
-import { notify } from "@/utils/notify";
 import { Button, Flex, PasswordInput, Stack, Text } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import { useCallback, useState } from "react";
 export default function ImportCreatePassword({ nextStep }: { nextStep: () => void }) {
   const [password, setPassword] = useState("");
@@ -29,13 +29,18 @@ export default function ImportCreatePassword({ nextStep }: { nextStep: () => voi
       dispatch(setOneTimeWalletName(name));
       nextStep();
     } catch (error: any) {
-      notify.error(error, "Failed to create password");
+      notifications.show({
+        position: "top-right",
+        message: error || "Failed to create password",
+        color: "red",
+        title: "Error",
+      });
     }
   }
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={16} fw={600} style={{ textAlign: "center" }}>
-        This password will unlock your Neptune Wallet only on this device. Neptune Wallet cannot
+        This password will unlock your neptune wallet only on this device. Neptune Wallet can not
         recover this password.
       </Text>
       <Stack w={"100%"}>
@@ -62,7 +67,7 @@ export default function ImportCreatePassword({ nextStep }: { nextStep: () => voi
           disabled={!password || !confirmPassword || password !== confirmPassword}
           onClick={createPassword}
         >
-          Import account
+          Import wallet
         </Button>
       </Flex>
     </Flex>

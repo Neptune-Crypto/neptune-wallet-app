@@ -75,7 +75,6 @@ fn add_commands<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         logger::set_log_level,
         session_store::command::add_contact_address_execute,
         session_store::command::delete_contact_address_execute,
-        session_store::command::update_contact_address_execute,
         session_store::command::get_contact_list_execute,
         session_store::command::get_execution_history_execute,
         session_store::command::add_execution_history_execute,

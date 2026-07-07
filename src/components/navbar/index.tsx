@@ -2,10 +2,9 @@ import RustySessionStore from "@/commands/store";
 import { Box, Flex, Group, Image, Space } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { bottomLinkdata, linkdata } from "../../routers";
+import { linkdata } from "../../routers";
 import { LinksGroup } from "../base/navbar-links-group";
 import SyncBlockCard from "../card/sync-block-card";
-import AccountSwitcher from "./account-switcher";
 import classes from "./navbar.module.css";
 function Navbar() {
   const [active, setActive] = useState("");
@@ -30,44 +29,35 @@ function Navbar() {
     }
   }
 
-  const renderLinks = (items: typeof linkdata) =>
-    items.map((item) => (
-      <LinksGroup
-        active={active}
-        changeActive={function (active: string): void {
-          setActive(active);
-        }}
-        {...item}
-        key={item.label}
-      />
-    ));
-  const links = renderLinks(linkdata);
-  const bottomLinks = renderLinks(bottomLinkdata);
+  const links = linkdata.map((item) => (
+    <LinksGroup
+      active={active}
+      changeActive={function (active: string): void {
+        setActive(active);
+      }}
+      {...item}
+      key={item.label}
+    />
+  ));
 
   return (
     <Box>
       <Group visibleFrom="sm">
         <nav data-tauri-drag-region className={classes.navbar}>
-          <Space data-tauri-drag-region h={34} />
+          <Space data-tauri-drag-region h={54} />
           <Flex justify={"center"} align={"center"}>
-            {/* N monogram (white-filled SVG — crisp at any DPI; the app name stays
-                on the lock screen and window title). Purely decorative — no click
-                handler, and drag-region so this strip stays draggable. */}
             <Image
-              src={"/neptune-logo.svg?v=3"}
               data-tauri-drag-region
-              w={44}
-              h={44}
-              fit="contain"
+              style={{ cursor: "pointer" }}
+              src={"/icon-wallet.png"}
+              w={"100%"}
+              h={29}
             />
           </Flex>
           <Space data-tauri-drag-region h={16} />
-          <AccountSwitcher />
-          <Space h={16} />
           <div data-tauri-drag-region className={classes.navbarMain}>
             {links}
           </div>
-          {bottomLinks}
           <div className={classes.footer}>
             <SyncBlockCard />
           </div>

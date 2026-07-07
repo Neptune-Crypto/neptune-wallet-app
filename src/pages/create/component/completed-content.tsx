@@ -13,8 +13,8 @@ export default function CompletedContent() {
         Congratulations!
       </Text>
       <Text fw={600} style={{ textAlign: "center" }}>
-        Keep a reminder of your recovery phrase somewhere safe. If you lose it, no one can help you
-        get it back. Even worse, you won’t be able to access your account ever again.
+        Keep a reminder of your Secret Recovery Phrase somewhere safe. If you lose it, no one can
+        help you get it back. Even worse, you won’t be able access to your wallet ever again.
       </Text>
 
       <Flex

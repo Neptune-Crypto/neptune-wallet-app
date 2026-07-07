@@ -30,7 +30,7 @@ export default function NewActivityItem(props: Props) {
         <IconTransfer />
         <div>
           <Flex direction={"row"} gap={24}>
-            <Text c={"var(--color-positive)"}>
+            <Text c={"#0A8030"}>
               Height: <NumberFormatter value={item.height} thousandSeparator />
             </Text>
           </Flex>
@@ -86,7 +86,7 @@ export default function NewActivityItem(props: Props) {
               <Table.Th>Time:</Table.Th>
               <Table.Td>
                 <Flex w={"100%"} justify={"end"}>
-                  <Text>{format(item.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+                  <Text c={"#0A8030"}>{format(item.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
                 </Flex>
               </Table.Td>
             </Table.Tr>
@@ -95,7 +95,7 @@ export default function NewActivityItem(props: Props) {
               <Table.Td>
                 <Flex align={"end"} direction={"column"} gap={8}>
                   <Flex w={"100%"} justify={"end"}>
-                    <Text c={"var(--color-positive)"}>
+                    <Text c={"#0A8030"}>
                       <NumberFormatter value={item.index} thousandSeparator />
                     </Text>
                   </Flex>
@@ -131,7 +131,7 @@ export default function NewActivityItem(props: Props) {
                 <Table.Th>Amount:</Table.Th>
                 <Table.Td>
                   <Flex w={"100%"} justify={"end"}>
-                    <Text c={"var(--color-positive)"}>
+                    <Text c={"#0A8030"}>
                       <NumberFormatter value={handleAmount()} thousandSeparator />
                     </Text>
                   </Flex>
@@ -143,7 +143,7 @@ export default function NewActivityItem(props: Props) {
                 <Table.Th>Fee:</Table.Th>
                 <Table.Td>
                   <Flex w={"100%"} justify={"end"}>
-                    <Text c={"var(--color-positive)"}>
+                    <Text c={"#0A8030"}>
                       <NumberFormatter
                         value={amount_to_positive_fixed(item.fee)}
                         thousandSeparator
@@ -158,7 +158,7 @@ export default function NewActivityItem(props: Props) {
                 <Table.Th>Priority Fee:</Table.Th>
                 <Table.Td>
                   <Flex w={"100%"} justify={"end"}>
-                    <Text c={"var(--color-positive)"}>
+                    <Text c={"#0A8030"}>
                       <NumberFormatter
                         value={amount_to_positive_fixed(item.priorityFee)}
                         thousandSeparator

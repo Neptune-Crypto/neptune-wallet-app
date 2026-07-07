@@ -39,7 +39,7 @@ export default function DetailModal(props: Props) {
       opened={opened}
       size="lg"
       onClose={onClose}
-      title={"Activity details"}
+      title={"History Detail"}
       scrollAreaComponent={ScrollArea.Autosize}
     >
       <FocusTrap.InitialFocus />
@@ -52,8 +52,6 @@ export default function DetailModal(props: Props) {
           th: {
             fontSize: "14px",
             fontWeight: "600",
-            width: 130,
-            whiteSpace: "nowrap",
             justifyContent: "center",
             justifyItems: "center",
             alignItems: "center",
@@ -73,7 +71,7 @@ export default function DetailModal(props: Props) {
         <Table.Tbody>
           {history && history.txid ? (
             <Table.Tr>
-              <Table.Th>Tx:</Table.Th>
+              <Table.Th w={80}>Tx:</Table.Th>
               <Table.Td
                 style={{
                   wordWrap: "break-word",
@@ -82,7 +80,7 @@ export default function DetailModal(props: Props) {
               >
                 <Flex align={"end"} direction={"column"} gap={8}>
                   <Flex direction={"row"} gap={8} align={"center"}>
-                    <Text>{ellipsisFormatLen(history.txid, 15)}</Text>
+                    <Text c={"#0A8030"}>{ellipsisFormatLen(history.txid, 15)}</Text>
                     <CopyedIcon size={16} value={history.txid} />
                   </Flex>
                 </Flex>
@@ -91,10 +89,10 @@ export default function DetailModal(props: Props) {
           ) : null}
           {history && history.height ? (
             <Table.Tr>
-              <Table.Th>Block height:</Table.Th>
+              <Table.Th>Height:</Table.Th>
               <Table.Td>
                 <Flex w={"100%"} justify={"end"}>
-                  <Text>
+                  <Text c={"#0A8030"}>
                     <NumberFormatter value={history.height} thousandSeparator />
                   </Text>
                 </Flex>
@@ -103,7 +101,7 @@ export default function DetailModal(props: Props) {
           ) : null}
           {history.batchOutput && history.batchOutput.length > 0 ? (
             <Table.Tr>
-              <Table.Th>To:</Table.Th>
+              <Table.Th w={80}>To:</Table.Th>
               <Table.Td
                 style={{
                   wordWrap: "break-word",
@@ -115,11 +113,11 @@ export default function DetailModal(props: Props) {
                     return (
                       <Flex align={"end"} direction={"column"} gap={8} key={index}>
                         <Flex direction={"row"} gap={8} align={"center"}>
-                          <Text>{ellipsisFormatLen(output.toAddress, 10)}</Text>
+                          <Text c={"#0984c3"}>{ellipsisFormatLen(output.toAddress, 10)}</Text>
                           <CopyedIcon size={16} value={output.toAddress} />
                           <Flex direction={"row"} gap={3}>
                             <Text c={"#6c757d"}>{`(Sent: `}</Text>
-                            <Text fw={600} c={"var(--color-negative)"}>
+                            <Text c={"#0A8030"}>
                               <NumberFormatter
                                 value={amount_to_positive_fixed(output.amount)}
                                 thousandSeparator
@@ -140,7 +138,7 @@ export default function DetailModal(props: Props) {
               <Table.Th>Amount:</Table.Th>
               <Table.Td>
                 <Flex w={"100%"} justify={"end"}>
-                  <Text fw={600} c={"var(--color-negative)"}>
+                  <Text c={"#0A8030"}>
                     <NumberFormatter value={handleAmount()} thousandSeparator />
                   </Text>
                 </Flex>
@@ -149,7 +147,7 @@ export default function DetailModal(props: Props) {
           ) : null}
           {history.outputs && history.outputs.length > 0 ? (
             <Table.Tr>
-              <Table.Th>Outputs:</Table.Th>
+              <Table.Th w={80}>Outputs:</Table.Th>
               <Table.Td
                 style={{
                   wordWrap: "break-word",
@@ -173,10 +171,10 @@ export default function DetailModal(props: Props) {
           ) : null}
           {history.fee ? (
             <Table.Tr>
-              <Table.Th>Fee:</Table.Th>
+              <Table.Th w={80}>Fee:</Table.Th>
               <Table.Td>
                 <Flex w={"100%"} justify={"end"}>
-                  <Text fw={600} c={"var(--color-negative)"}>
+                  <Text c={"#0A8030"}>
                     <NumberFormatter
                       value={amount_to_positive_fixed(history.fee)}
                       thousandSeparator
@@ -187,10 +185,10 @@ export default function DetailModal(props: Props) {
             </Table.Tr>
           ) : null}
           <Table.Tr>
-            <Table.Th>Time:</Table.Th>
+            <Table.Th w={80}>Time:</Table.Th>
             <Table.Td>
               <Flex w={"100%"} justify={"end"}>
-                <Text>
+                <Text c={"#0A8030"}>
                   {format(
                     history && history.timestamp ? history.timestamp : "0",
                     "yyyy-MM-dd HH:mm:ss"
@@ -203,7 +201,7 @@ export default function DetailModal(props: Props) {
       </Table>
       <Divider my={16} mx={8} />
       <Flex direction={"column"} gap={8}>
-        <Text style={{ fontWeight: "bold", fontSize: "16px" }}>{"UTXO changes"}</Text>
+        <Text style={{ fontWeight: "bold", fontSize: "16px" }}>{"Utxo Changes"}</Text>
         <HistoryUtxoCard datas={history.utxos} />
       </Flex>
     </Modal>

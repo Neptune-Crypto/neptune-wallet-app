@@ -3,8 +3,8 @@ import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock } from "@/store/sync/hooks";
 import { queryLatestBlock } from "@/store/sync/sync-slice";
-import { notify } from "@/utils/notify";
 import { Box, Button, Center, Flex, Grid, LoadingOverlay, Text, TextInput } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconCircleCheck, IconCopy, IconEye, IconReload } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
@@ -43,10 +43,20 @@ export default function CreateWallet({
       let walletID = await addWallet(name, mnemonic, 25, latestBlock, true);
       await setCurrentWallet(walletID);
       onCreated();
-      notify.success("Account created successfully!");
+      notifications.show({
+        position: "top-right",
+        message: "Wallet created successfully!",
+        color: "green",
+        title: "Success",
+      });
     } catch (error: any) {
       console.log(error);
-      notify.error(error, "Failed to create account");
+      notifications.show({
+        position: "top-right",
+        message: error ?? "Add wallet failed!",
+        color: "red",
+        title: "Error",
+      });
     }
     setLoading(false);
   }
@@ -54,14 +64,14 @@ export default function CreateWallet({
     <Flex direction={"column"} gap={8} style={{ minHeight: "200px", marginTop: "8px" }}>
       <TextInput
         data-autofocus
-        label="Account name"
+        label="Wallet Name"
         value={name}
         onChange={(event) => setName(event.target.value)}
-        placeholder="Enter a name for your account"
+        placeholder="Enter a name for your wallet"
       />
       <Flex direction={"column"}>
         <Flex direction={"row"} gap={4}>
-          <Text>Recovery phrase</Text>
+          <Text>18-Word Phrase</Text>
           <Text c="var(--input-asterisk-color, var(--mantine-color-error))">*</Text>
         </Flex>
         <Box pos="relative">
@@ -70,15 +80,7 @@ export default function CreateWallet({
             overlayProps={{ radius: "sm", blur: 4, color: "#eee", backgroundOpacity: 0.98 }}
             loaderProps={{
               children: (
-                <Center
-                  style={{ cursor: "pointer" }}
-                  onClick={() => {
-                    // Match the "Reveal recovery phrase" button: revealing via the
-                    // cover must also flip to the revealed state (copy row + Create).
-                    setShowCopyIcon(true);
-                    showMnemonic();
-                  }}
-                >
+                <Center style={{ cursor: "pointer" }} onClick={() => showMnemonic()}>
                   <Flex direction={"column"} align={"center"}>
                     <IconEye />
                     <Text>Make sure nobody is looking</Text>
@@ -90,10 +92,9 @@ export default function CreateWallet({
           <Box
             style={{
               width: "100%",
-              border: "1px solid var(--mantine-color-gray-3)",
-              borderRadius: "8px",
+              border: "1px solid #000000",
+              borderRadius: "5px",
               padding: "16px",
-              backgroundColor: "var(--mantine-color-gray-0)",
             }}
           >
             <Grid>
@@ -107,17 +108,14 @@ export default function CreateWallet({
                             minWidth: "18px",
                             textAlign: "center",
                           }}
-                          size="sm"
-                          c="dimmed"
-                          fw={500}
+                          fw={"bold"}
                         >{`${index + 1}.`}</Text>
                         <Flex
                           style={{
-                            border: "1px solid var(--mantine-color-gray-3)",
-                            borderRadius: "6px",
-                            padding: "4px 8px",
+                            border: "1px solid #000000",
+                            borderRadius: "5px",
+                            padding: "4px",
                             minWidth: "120px",
-                            backgroundColor: "#ffffff",
                           }}
                           justify={"center"}
                         >
@@ -132,14 +130,7 @@ export default function CreateWallet({
         </Box>
       </Flex>
       {showCopyIcon ? (
-        <Flex
-          direction={"row"}
-          px={"lg"}
-          justify={"space-between"}
-          align={"center"}
-          w={"100%"}
-          mt="sm"
-        >
+        <Flex direction={"row"} px={"lg"} justify={"space-between"} align={"center"} w={"100%"}>
           <Flex
             direction={"row"}
             align={"center"}
@@ -150,9 +141,9 @@ export default function CreateWallet({
               showMnemonic();
             }}
           >
-            <IconReload size={16} />
-            <Text fz={14} fw={500}>
-              {"Change recovery phrase"}
+            <IconReload />
+            <Text fz={14} fw={600}>
+              {"Change Seed Phrase"}
             </Text>
           </Flex>
           <Flex
@@ -171,12 +162,8 @@ export default function CreateWallet({
               }, 2000);
             }}
           >
-            {copyed ? (
-              <IconCircleCheck size={16} color="var(--color-positive)" />
-            ) : (
-              <IconCopy size={16} />
-            )}
-            <Text fz={14} fw={500}>
+            {copyed ? <IconCircleCheck color="green" /> : <IconCopy />}
+            <Text fz={14} fw={600}>
               {copyed ? "Copied" : "Copy to clipboard"}
             </Text>
           </Flex>
@@ -214,7 +201,7 @@ export default function CreateWallet({
               showMnemonic();
             }}
           >
-            Reveal recovery phrase
+            Reveal Secret Recovery Phrase
           </Button>
         )}
       </Flex>

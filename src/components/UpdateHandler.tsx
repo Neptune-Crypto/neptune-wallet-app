@@ -20,7 +20,7 @@ export const UpdateHandler = () => {
         if (update?.available) {
           // Trigger Mantine Modal for User Choice
           modals.openConfirmModal({
-            title: "Update available",
+            title: "Update Available",
             centered: true,
             children: (
               <Text size="sm">
@@ -28,7 +28,7 @@ export const UpdateHandler = () => {
                 install it now?
               </Text>
             ),
-            labels: { confirm: "Update now", cancel: "Later" },
+            labels: { confirm: "Update Now", cancel: "Later" },
             confirmProps: { color: "blue" },
             onConfirm: async () => {
               // User clicked "Update Now"

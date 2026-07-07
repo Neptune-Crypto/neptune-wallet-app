@@ -1,7 +1,7 @@
 import { importIncomingRandomness } from "@/commands/wallet";
+import { notifications } from "@mantine/notifications";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
-import { notify } from "./notify";
 
 export interface IncomingUtxoRecoveryData {
   utxo: any;
@@ -45,21 +45,34 @@ export async function handleImportRandomness(): Promise<void> {
 
     if (recoveredAmount > 0) {
       // Success Notification (Positive Amount)
-      notify.success(
-        `Successfully imported ${parsedData.length} records. Recovered amount: ${recoveredAmountStr} NPT.`,
-        "Import successful"
-      );
+      notifications.show({
+        position: "top-center",
+        color: "green",
+        title: "Import Successful",
+        message: `Successfully imported ${parsedData.length} records. Recovered amount: ${recoveredAmountStr} NPT.`,
+        autoClose: false,
+        withCloseButton: true,
+      });
     } else {
       // Warning Notification (Zero Amount)
-      notify.info(
-        "Did not manage to recover any funds. Check the log for details.",
-        "No funds recovered"
-      );
+      notifications.show({
+        position: "top-center",
+        color: "yellow",
+        title: "No Funds Recovered",
+        message: "Did not manage to recover any funds. Check the log for details.",
+        autoClose: false,
+        withCloseButton: true,
+      });
     }
   } catch (error: any) {
     console.error("Failed to import randomness:", error);
 
     // Error Notification
-    notify.error(error, "Failed to import randomness. Check the log for details.", "Import failed");
+    notifications.show({
+      position: "top-center",
+      color: "red",
+      title: "Failed to import randomness. Check the log for details.",
+      message: error?.message || error || "An unexpected error occurred while reading the file.",
+    });
   }
 }

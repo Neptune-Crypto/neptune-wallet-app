@@ -9,7 +9,6 @@ interface Props {
   value?: string;
   valueColor?: string;
   info?: Info;
-  description?: string;
 }
 export default function BaseItem({
   leftSection,
@@ -19,24 +18,16 @@ export default function BaseItem({
   value,
   valueColor,
   info,
-  description,
 }: Props) {
   return (
     <Flex direction={"column"} px={4}>
       <Paper shadow="xs" radius="md" p={"xs"} w={"100%"}>
-        <Flex direction="row" justify="space-between" align={"flex-start"} gap={12}>
+        <Flex direction="row" justify="space-between" align={"center"}>
           <Flex direction={"row"} gap={8} align={"center"}>
             {leftSection}
-            <Flex direction={"column"}>
-              <Text fw={600} size="md">
-                {label}
-              </Text>
-              {description && (
-                <Text size="xs" c="dimmed">
-                  {description}
-                </Text>
-              )}
-            </Flex>
+            <Text fw={600} size="md">
+              {label}
+            </Text>
           </Flex>
           {rightSection}
         </Flex>
