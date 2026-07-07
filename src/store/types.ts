@@ -107,7 +107,7 @@ export interface DayHistory {
   start_height: number;
   end_height: number;
   Received: number;
-  Spent: number;
+  Sent: number;
   timestamp: number;
   data: string;
 }

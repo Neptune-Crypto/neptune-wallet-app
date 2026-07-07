@@ -3,7 +3,6 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { queryLatestBlock } from "@/store/sync/sync-slice";
 import { Card, Flex, NumberFormatter, Progress, Space, Text } from "@mantine/core";
-import { IconMeteor } from "@tabler/icons-react";
 import { useEffect } from "react";
 import classes from "./sync.module.css";
 export default function SyncBlockCard() {
@@ -15,7 +14,9 @@ export default function SyncBlockCard() {
     if (latestBlock === 0) {
       return 0;
     }
-    return (syncedBlock / latestBlock) * 100;
+    // Clamp: during an account switch the synced height can briefly exceed a
+    // stale latest height, which would render as "100.0%" (or >100%).
+    return Math.min(100, (syncedBlock / latestBlock) * 100);
   }
   useEffect(() => {
     if (latestBlock < syncedBlock) {
@@ -27,19 +28,14 @@ export default function SyncBlockCard() {
       <Card className={classes.card}>
         <Flex direction={"row"} justify={"space-between"}>
           <Flex direction={"row"}>
-            <IconMeteor color="#fa6800" size={16} />
-            <Space w={5} />
             <Text fz={"xs"} fw={"bold"} c={"#FFFFFF"}>
-              sync status
+              Sync status
             </Text>
           </Flex>
           <Flex direction={"row"} gap={2}>
             <Text fz={"xs"} fw={"bold"} c={"white"}>
-              <NumberFormatter
-                value={((syncedBlock ?? 0) / (latestBlock ?? 0)) * 100}
-                decimalScale={1}
-                suffix="%"
-              />
+              {/* handleProgress guards latestBlock === 0, which would render NaN%. */}
+              <NumberFormatter value={handleProgress()} decimalScale={1} suffix="%" />
             </Text>
           </Flex>
         </Flex>
@@ -55,15 +51,12 @@ export default function SyncBlockCard() {
           }}
         />
         <Space h={8}></Space>
-        <Flex direction={"row"} gap={2}>
-          <Text fz={"xs"} fw={"bold"} c={"var(--primaryhighlight2)"}>
+        <Flex direction={"row"} gap={4}>
+          <Text fz={"xs"} fw={"bold"} c={"#FFFFFF"}>
             <NumberFormatter value={syncedBlock ?? 0} thousandSeparator />
           </Text>
-          <Text fz={"xs"} fw={"bold"} c={"#FFFFFF"}>
-            /
-          </Text>
-          <Text fz={"xs"} fw={"bold"} c={"#FFFFFF"}>
-            <NumberFormatter value={latestBlock ?? 0} thousandSeparator />
+          <Text fz={"xs"} fw={"bold"} style={{ color: "rgba(255, 255, 255, 0.65)" }}>
+            / <NumberFormatter value={latestBlock ?? 0} thousandSeparator /> blocks
           </Text>
         </Flex>
       </Card>

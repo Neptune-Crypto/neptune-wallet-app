@@ -10,20 +10,20 @@ import { forgetPendingTransaction } from "@/utils/api/apis";
 import { bigNumberPlusToString } from "@/utils/common";
 import { ellipsisFormatLen } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
+import { notify } from "@/utils/notify";
 import {
   Button,
+  Card,
   Collapse,
-  Container,
   Divider,
   Flex,
   NumberFormatter,
-  Space,
   Table,
   Text,
+  UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { notifications } from "@mantine/notifications";
-import { IconCheck, IconChevronDown, IconX } from "@tabler/icons-react";
+import { IconChevronDown } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import styles from "./execution.module.css";
 
@@ -43,15 +43,7 @@ export default function ExecutionCard() {
   }, [requesTransactionResponse]);
 
   async function forgetTx(txid: string) {
-    const id = notifications.show({
-      position: "top-right",
-      color: "green",
-      loading: true,
-      title: "Forgetting Transaction",
-      message: "Forgetting transaction, please wait...",
-      autoClose: false,
-      withCloseButton: false,
-    });
+    const id = notify.loading("Forgetting transaction", "Forgetting transaction, please wait...");
     try {
       setLoadingForget(true);
       await forgetPendingTransaction({ serverUrl, txid });
@@ -62,29 +54,13 @@ export default function ExecutionCard() {
           serverUrl,
         })
       );
-      notifications.update({
-        id,
-        position: "top-right",
-        color: "green",
-        title: "Transaction forgotten",
-        autoClose: 2500,
-        message: "Transaction forgotten successfully",
-        icon: <IconCheck size={18} />,
-        loading: false,
-        withCloseButton: true,
-      });
+      notify.done(id, "Transaction forgotten", "Transaction forgotten successfully");
     } catch (error: any) {
-      notifications.update({
+      notify.failed(
         id,
-        position: "top-right",
-        color: "red",
-        title: error || "Transaction forget failed",
-        autoClose: 2500,
-        message: "Transaction forget failed, please try again later",
-        icon: <IconX size={18} />,
-        loading: false,
-        withCloseButton: true,
-      });
+        error || "Transaction forget failed",
+        "Transaction forget failed, please try again later"
+      );
     }
     setLoadingForget(false);
   }
@@ -99,21 +75,40 @@ export default function ExecutionCard() {
     return amount_to_positive_fixed(amount);
   }
 
+  // Total value spent: outputs + fee (+ priority fee, when present).
+  function handleTotal(item: ExecutionHistory) {
+    let total = bigNumberPlusToString(handleAmount(item), amount_to_positive_fixed(item.fee));
+    if (item.priorityFee) {
+      total = bigNumberPlusToString(total, amount_to_positive_fixed(item.priorityFee));
+    }
+    return total;
+  }
+
+  // Only show the section when there is something in progress.
+  if (!executions || executions.length === 0) {
+    return null;
+  }
+
   return (
-    <Container fluid style={{ width: "100%" }}>
-      <Space h={16} />
-      <Flex direction={"column"} gap={2} px={24}>
+    // No own Container/padding: this renders inside the Send form's stack, whose
+    // scroll viewport already provides the page inset — wrapping again double-
+    // indented the section. Section-scale heading (the 24px version read as a
+    // second page title).
+    <Flex direction={"column"} gap={2} mt="md" style={{ width: "100%" }}>
+      {/* The whole header is the disclosure trigger (a real button, so it is
+          keyboard-focusable); the chevron is just the state indicator. */}
+      <UnstyledButton onClick={toggle} aria-expanded={opened} style={{ width: "100%" }}>
         <Flex direction={"row"} justify={"space-between"} align={"center"}>
-          <Text fw={500} fz={24}>
-            In Execution
+          <Text fw={600} fz={16}>
+            Transactions awaiting network confirmation
           </Text>
           {executions && executions.length > 0 && (
-            <Flex direction={"row"} gap={16}>
-              <Text>{executions.length} Executions</Text>
+            <Flex direction={"row"} gap={16} align={"center"}>
+              <Text size="sm" c="dimmed">
+                {executions.length} pending
+              </Text>
               <IconChevronDown
-                onClick={toggle}
                 style={{
-                  cursor: "pointer",
                   transform: opened ? "rotate(-180deg) scale(1.2)" : "none",
                   transition: "transform 0.3s ease",
                 }}
@@ -121,21 +116,17 @@ export default function ExecutionCard() {
             </Flex>
           )}
         </Flex>
-        <Divider />
-      </Flex>
-      <Collapse in={opened} px={24}>
+      </UnstyledButton>
+      <Divider />
+      <Collapse in={opened}>
         {executions &&
           executions.length > 0 &&
           executions.map((item, index) => {
             return (
-              <Flex
-                key={index}
-                direction={"column"}
-                style={{
-                  borderBottom: "1px solid #E5E5E5",
-                }}
-              >
-                <Space h={16} />
+              <Card key={index} withBorder radius="md" padding="md" mt={index === 0 ? "sm" : "xs"}>
+                {/* Each pending transaction in its own card so multiple are clearly
+                    separated. Default 14px type like the History detail modal;
+                    labels bold, cells top-aligned for wrapped values. */}
                 <Table
                   variant="vertical"
                   layout="fixed"
@@ -143,33 +134,20 @@ export default function ExecutionCard() {
                   striped={false}
                   styles={{
                     th: {
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      justifyContent: "center",
-                      justifyItems: "center",
-                      alignItems: "center",
+                      fontWeight: 600,
                       verticalAlign: "top",
                       background: "transparent",
                     },
                     tr: {
-                      fontSize: "10px",
-                      fontWeight: "500",
                       verticalAlign: "top",
-                      justifyContent: "center",
-                      justifyItems: "center",
-                      alignItems: "center",
                     },
                   }}
                 >
                   <Table.Tbody>
                     <Table.Tr>
                       <Table.Th>
-                        <TimeClock
-                          style={{
-                            color: "#0A8030",
-                          }}
-                          timeStamp={Math.floor(item.timestamp / 1000)}
-                        />
+                        {/* Elapsed time is not money — neutral (green means amounts only). */}
+                        <TimeClock timeStamp={Math.floor(item.timestamp / 1000)} />
                       </Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
@@ -179,7 +157,7 @@ export default function ExecutionCard() {
                             size="xs"
                             onClick={() => forgetTx(item.txid)}
                             className={styles.cancleBtn}
-                            color="red"
+                            color="red.9"
                           >
                             Forget
                           </Button>
@@ -225,7 +203,7 @@ export default function ExecutionCard() {
                       </Table.Td>
                     </Table.Tr>
                     <Table.Tr>
-                      <Table.Th w={100}>To Address:</Table.Th>
+                      <Table.Th w={100}>To address:</Table.Th>
                       <Table.Td
                         style={{
                           wordWrap: "break-word",
@@ -250,8 +228,12 @@ export default function ExecutionCard() {
                       <Table.Th>Amount:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
-                          <Text c={"#0A8030"}>
-                            <NumberFormatter value={handleAmount(item)} thousandSeparator />
+                          <Text c={"var(--color-positive)"}>
+                            <NumberFormatter
+                              value={handleAmount(item)}
+                              thousandSeparator
+                              suffix=" NPT"
+                            />
                           </Text>
                         </Flex>
                       </Table.Td>
@@ -260,10 +242,11 @@ export default function ExecutionCard() {
                       <Table.Th>Fee:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
-                          <Text c={"#0A8030"}>
+                          <Text c={"var(--color-positive)"}>
                             <NumberFormatter
                               value={amount_to_positive_fixed(item.fee)}
                               thousandSeparator
+                              suffix=" NPT"
                             />
                           </Text>
                         </Flex>
@@ -272,25 +255,40 @@ export default function ExecutionCard() {
 
                     {item.priorityFee && (
                       <Table.Tr>
-                        <Table.Th>Priority Fee:</Table.Th>
+                        <Table.Th>Priority fee:</Table.Th>
                         <Table.Td>
                           <Flex w={"100%"} justify={"end"}>
-                            <Text c={"#0A8030"}>
+                            <Text c={"var(--color-positive)"}>
                               <NumberFormatter
                                 value={amount_to_positive_fixed(item.priorityFee)}
                                 thousandSeparator
+                                suffix=" NPT"
                               />
                             </Text>
                           </Flex>
                         </Table.Td>
                       </Table.Tr>
                     )}
+                    <Table.Tr>
+                      <Table.Th>Total:</Table.Th>
+                      <Table.Td>
+                        <Flex w={"100%"} justify={"end"}>
+                          <Text c={"var(--color-positive)"} fw={700}>
+                            <NumberFormatter
+                              value={handleTotal(item)}
+                              thousandSeparator
+                              suffix=" NPT"
+                            />
+                          </Text>
+                        </Flex>
+                      </Table.Td>
+                    </Table.Tr>
                   </Table.Tbody>
                 </Table>
-              </Flex>
+              </Card>
             );
           })}
       </Collapse>
-    </Container>
+    </Flex>
   );
 }

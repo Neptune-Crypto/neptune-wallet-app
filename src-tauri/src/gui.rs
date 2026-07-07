@@ -184,7 +184,7 @@ fn create_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let window =
         tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("index.html".into()))
             .title("")
-            .inner_size(1100.0, 750.0)
+            .inner_size(1160.0, 700.0)
             .min_inner_size(860.0, 630.0)
             .resizable(true)
             .visible(false)

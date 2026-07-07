@@ -2,8 +2,8 @@ import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
 import { querySyncBlockStatus } from "@/store/sync/sync-slice";
 import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
+import { notify } from "@/utils/notify";
 import { Flex, Modal, SegmentedControl } from "@mantine/core";
-import { notifications } from "@mantine/notifications";
 import * as bip39 from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 import { useEffect, useState } from "react";
@@ -42,8 +42,8 @@ export default function AddWalletModal({
           transitionTimingFunction="ease"
           fullWidth
           data={[
-            { label: "Create Account", value: "create" },
-            { label: "Import Account", value: "import" },
+            { label: "Create account", value: "create" },
+            { label: "Import account", value: "import" },
           ]}
         />
         {section === "create" && (
@@ -53,12 +53,7 @@ export default function AddWalletModal({
             refreshMnemonic={() => {
               let mnemonic = bip39.generateMnemonic(wordlist, 192);
               setMnemonic(mnemonic);
-              notifications.show({
-                position: "top-right",
-                title: "Success",
-                message: "New seed phrase generated",
-                color: "green",
-              });
+              notify.success("New seed phrase generated");
             }}
           />
         )}

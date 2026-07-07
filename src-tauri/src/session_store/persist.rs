@@ -106,7 +106,7 @@ impl PersisStore {
         let legal_commands = if read_only {
             vec!["SELECT"]
         } else {
-            vec!["SELECT", "INSERT", "DELETE"]
+            vec!["SELECT", "INSERT", "DELETE", "UPDATE"]
         };
 
         let starts_with_legal_value = legal_commands
