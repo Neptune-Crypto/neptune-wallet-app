@@ -15,6 +15,12 @@ export async function delete_contact_address_execute(
   return await invoke("delete_contact_address_execute", { params });
 }
 
+export async function update_contact_address_execute(
+  params: (string | number)[]
+): Promise<boolean> {
+  return await invoke("update_contact_address_execute", { params });
+}
+
 export async function get_contact_list_execute(): Promise<Contact[]> {
   return await invoke("get_contact_list_execute");
 }

@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { useAppDispatch } from "@/store/hooks";
 import { setMnemonic } from "@/store/wallet/wallet-slice";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@/utils/notify";
 import * as bip39 from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 interface Props {
@@ -29,8 +29,8 @@ export default function SecureWallet(props: Props) {
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={14} fw={600} style={{ textAlign: "center" }}>
-        Write down this 18-word Secret Recovery Phrase and save it in a place that you trust and
-        only you can access.
+        Write down this 18-word recovery phrase and save it in a place that you trust and only you
+        can access.
       </Text>
       <Box pos="relative">
         <LoadingOverlay
@@ -38,7 +38,15 @@ export default function SecureWallet(props: Props) {
           overlayProps={{ radius: "sm", blur: 4, color: "#eee", backgroundOpacity: 0.98 }}
           loaderProps={{
             children: (
-              <Center style={{ cursor: "pointer" }} onClick={() => showMnemonic()}>
+              <Center
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  // Match the "Reveal recovery phrase" button: revealing via the
+                  // cover must also flip to the revealed state (copy row + Next).
+                  setShowCopyIcon(true);
+                  showMnemonic();
+                }}
+              >
                 <Flex direction={"column"} align={"center"}>
                   <IconEye />
                   <Text>Make sure nobody is looking</Text>
@@ -50,9 +58,10 @@ export default function SecureWallet(props: Props) {
         <Box
           style={{
             width: "100%",
-            border: "1px solid #000000",
-            borderRadius: "5px",
+            border: "1px solid var(--mantine-color-gray-3)",
+            borderRadius: "8px",
             padding: "16px",
+            backgroundColor: "var(--mantine-color-gray-0)",
           }}
         >
           <Grid>
@@ -63,14 +72,17 @@ export default function SecureWallet(props: Props) {
                     <Flex direction={"row"} justify={"center"} align={"center"} gap={8}>
                       <Text
                         style={{ minWidth: "18px", textAlign: "center" }}
-                        fw={"bold"}
+                        size="sm"
+                        c="dimmed"
+                        fw={500}
                       >{`${index + 1}.`}</Text>
                       <Flex
                         style={{
-                          border: "1px solid #000000",
-                          borderRadius: "5px",
-                          padding: "4px",
+                          border: "1px solid var(--mantine-color-gray-3)",
+                          borderRadius: "6px",
+                          padding: "4px 8px",
                           minWidth: "120px",
+                          backgroundColor: "#ffffff",
                         }}
                         justify={"center"}
                       >
@@ -91,7 +103,7 @@ export default function SecureWallet(props: Props) {
           justify={"space-between"}
           align={"center"}
           w={"100%"}
-          mt={2}
+          mt="sm"
         >
           <Flex
             direction={"row"}
@@ -101,17 +113,12 @@ export default function SecureWallet(props: Props) {
             onClick={() => {
               dispatch(setMnemonic(bip39.generateMnemonic(wordlist, 192)));
               showMnemonic();
-              notifications.show({
-                position: "top-right",
-                title: "Success",
-                message: "New seed phrase generated",
-                color: "green",
-              });
+              notify.success("New recovery phrase generated");
             }}
           >
-            <IconReload />
-            <Text fz={14} fw={600}>
-              {"Change Seed Phrase"}
+            <IconReload size={16} />
+            <Text fz={14} fw={500}>
+              {"Change recovery phrase"}
             </Text>
           </Flex>
           <Flex
@@ -130,8 +137,12 @@ export default function SecureWallet(props: Props) {
               }, 2000);
             }}
           >
-            {copyed ? <IconCircleCheck color="green" /> : <IconCopy />}
-            <Text fz={14} fw={600}>
+            {copyed ? (
+              <IconCircleCheck size={16} color="var(--color-positive)" />
+            ) : (
+              <IconCopy size={16} />
+            )}
+            <Text fz={14} fw={500}>
               {copyed ? "Copied" : "Copy to clipboard"}
             </Text>
           </Flex>
@@ -162,7 +173,7 @@ export default function SecureWallet(props: Props) {
               showMnemonic();
             }}
           >
-            Reveal Secret Recovery Phrase
+            Reveal recovery phrase
           </Button>
         )}
       </Flex>

@@ -275,11 +275,14 @@ impl SyncState {
             None => {
                 debug!("block {current_height} not found");
                 {
-                    //update balance after sync
-                    let balance = self.wallet.get_balance().await?;
+                    // Update the account's cached balance after sync. We store the
+                    // TOTAL balance (available + locked) for display in the accounts
+                    // list; spendability uses live UTXO queries, not this cached
+                    // column, so persisting the total here is safe (no schema change).
+                    let (_available, total) = self.wallet.get_all_balance().await?;
                     let config = crate::service::get_state::<Arc<Config>>();
                     config
-                        .update_wallet_balance(self.wallet.id, balance.display_lossless())
+                        .update_wallet_balance(self.wallet.id, total.display_lossless())
                         .await?;
                 }
                 if self.updated_to_tip.load(Ordering::Relaxed) == 0 {

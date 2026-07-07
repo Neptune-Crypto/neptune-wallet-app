@@ -2,54 +2,70 @@ import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
 import { useAllContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
-import { sleep_milliseconds } from "@/utils/common";
 import { notify } from "@/utils/notify";
-import { addContactAddress } from "@/utils/storage";
+import { updateContactAddress } from "@/utils/storage";
 import { Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function AddContact({ opened, close }: { opened: boolean; close: () => void }) {
-  const [contact, setContact] = useState({
-    aliasName: "",
-    address: "",
-    remark: "",
-    type: "",
-    createdTime: 0,
-  } as Contact);
+export default function EditContact({
+  opened,
+  close,
+  contact,
+}: {
+  opened: boolean;
+  close: () => void;
+  contact: Contact | null;
+}) {
+  const [aliasName, setAliasName] = useState("");
+  const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
   const contacts = useAllContacts();
 
-  // The backend keys update/delete on the address, so duplicates would be edited
-  // and deleted together — block saving an address that already exists.
-  const trimmedAddress = (contact.address ?? "").trim();
+  // Block changing the address to one another contact already uses (the backend
+  // keys update/delete on the address). The contact's own address is allowed.
+  const trimmedAddress = address.trim();
   const isDuplicate =
-    trimmedAddress !== "" && (contacts ?? []).some((c) => c.address === trimmedAddress);
+    trimmedAddress !== "" &&
+    trimmedAddress !== contact?.address &&
+    (contacts ?? []).some((c) => c.address === trimmedAddress);
+
+  // Re-sync the form whenever a different contact is opened for editing.
+  useEffect(() => {
+    if (contact) {
+      setAliasName(contact.aliasName);
+      setAddress(contact.address);
+    }
+  }, [contact]);
 
   async function handleSubmit() {
-    if (isDuplicate) return;
+    if (!contact || isDuplicate) return;
     try {
       setLoading(true);
-      contact.createdTime = new Date().getTime();
-      addContactAddress({ contact: { ...contact, address: trimmedAddress } });
-      notify.success("Contact added successfully");
-      await sleep_milliseconds(100);
+      const updated: Contact = {
+        ...contact,
+        aliasName,
+        address: address.trim(),
+      };
+      await updateContactAddress({ originalAddress: contact.address, contact: updated });
+      notify.success("Contact updated successfully");
       dispatch(queryAllContacts());
       close();
     } catch (error: any) {
       console.error(error);
-      notify.error(error, "Failed to add contact");
+      notify.error(error, "Failed to update contact");
     }
     setLoading(false);
   }
+
   return (
-    <Modal opened={opened} onClose={close} title="Add contact">
+    <Modal opened={opened} onClose={close} title="Edit contact">
       <Flex direction="column" gap="md">
         <TextInput
           data-autofocus
           label="Name"
-          value={contact.aliasName ?? ""}
-          onChange={(event) => setContact({ ...contact, aliasName: event.target.value })}
+          value={aliasName}
+          onChange={(event) => setAliasName(event.target.value)}
           placeholder="Enter a name for this address"
         />
         <Flex direction={"column"}>
@@ -63,23 +79,18 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
             placeholder="Enter a public address"
             autosize
             minRows={4}
-            value={contact.address ?? ""}
+            value={address}
             error={isDuplicate ? "A contact with this address already exists" : undefined}
-            onChange={(event) =>
-              setContact({
-                ...contact,
-                address: event.target.value,
-              })
-            }
+            onChange={(event) => setAddress(event.target.value)}
           />
         </Flex>
         <Button
           variant="light"
           loading={loading}
-          disabled={!contact.aliasName || !contact.address || isDuplicate}
+          disabled={!aliasName || !address.trim() || isDuplicate}
           onClick={handleSubmit}
         >
-          Add
+          Save
         </Button>
       </Flex>
     </Modal>

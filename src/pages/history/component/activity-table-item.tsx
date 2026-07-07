@@ -1,6 +1,7 @@
 import { MerageHistory } from "@/store/types";
-import { Center, NumberFormatter, Table, Text } from "@mantine/core";
-import { format } from "date-fns";
+import { ActionIcon, Center, NumberFormatter, Stack, Table, Text } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
+import { format, formatDistanceToNow } from "date-fns";
 import "./index.css";
 
 interface Props {
@@ -12,18 +13,19 @@ export default function ActivityTableItem(props: Props) {
   return (
     <Table.Tr>
       <Table.Td>
-        <Text c={"#0A8030"}>
+        {/* Block height is not money — neutral text (green means amounts only). */}
+        <Text>
           <NumberFormatter value={element.height} thousandSeparator />
         </Text>
       </Table.Td>
       <Table.Td>
         <Center>
           {element.changeAmount.startsWith("-") ? (
-            <Text fw={600} c={"red"}>
+            <Text fw={600} c={"var(--color-negative)"}>
               {element.changeAmount}
             </Text>
           ) : (
-            <Text fw={600} c={"green"}>
+            <Text fw={600} c={"var(--color-positive)"}>
               {element.changeAmount}
             </Text>
           )}
@@ -31,13 +33,23 @@ export default function ActivityTableItem(props: Props) {
       </Table.Td>
       <Table.Td>
         <Center>
-          <Text c={"#0A8030"}>{format(element.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+          <Stack gap={0} align="center">
+            <Text>{format(element.timestamp, "yyyy-MM-dd HH:mm:ss")}</Text>
+            <Text size="xs" c="dimmed">
+              {formatDistanceToNow(element.timestamp, { addSuffix: true })}
+            </Text>
+          </Stack>
         </Center>
       </Table.Td>
       <Table.Td>
-        <Text className="more" onClick={() => showMoreDetail()}>
-          More
-        </Text>
+        <ActionIcon
+          variant="subtle"
+          color="gray"
+          aria-label="View transaction details"
+          onClick={() => showMoreDetail()}
+        >
+          <IconInfoCircle size={18} />
+        </ActionIcon>
       </Table.Td>
     </Table.Tr>
   );

@@ -1,5 +1,6 @@
+import { notify } from "@/utils/notify";
+import "@mantine/charts/styles.css";
 import "@mantine/core/styles.css";
-import { notifications } from "@mantine/notifications";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import "./app.css";
@@ -87,19 +88,9 @@ const NotificationCard = (): null => {
   }, [requesTransactionResponse]);
   function handleRequesTransactionResponse() {
     if (requesTransactionResponse.transaction) {
-      notifications.show({
-        position: "top-right",
-        color: "green",
-        title: "Success",
-        message: "Create transaction success!",
-      });
+      notify.success("Create transaction success!");
     } else if (!requesTransactionResponse.transaction && requesTransactionResponse.message) {
-      notifications.show({
-        position: "top-right",
-        color: "red",
-        title: "Error",
-        message: requesTransactionResponse.message,
-      });
+      notify.error(undefined, requesTransactionResponse.message);
     }
   }
   return null;

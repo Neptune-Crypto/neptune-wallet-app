@@ -37,7 +37,7 @@ export default function ImportPage(props: Props) {
               }
             }}
           >
-            <IconChevronLeft size={21} />
+            <IconChevronLeft size={18} />
             <Text>Go Back</Text>
           </Flex>
           <Space h={16} />
@@ -59,7 +59,7 @@ export default function ImportPage(props: Props) {
         <Stepper.Step label="First step" description="Create password">
           <ImportCreatePassword nextStep={nextStep} />
         </Stepper.Step>
-        <Stepper.Step label="Second step" description="Secure wallet">
+        <Stepper.Step label="Second step" description="Recover account">
           <ImportCecret nextStep={nextStep} />
         </Stepper.Step>
         <Stepper.Completed>

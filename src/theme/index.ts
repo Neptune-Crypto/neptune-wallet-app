@@ -11,7 +11,18 @@ const myColor: MantineColorsTuple = [
   "#2832a2",
   "#1d2a90",
 ];
+const FONT_FAMILY = "'Inter Variable', 'Segoe UI', system-ui, sans-serif";
+
 const theme = createTheme({
+  // Inter (self-hosted variable font, imported in main.tsx) for all Mantine
+  // components; app.css applies the same stack to non-Mantine text.
+  fontFamily: FONT_FAMILY,
+  headings: {
+    fontFamily: FONT_FAMILY,
+    sizes: {
+      h1: { fontSize: rem(36) },
+    },
+  },
   primaryColor: "myColor",
   colors: {
     myColor,
@@ -29,11 +40,6 @@ const theme = createTheme({
       "#364379",
     ],
   },
-  headings: {
-    sizes: {
-      h1: { fontSize: rem(36) },
-    },
-  },
   components: {
     Modal: {
       styles: {
@@ -50,17 +56,36 @@ const theme = createTheme({
       },
     },
     Button: {
-      styles: (theme: any) => ({
-        root: {
-          backgroundColor: `${theme.colors.blue[6]} !important`,
-        },
-      }),
+      // Default all buttons to the blue accent, but let each button's variant
+      // (filled/light) and explicit color prop work normally. (Previously this
+      // forced backgroundColor with !important, which neutered variants and
+      // collided with per-button color props.)
+      defaultProps: {
+        color: "blue",
+      },
+      vars: (_theme: any, props: any) => {
+        const root: Record<string, string> = {};
+        // Light-variant blue text deepened one shade (blue[6] -> blue[7]): on its
+        // pale tint, blue[6] is only ~4.6:1 against AA's 4.5 — this buys margin
+        // (~5.8:1) without touching filled buttons or other colors.
+        if (props.variant === "light" && (!props.color || props.color === "blue")) {
+          root["--button-color"] = "#4c5897";
+        }
+        // Inter renders denser than Arial at 12px, so xs buttons get 14px text
+        // while keeping the compact xs height/padding. Larger sizes untouched.
+        if (props.size === "xs" || props.size === "compact-xs") {
+          root["--button-fz"] = rem(14);
+        }
+        return { root };
+      },
     },
     Text: {
       styles: () => ({
         root: {
           wordWrap: "break-word",
-          fontWeight: 500,
+          // 400 (regular) reads lighter than the previous 500 so tables and body
+          // copy no longer feel heavy. Cells that set an explicit `fw` keep it.
+          fontWeight: 400,
           fontSize: "14px",
         },
       }),
