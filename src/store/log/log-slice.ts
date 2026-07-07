@@ -20,18 +20,7 @@ const logSlice = createSlice({
     });
     builder.addCase(queryLogMessages.fulfilled, (state, action) => {
       state.loadingLogs = false;
-      const next = action.payload.data;
-      const prev = state.logs;
-      // Skip the update (and the re-render it would trigger) when the log is
-      // unchanged. Logs only append or roll off the front, so comparing the
-      // length and the first/last entries is a cheap, reliable check.
-      const unchanged =
-        prev.length === next.length &&
-        prev[prev.length - 1] === next[next.length - 1] &&
-        prev[0] === next[0];
-      if (!unchanged) {
-        state.logs = next;
-      }
+      state.logs = action.payload.data;
     });
   },
 });

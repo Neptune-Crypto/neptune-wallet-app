@@ -19,7 +19,7 @@ export const ViewPort = () => {
         withBorder={false}
         header={{ height: 0 }}
         navbar={{
-          width: 200,
+          width: 170,
           breakpoint: "sm",
           collapsed: { mobile: false },
         }}

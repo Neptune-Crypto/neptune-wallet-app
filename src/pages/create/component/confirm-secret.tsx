@@ -4,8 +4,8 @@ import { startRunRpcServer } from "@/store/auth/auth-slice";
 import { useAppDispatch } from "@/store/hooks";
 import { useMnemonic, useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
 import { setMnemonic, setOneTimePassword } from "@/store/wallet/wallet-slice";
-import { notify } from "@/utils/notify";
 import { Box, Button, Flex, Grid, Text } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconX } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 interface Props {
@@ -96,7 +96,12 @@ export default function ConfirmSecret(props: Props) {
 
   async function checkSecret() {
     if (verifyWords.join(" ") != mnemonic) {
-      notify.error(undefined, "The recovery phrase is incorrect, please check again.");
+      notifications.show({
+        position: "top-right",
+        message: "The recovery phrase is incorrect, please check again.",
+        color: "red",
+        title: "Error",
+      });
       return;
     }
     setLoading(true);
@@ -108,7 +113,12 @@ export default function ConfirmSecret(props: Props) {
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {
-      notify.error(error, "Failed to create account, please try again later.");
+      notifications.show({
+        position: "top-right",
+        message: error || "Failed to add wallet, please try again later.",
+        color: "red",
+        title: "Error",
+      });
     }
     setLoading(false);
   }
@@ -118,10 +128,9 @@ export default function ConfirmSecret(props: Props) {
       <Box
         style={{
           width: "100%",
-          border: "1px solid var(--mantine-color-gray-3)",
-          borderRadius: "8px",
+          border: "1px solid #000000",
+          borderRadius: "5px",
           padding: "16px",
-          backgroundColor: "var(--mantine-color-gray-0)",
           caretColor: "transparent",
         }}
       >
@@ -134,25 +143,22 @@ export default function ConfirmSecret(props: Props) {
                   <Flex direction={"row"} justify={"center"} align={"center"} gap={8}>
                     <Text
                       style={{ minWidth: "18px", textAlign: "center" }}
-                      size="sm"
-                      c="dimmed"
-                      fw={500}
+                      fw={"bold"}
                     >{`${index + 1}.`}</Text>
                     <Flex
                       direction={"row"}
                       style={{
-                        border: "1px solid var(--mantine-color-gray-3)",
-                        borderRadius: "6px",
-                        padding: "4px 8px",
+                        border: "1px solid #000000",
+                        borderRadius: "5px",
+                        padding: "4px",
                         minWidth: "120px",
                         minHeight: "32px",
-                        backgroundColor: "#ffffff",
                         caretColor: "transparent",
                       }}
                       justify={"center"}
                       align={"center"}
                     >
-                      <Text fw={500}>{word}</Text>
+                      <Text style={{ fontWeight: "bold" }}>{word}</Text>
                       {word && numbers.includes(index) && (
                         <IconX
                           size={14}
@@ -189,19 +195,15 @@ export default function ConfirmSecret(props: Props) {
                     <Text fw={"bold"} style={{ color: "transparent" }}>{`${index + 1}.`}</Text>
                     <Flex
                       style={{
-                        // Slightly stronger border than the slots above: these
-                        // word-bank chips are clickable.
-                        border: "1px solid var(--mantine-color-gray-4)",
-                        borderRadius: "6px",
-                        padding: "4px 8px",
+                        border: "2px solid #000000",
+                        borderRadius: "5px",
+                        padding: "4px",
                         minWidth: "120px",
-                        backgroundColor: "#ffffff",
-                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.05)",
                         caretColor: "transparent",
                       }}
                       justify={"center"}
                     >
-                      <Text fw={500}>{word}</Text>
+                      <Text style={{ fontWeight: "bold" }}>{word}</Text>
                     </Flex>
                   </Flex>
                 </Grid.Col>
@@ -217,7 +219,7 @@ export default function ConfirmSecret(props: Props) {
           loading={loading}
           onClick={checkSecret}
         >
-          Confirm recovery phrase
+          Confirm Secret Recovery Phrase
         </Button>
       </Flex>
     </Flex>

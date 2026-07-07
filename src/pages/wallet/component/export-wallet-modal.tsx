@@ -1,5 +1,4 @@
 import { ExportWallet } from "@/commands/wallet";
-import { notify } from "@/utils/notify";
 import {
   Alert,
   Box,
@@ -13,6 +12,7 @@ import {
   Text,
   Textarea,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import {
   IconCircleCheck,
   IconCopy,
@@ -52,11 +52,12 @@ export default function ExportWalletModal(props: Props) {
       let mnemonicWordList = await ExportWallet(value, id);
       setMnemonic(mnemonicWordList.join(" "));
     } catch (error: any) {
-      notify.error(
-        error,
-        "An error occurred while exporting your account.",
-        "Failed to export account"
-      );
+      notifications.show({
+        position: "top-right",
+        color: "red",
+        title: "Failed to export account",
+        message: error || "An error occurred while exporting your account.",
+      });
     }
   }
   function clickShowMnemonic() {
@@ -67,7 +68,7 @@ export default function ExportWalletModal(props: Props) {
   }
 
   return (
-    <Modal opened={opened} onClose={close} title="Export account">
+    <Modal opened={opened} onClose={close} title="Export Account">
       <FocusTrap.InitialFocus />
       <Flex direction={"column"} gap={16} w={"100%"}>
         <Alert variant="light" color="red" title="" icon={<IconInfoCircle />}>
@@ -86,7 +87,7 @@ export default function ExportWalletModal(props: Props) {
                 }}
                 loaderProps={{
                   children: (
-                    <Center style={{ cursor: "pointer" }} onClick={() => clickShowMnemonic()}>
+                    <Center style={{ cursor: "pointer" }} onClick={() => clickShowMnemonic}>
                       <Flex direction={"column"} align={"center"}>
                         <IconEye />
                         <Text>Make sure nobody is looking</Text>
@@ -96,8 +97,8 @@ export default function ExportWalletModal(props: Props) {
                 }}
               />
               <Textarea
-                label="Recovery phrase"
-                placeholder="Recovery phrase"
+                label="Mnemonic"
+                placeholder="Mnemonic"
                 value={mnemonic}
                 readOnly
                 autosize
@@ -119,9 +120,9 @@ export default function ExportWalletModal(props: Props) {
                   }
                 }}
               >
-                {showMnemonic ? <IconEyeOff size={14} /> : <IconEye size={14} />}
-                <Text fz={14} fw={500}>
-                  {showMnemonic ? "Hide recovery phrase" : "Reveal recovery phrase"}
+                {showMnemonic ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                <Text fz={14} fw={600}>
+                  {showMnemonic ? "Hide seed phrase" : "Reveal seed phrase"}
                 </Text>
               </Flex>
               <Flex
@@ -140,12 +141,8 @@ export default function ExportWalletModal(props: Props) {
                   }, 2000);
                 }}
               >
-                {copyed ? (
-                  <IconCircleCheck size={14} color="var(--color-positive)" />
-                ) : (
-                  <IconCopy size={14} />
-                )}
-                <Text fz={14} fw={500}>
+                {copyed ? <IconCircleCheck size={16} color="green" /> : <IconCopy size={16} />}
+                <Text fz={14} fw={600}>
                   {copyed ? "Copied" : "Copy to clipboard"}
                 </Text>
               </Flex>

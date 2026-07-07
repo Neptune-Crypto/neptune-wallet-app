@@ -2,7 +2,6 @@ import { input_password, set_password } from "@/commands/password";
 import { checkAuthPassword } from "@/store/auth/auth-slice";
 import { useAuth } from "@/store/auth/hooks";
 import { useAppDispatch } from "@/store/hooks";
-import { notify } from "@/utils/notify";
 import {
   Button,
   Card,
@@ -14,6 +13,7 @@ import {
   Space,
   Text,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { useCallback, useState } from "react";
 import HomeScreen from "../home";
 function LockPage() {
@@ -25,7 +25,13 @@ function LockPage() {
       await input_password(password);
       dispatch(checkAuthPassword());
     } catch (error) {
-      notify.error(undefined, "Invalid password");
+      notifications.show({
+        position: "top-right",
+        message: "Invalid password",
+        color: "red",
+        title: "Error",
+        autoClose: 2000,
+      });
     }
   }
   async function handleSetPassword() {
@@ -34,7 +40,12 @@ function LockPage() {
       dispatch(checkAuthPassword());
     } catch (error: any) {
       console.log(error);
-      notify.error(error, "Set password failed");
+      notifications.show({
+        position: "top-right",
+        message: error || "Set password failed",
+        color: "red",
+        title: "Error",
+      });
     }
   }
 
@@ -73,14 +84,14 @@ function LockPage() {
             <Flex direction={"column"} gap={32} justify="center" w={"100%"}>
               <PasswordInput
                 label="Password"
-                placeholder="Enter password to unlock"
+                placeholder="Input password to unlock"
                 value={password}
                 onKeyDown={handleKeyPress}
                 onChange={(event) => setPassword(event.currentTarget.value)}
                 autoFocus={true}
               />
               <Button variant="light" disabled={!password} onClick={handleUnlock}>
-                Unlock
+                UnLock
               </Button>
             </Flex>
           </Card>

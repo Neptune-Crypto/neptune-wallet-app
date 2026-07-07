@@ -39,7 +39,7 @@ export default function CreatePage(props: Props) {
               }
             }}
           >
-            <IconChevronLeft size={18} />
+            <IconChevronLeft size={21} />
             <Text>Go Back</Text>
           </Flex>
           <Space h={16} />
@@ -62,10 +62,10 @@ export default function CreatePage(props: Props) {
         <Stepper.Step label="First step" description="Create password">
           <CreatePassword nextStep={nextStep} />
         </Stepper.Step>
-        <Stepper.Step label="Second step" description="Secure account">
+        <Stepper.Step label="Second step" description="Secure wallet">
           <SecureWallet nextStep={nextStep} />
         </Stepper.Step>
-        <Stepper.Step label="Final step" description="Confirm recovery phrase">
+        <Stepper.Step label="Final step" description="Confirm secret recovery phrase">
           <ConfirmSecret nextStep={nextStep} />
         </Stepper.Step>
         <Stepper.Completed>

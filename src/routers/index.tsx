@@ -1,20 +1,23 @@
 import {
-  IconArrowDownCircle,
+  IconAddressBook,
+  IconDeviceImacUp,
   IconHistory,
+  IconLayoutNavbarCollapse,
   IconSettings,
+  IconTimelineEventText,
   IconTransfer,
-  IconUsers,
   IconWallet,
 } from "@tabler/icons-react";
 import { lazy } from "react";
 import { Navigate, Outlet, type RouteObject } from "react-router-dom";
+import AboutPage from "../pages/about";
 
 const WalletPage = lazy(async () => await import("../pages/wallet"));
 const SettingsPage = lazy(async () => await import("../pages/settings"));
+const LogPage = lazy(async () => await import("../pages/log"));
 const AddressesPage = lazy(async () => await import("../pages/addresses"));
 const HistoryPage = lazy(async () => await import("../pages/history"));
 const BatchPage = lazy(async () => await import("../pages/batch"));
-const ContactsPage = lazy(async () => await import("../pages/contacts"));
 export const routesConfig: RouteObject[] = [
   {
     path: "/",
@@ -31,14 +34,8 @@ export const routesConfig: RouteObject[] = [
         element: <Navigate to="/wallet" />,
       },
       {
-        // Advanced retired; its Log viewer is now a tab in Settings.
-        path: "advanced",
-        element: <Navigate to="/settings" />,
-      },
-      {
-        // Log moved into Settings; redirect any persisted /log location.
         path: "log",
-        element: <Navigate to="/settings" />,
+        element: <LogPage />,
       },
       {
         path: "wallet",
@@ -53,10 +50,6 @@ export const routesConfig: RouteObject[] = [
         element: <AddressesPage />,
       },
       {
-        path: "contacts",
-        element: <ContactsPage />,
-      },
-      {
         path: "history",
         element: <HistoryPage />,
       },
@@ -65,9 +58,8 @@ export const routesConfig: RouteObject[] = [
         element: <SettingsPage />,
       },
       {
-        // About moved into Settings as a tab; redirect any persisted /about location.
         path: "about",
-        element: <Navigate to="/settings" />,
+        element: <AboutPage />,
       },
     ],
   },
@@ -76,10 +68,20 @@ export const routesConfig: RouteObject[] = [
 export const linkdata = [
   { label: "Wallet", href: "/wallet", icon: IconWallet },
   { label: "Send", href: "/send", icon: IconTransfer },
-  { label: "Receive", href: "/addresses", icon: IconArrowDownCircle },
-  { label: "Contacts", href: "/contacts", icon: IconUsers },
+  { label: "Addresses", href: "/addresses", icon: IconAddressBook },
   { label: "History", href: "/history", icon: IconHistory },
+  {
+    label: "Advanced",
+    href: "/advanced",
+    icon: IconDeviceImacUp,
+    links: [
+      {
+        icon: IconTimelineEventText,
+        label: "Log",
+        link: "/log",
+      },
+    ],
+  },
+  { label: "Settings", href: "/settings", icon: IconSettings },
+  { label: "About", href: "/about", icon: IconLayoutNavbarCollapse },
 ];
-
-// Rendered pinned to the bottom of the sidebar, above the sync card.
-export const bottomLinkdata = [{ label: "Settings", href: "/settings", icon: IconSettings }];

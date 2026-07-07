@@ -2,8 +2,8 @@ import { set_rest_url } from "@/commands/config";
 import { useAppDispatch } from "@/store/hooks";
 import { querySettingActionData } from "@/store/settings/settings-slice";
 import { isValidUrl } from "@/utils/common";
-import { notify } from "@/utils/notify";
 import { Button, Flex, FocusTrap, Modal, TextInput } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 
 export default function EditRemoteModal({
@@ -29,20 +29,30 @@ export default function EditRemoteModal({
         }
         await set_rest_url(newValue);
         dispatch(querySettingActionData());
-        notify.success("Update remote rest url successfully.");
+        notifications.show({
+          position: "top-right",
+          title: "Success",
+          message: "Update remote rest url successfully.",
+          color: "green",
+        });
         close();
       } catch (error: any) {
-        notify.error(error, "Failed to change network.");
+        notifications.show({
+          position: "top-right",
+          title: "Error",
+          message: error || "Failed to change network.",
+          color: "red",
+        });
       }
     }
   }
   return (
-    <Modal opened={opened} onClose={close} title="Update remote node URL" centered>
+    <Modal opened={opened} onClose={close} title="Update Remote Rest" centered>
       <FocusTrap.InitialFocus />
       <Flex direction="column" gap={16}>
         <TextInput
-          label="Remote node URL"
-          placeholder="Remote node URL, with protocol (either https:// or http://)"
+          label="Remote Rest"
+          placeholder="Remote rest url, with protocol (either https:// or http://)"
           value={newValue}
           onChange={(e) => setNewValue(e.target.value.trim())}
         />

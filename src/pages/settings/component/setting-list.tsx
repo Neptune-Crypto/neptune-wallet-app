@@ -2,13 +2,9 @@ import { snapshot_dir } from "@/commands/app";
 import { get_disk_cache, set_disk_cache, set_network } from "@/commands/config";
 import { set_log_level } from "@/commands/log";
 import { LOG_LEVELS, NETWORKS } from "@/constant";
-import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
-import { querySyncBlockStatus } from "@/store/sync/sync-slice";
-import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
-import { notify } from "@/utils/notify";
-import { Flex, Select, Switch, Text } from "@mantine/core";
-import { modals } from "@mantine/modals";
+import { Flex, Select, Switch } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import {
   IconCirclesRelation,
   IconCube,
@@ -32,7 +28,6 @@ import ResyncIcon from "./resync-icon";
 import TrashDiskIcon from "./trash-disk-icon";
 
 export default function SettingList() {
-  const dispatch = useAppDispatch();
   const { serverUrl, network, logLevel, remoteUrl } = useSettingActionData();
   const [selectedLogLevel, setSelectedLogLevel] = useState<string | null>("");
 
@@ -63,9 +58,19 @@ export default function SettingList() {
     try {
       await set_disk_cache(enable);
       setChecked(enable);
-      notify.success("Disk cache has been changed");
+      notifications.show({
+        position: "top-right",
+        message: "Disk cache has been changed",
+        color: "green",
+        title: "Success",
+      });
     } catch (error: any) {
-      notify.error(error, "Failed to change disk cache.");
+      notifications.show({
+        position: "top-right",
+        color: "red",
+        title: "Failed to remove account",
+        message: error || "Change  disk cache failed!",
+      });
     }
   }
 
@@ -75,59 +80,38 @@ export default function SettingList() {
         await set_log_level(value);
         setSelectedLogLevel(value);
       } catch (error: any) {
-        notify.error(error, "Failed to change log level.");
+        notifications.show({
+          position: "top-right",
+          title: "Error",
+          message: error || "Failed to change log level.",
+          color: "red",
+        });
       }
     }
   }
 
-  // Switching network is consequential (connects to a different chain and
-  // deselects the active account), so require explicit confirmation.
-  function changeNetwork(value: string | null) {
-    if (!value || value === selectedNetwork) return;
-    modals.openConfirmModal({
-      title: "Switch network?",
-      centered: true,
-      children: (
-        <Text size="sm">
-          Switch from {selectedNetwork} to {value}? The wallet will connect to the {value} network —
-          the active account is deselected, and the accounts, balances, and history shown will be
-          those of {value}.
-        </Text>
-      ),
-      labels: { confirm: "Switch network", cancel: "Cancel" },
-      confirmProps: { variant: "light" },
-      onConfirm: async () => {
-        try {
-          await set_network(value);
-          setSelectedNetwork(value);
-          // set_network deselects the active account; refresh wallet state.
-          dispatch(queryWallets());
-          dispatch(queryWalletBalance({ serverUrl }));
-          dispatch(querySyncBlockStatus({ serverUrl }));
-          notify.success("Switched to " + value, "Network changed");
-        } catch (error: any) {
-          notify.error(error, "Failed to change network.");
-        }
-      },
-    });
+  async function changeNetwork(value: string | null) {
+    if (value) {
+      try {
+        await set_network(value);
+        setSelectedNetwork(value);
+      } catch (error: any) {
+        notifications.show({
+          position: "top-right",
+          title: "Error",
+          message: error || "Failed to change network.",
+          color: "red",
+        });
+      }
+    }
   }
 
   const [hideServerUrl, setHideServerUrl] = useState(true);
-
-  // Small dimmed group label; mt separates a group from the rows above it.
-  const SectionHeader = ({ first, children }: { first?: boolean; children: string }) => (
-    <Text size="xs" fw={700} c="dimmed" tt="uppercase" mt={first ? 0 : 12}>
-      {children}
-    </Text>
-  );
-
   return (
     <Flex direction="column" gap={16} w={"100%"}>
-      <SectionHeader first>Connection</SectionHeader>
       <BaseItem
         leftSection={<IconCirclesRelation />}
-        label={"Local RPC URL"}
-        description="The wallet's own local backend (127.0.0.1). Carries an access token, so keep it private."
+        label={"Server url"}
         value={serverUrl}
         hide={hideServerUrl}
         rightSection={
@@ -155,22 +139,22 @@ export default function SettingList() {
       />
 
       <BaseItem
-        leftSection={<IconPlugConnected />}
-        label={"Remote node URL"}
-        description="The remote Neptune node the wallet fetches blockchain data from."
-        value={remoteUrl}
+        leftSection={<IconLicense />}
+        label={"Log level"}
         rightSection={
-          <Flex direction={"row"} gap={8}>
-            <EditRemoteIcon value={remoteUrl} />
-            <CopyedIcon value={remoteUrl} />
-          </Flex>
+          <Select
+            allowDeselect
+            size="xs"
+            data={LOG_LEVELS}
+            value={selectedLogLevel}
+            onChange={changeLogLevel}
+          />
         }
       />
 
       <BaseItem
         leftSection={<IconWorld />}
         label={"Network"}
-        description="Which Neptune network the wallet connects to."
         rightSection={
           <Select
             allowDeselect
@@ -182,26 +166,31 @@ export default function SettingList() {
         }
       />
 
-      <SectionHeader>Security</SectionHeader>
+      <BaseItem
+        leftSection={<IconPlugConnected />}
+        label={"Remote rest"}
+        value={remoteUrl}
+        rightSection={
+          <Flex direction={"row"} gap={8}>
+            <EditRemoteIcon value={remoteUrl} />
+            <CopyedIcon value={remoteUrl} />
+          </Flex>
+        }
+      />
       <BaseItem
         leftSection={<IconLockCog />}
         label={"Password"}
-        description="Change the password that unlocks this wallet."
         rightSection={<ResetPasswordIcon />}
       />
-
-      <SectionHeader>Maintenance</SectionHeader>
       <BaseItem
         leftSection={<IconCube />}
-        label={"Resync block height"}
-        description="Re-scan the blockchain from a chosen block height to rebuild balances and history."
+        label={"Resync Block Height"}
         rightSection={<ResyncIcon />}
       />
 
       <BaseItem
         leftSection={<IconDatabase />}
-        label={"Disk cache"}
-        description="Keep downloaded blocks on disk to speed up future syncs."
+        label={"Disk Cache"}
         rightSection={
           <Flex direction={"row"} gap={8} align={"center"}>
             <TrashDiskIcon />
@@ -218,8 +207,7 @@ export default function SettingList() {
 
       <BaseItem
         leftSection={<IconFolderOpen />}
-        label={"Open data directory"}
-        description="Open the folder where the wallet stores its files."
+        label={"Open Data Dir"}
         value={`${dataDir}`}
         rightSection={
           <IconFolderShare
@@ -228,22 +216,6 @@ export default function SettingList() {
             onClick={async () => {
               await revealItemInDir(dataDir);
             }}
-          />
-        }
-      />
-
-      <SectionHeader>Diagnostics</SectionHeader>
-      <BaseItem
-        leftSection={<IconLicense />}
-        label={"Log level"}
-        description="How much detail the app writes to its logs."
-        rightSection={
-          <Select
-            allowDeselect
-            size="xs"
-            data={LOG_LEVELS}
-            value={selectedLogLevel}
-            onChange={changeLogLevel}
           />
         }
       />

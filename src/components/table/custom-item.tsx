@@ -37,7 +37,7 @@ export default function CustomItem({ item }: { item: Activity }) {
             <Table.Th>Block Height</Table.Th>
             <Table.Td>
               <Flex w={"100%"} justify={"end"}>
-                <Text c={"var(--color-positive)"}>
+                <Text c={"#0A8030"}>
                   <NumberFormatter value={item.height} thousandSeparator />
                 </Text>
               </Flex>
@@ -47,7 +47,7 @@ export default function CustomItem({ item }: { item: Activity }) {
             <Table.Th>Index:</Table.Th>
             <Table.Td>
               <Flex w={"100%"} justify={"end"}>
-                <Text c={"var(--color-positive)"}>
+                <Text c={"#0A8030"}>
                   <NumberFormatter value={item.index} thousandSeparator />
                 </Text>
               </Flex>
@@ -57,7 +57,7 @@ export default function CustomItem({ item }: { item: Activity }) {
             <Table.Th>Amount:</Table.Th>
             <Table.Td>
               <Flex w={"100%"} justify={"end"}>
-                <Text c={"var(--color-positive)"}>
+                <Text c={"#0A8030"}>
                   <NumberFormatter value={amount_to_fixed(item.amount)} thousandSeparator />
                 </Text>
               </Flex>

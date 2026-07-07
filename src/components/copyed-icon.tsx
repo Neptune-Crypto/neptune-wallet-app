@@ -1,12 +1,12 @@
-import { notify } from "@/utils/notify";
-import { ActionIcon, Tooltip } from "@mantine/core";
+import { Tooltip } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { IconCircleCheck, IconCopy } from "@tabler/icons-react";
 import { useState } from "react";
 
 export default function CopyedIcon({
   value,
   size = 18,
-  tooltipLable = "Copy value",
+  tooltipLable = "Copy Value",
 }: {
   value: string;
   size?: number;
@@ -16,26 +16,26 @@ export default function CopyedIcon({
   return (
     <>
       {copyed ? (
-        <IconCircleCheck color="var(--color-positive)" size={size} />
+        <IconCircleCheck color="green" size={size} />
       ) : (
         <Tooltip label={tooltipLable} withArrow>
-          {/* A real button so the copy action is keyboard-focusable and labelled. */}
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size={size + 6}
-            aria-label={tooltipLable}
+          <IconCopy
+            style={{ cursor: "pointer" }}
+            size={size}
             onClick={() => {
               navigator.clipboard.writeText(value);
               setCopyed(true);
-              notify.success("Copied to clipboard");
+              notifications.show({
+                position: "top-right",
+                message: "Copied to clipboard",
+                color: "green",
+                title: "Success",
+              });
               setTimeout(() => {
                 setCopyed(false);
               }, 2000);
             }}
-          >
-            <IconCopy size={size} />
-          </ActionIcon>
+          />
         </Tooltip>
       )}
     </>

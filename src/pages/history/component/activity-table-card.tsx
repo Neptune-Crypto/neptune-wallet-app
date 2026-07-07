@@ -1,4 +1,3 @@
-import EmptyTable from "@/components/empty-table";
 import { queryActivityHistory } from "@/store/history/history-slice";
 import { useActivityTransactions, useLoadingActivityTx } from "@/store/history/hooks";
 import { useAppDispatch } from "@/store/hooks";
@@ -6,12 +5,12 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { MerageHistory } from "@/store/types";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
-import { Box, Center, Flex, LoadingOverlay, Table, Text } from "@mantine/core";
+import { Box, Center, Flex, LoadingOverlay, ScrollArea, Select, Table } from "@mantine/core";
 import { useEffect, useState } from "react";
 import ActivityTableItem from "./activity-table-item";
 import DetailModal from "./datail-modal";
 
-export default function ActivityTableCard({ historyType }: { historyType: string }) {
+export default function ActivityTableCard() {
   const loading = useLoadingActivityTx();
   const historyList = useActivityTransactions();
   const { serverUrl } = useSettingActionData();
@@ -19,9 +18,9 @@ export default function ActivityTableCard({ historyType }: { historyType: string
   const dispatch = useAppDispatch();
   const latestBlock = useLatestBlock();
   const syncedBlock = useSyncedBlock();
+  const [historyType, setHistoryType] = useState("All");
   const [selectedHistory, setSelectedHistory] = useState({} as MerageHistory);
   const [showDetail, setShowDetail] = useState(false);
-  const entryCount = historyList?.length ?? 0;
   useEffect(() => {
     if (latestBlock && syncedBlock && latestBlock <= syncedBlock) {
       dispatch(queryActivityHistory({ serverUrl, addressId, historyType }));
@@ -39,59 +38,74 @@ export default function ActivityTableCard({ historyType }: { historyType: string
         opened={showDetail}
         onClose={() => setShowDetail(false)}
       />
-      {entryCount > 0 && (
-        <Text size="sm" fw={500}>
-          {`Full history: ${entryCount} balance change${entryCount === 1 ? "" : "s"}`}
-        </Text>
-      )}
+      <Flex justify={"end"}>
+        <Select
+          styles={{
+            input: {
+              outline: "none",
+              border: "none",
+            },
+          }}
+          variant="filled"
+          size="xs"
+          w={120}
+          data={["All", "Send", "Receive"]}
+          value={historyType}
+          onChange={(value) => {
+            setHistoryType(value ?? "All");
+          }}
+          defaultValue={historyType}
+          allowDeselect={false}
+        />
+      </Flex>
       <Box pos="relative">
         <LoadingOverlay
           visible={loading}
           zIndex={1000}
           overlayProps={{ radius: "sm", blur: 2 }}
-          loaderProps={{ color: "blue" }}
+          loaderProps={{ color: "pink" }}
         />
-        {!loading && historyList && historyList.length > 0 ? (
-          <Table
-            striped
-            highlightOnHover
-            stickyHeaderOffset={0}
-            stickyHeader
-            verticalSpacing={"sm"}
-            withRowBorders={false}
-          >
-            <Table.Thead>
-              <Table.Tr>
-                <Table.Th>Block height</Table.Th>
-                <Table.Th>
-                  <Center>Balance change (NPT)</Center>
-                </Table.Th>
-                <Table.Th>
-                  <Center>Time</Center>
-                </Table.Th>
-                <Table.Th>Actions</Table.Th>
-              </Table.Tr>
-            </Table.Thead>
-            <Table.Tbody>
-              {historyList &&
-                historyList.length > 0 &&
-                historyList.map((item, index) => {
-                  return (
-                    <ActivityTableItem
-                      key={index}
-                      element={item}
-                      showMoreDetail={() => {
-                        setSelectedHistory(item);
-                        setShowDetail(true);
-                      }}
-                    />
-                  );
-                })}
-            </Table.Tbody>
-          </Table>
-        ) : (
-          <EmptyTable />
-        )}
+        {
+          <ScrollArea h={"calc(100vh - 420px)"} scrollbarSize={0}>
+            <Table
+              striped
+              highlightOnHover
+              stickyHeaderOffset={0}
+              stickyHeader
+              verticalSpacing={"sm"}
+              withRowBorders={false}
+            >
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Height</Table.Th>
+                  <Table.Th>
+                    <Center>Amount Change</Center>
+                  </Table.Th>
+                  <Table.Th>
+                    <Center>Time</Center>
+                  </Table.Th>
+                  <Table.Th></Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {historyList &&
+                  historyList.length > 0 &&
+                  historyList.map((item, index) => {
+                    return (
+                      <ActivityTableItem
+                        key={index}
+                        element={item}
+                        showMoreDetail={() => {
+                          setSelectedHistory(item);
+                          setShowDetail(true);
+                        }}
+                      />
+                    );
+                  })}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        }
       </Box>
     </Flex>
   );

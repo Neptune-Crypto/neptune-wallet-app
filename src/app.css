@@ -7,30 +7,22 @@
   --foreground: #171717;
   --navbarbackground: #141432;
   --navbarhovercolor: #202038;
-  --navbaractivebackground: #32325f;
   --navbarcolor: #b5b6c9;
   --navbaractivecolor: #ffffff;
   --synccardbackground: #141432;
-  /* Balance-card gradients: the light end is the contrast-tuned base (>=4.5:1
-     with white text); the deep end only darkens, so contrast never drops. */
-  --balancebackground: #6672b0;
-  --balancebackgrounddeep: #3a4373;
-  --lockbalancebackground: #a96400;
-  --lockbalancebackgrounddeep: #653c00;
+  --synccardbordecolor: var(--synccardbackground);
+  --balancebackground: #6972ff;
+  --lockbalancebackground: #f7b847;
   --primaryhighlight: #6972ff;
-  /* Semantic money colors: green = gains/positive amounts ONLY, red = losses
-     (same red-9 as destructive buttons). Tune the whole app here. */
-  --color-positive: #2b8a3e;
-  --color-negative: #c92a2a;
+  --primaryhighlight2: #fab347;
+  --primaryhighlight3: #e8533c;
   --body-radius: 13px;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  /* Same stack as the Mantine theme (Inter Variable is bundled via main.tsx),
-     so Mantine components and raw elements render in one typeface. */
-  font-family: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
   overflow: hidden;
 }
 
@@ -43,45 +35,4 @@ body {
   background: var(--background);
   border-radius: var(--body-radius) 0 0 var(--body-radius);
   height: 100vh;
-}
-
-/* Balance cards: gradient surfaces. Classes (with !important) rather than inline
-   styles so they reliably beat the Card/Paper background-color. */
-.balance-card-available {
-  /* Faint concentric arcs sweeping in from past the top-right corner, over the
-     base gradient — subtle texture, kept well below the figures' legibility. */
-  background:
-    repeating-radial-gradient(
-      circle at 112% -18%,
-      transparent 0 26px,
-      rgba(255, 255, 255, 0.045) 26px 27.5px
-    ),
-    linear-gradient(135deg, var(--balancebackground) 0%, var(--balancebackgrounddeep) 100%) !important;
-}
-.balance-card-locked {
-  background:
-    repeating-radial-gradient(
-      circle at 112% -18%,
-      transparent 0 26px,
-      rgba(255, 255, 255, 0.045) 26px 27.5px
-    ),
-    linear-gradient(135deg, var(--lockbalancebackground) 0%, var(--lockbalancebackgrounddeep) 100%) !important;
-}
-
-/* Calmer tables: soft near-black data rows so they read a touch lighter than pure
-   black. Clears WCAG AAA on the app background. Cells that set an explicit `c=`
-   (e.g. the green balance) keep their color, since inline styles win. */
-.mantine-Table-td,
-.mantine-Table-td .mantine-Text-root {
-  color: #2b2f36;
-}
-
-/* Flex-fill tab panels: the active panel (not [hidden]) fills its Tabs column so a
-   ScrollArea with flex:1 inside it consumes the remaining height. Inactive panels
-   keep their [hidden] display:none. */
-.page-tab-panel:not([hidden]) {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
 }

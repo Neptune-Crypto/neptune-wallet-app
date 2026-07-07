@@ -1,7 +1,6 @@
 import { addWallet, setCurrentWallet } from "@/commands/wallet";
-import { notify } from "@/utils/notify";
-import { Button, Flex, NumberInput, Textarea, TextInput, Tooltip } from "@mantine/core";
-import { IconInfoCircle } from "@tabler/icons-react";
+import { Button, Flex, NumberInput, Textarea, TextInput } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { useState } from "react";
 
 export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
@@ -27,7 +26,12 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
       onCreated();
     } catch (error: any) {
       console.log(error);
-      notify.error(error, "Failed to import account");
+      notifications.show({
+        position: "top-right",
+        message: error || "Failed to import wallet",
+        color: "red",
+        title: "Error",
+      });
     }
     setLoading(false);
   }
@@ -42,9 +46,9 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
   return (
     <Flex direction={"column"} gap={8} style={{ height: "100%", marginTop: "8px" }}>
       <TextInput
-        label="Account name"
+        label="Wallet Name"
         data-autofocus
-        placeholder="Enter a name for your account"
+        placeholder="Enter a name for your wallet"
         value={importData.name}
         onChange={(event) =>
           setImportData({
@@ -54,8 +58,8 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
         }
       />
       <Textarea
-        label="Recovery phrase"
-        placeholder="Enter your recovery phrase"
+        label="18-Word Phrase"
+        placeholder="Enter a mnemonic phrase"
         autosize
         minRows={4}
         value={importData.mnemonic}
@@ -79,22 +83,9 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
       />
       <Flex direction={"row"} gap={16}>
         <NumberInput
-          label={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              Number of keys
-              <Tooltip
-                label="How many derived addresses are scanned for funds. Set this to at least the number of addresses this account has ever created — too few silently misses funds. The default of 25 suits accounts with few addresses."
-                multiline
-                w={280}
-                withArrow
-                position="top"
-              >
-                <IconInfoCircle size={13} style={{ opacity: 0.6, cursor: "help" }} />
-              </Tooltip>
-            </span>
-          }
+          label="Num Keys"
           w={"50%"}
-          placeholder="Enter the number of keys"
+          placeholder="Enter the number keys"
           min={1}
           hideControls
           thousandSeparator
@@ -109,23 +100,10 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
           }
         />
         <NumberInput
-          label={
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-              Start block height
-              <Tooltip
-                label="Scanning for this account's funds starts from this block. Earlier blocks are skipped, so use a height at or before the account's first transaction — or leave 0 to scan the whole chain."
-                multiline
-                w={280}
-                withArrow
-                position="top"
-              >
-                <IconInfoCircle size={13} style={{ opacity: 0.6, cursor: "help" }} />
-              </Tooltip>
-            </span>
-          }
+          label="Start Height"
           thousandSeparator
           w={"50%"}
-          placeholder="Enter the start block height"
+          placeholder="Enter the start height"
           min={0}
           hideControls
           allowDecimal={false}
@@ -139,13 +117,7 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
           }
         />
       </Flex>
-      <Button
-        variant="light"
-        mt="md"
-        disabled={checkDisabled()}
-        loading={loading}
-        onClick={handleImport}
-      >
+      <Button variant="light" disabled={checkDisabled()} loading={loading} onClick={handleImport}>
         Import
       </Button>
     </Flex>

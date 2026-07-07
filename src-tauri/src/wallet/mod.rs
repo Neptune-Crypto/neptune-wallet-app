@@ -740,25 +740,6 @@ mod tests {
 
             keys
         }
-
-        // Available (spendable-now) balance. A test-only helper: the app persists
-        // the total balance (via get_all_balance in balance.rs) for the accounts
-        // list, so this lives here in the test module rather than as dead code.
-        async fn get_balance(&self) -> Result<NativeCurrencyAmount> {
-            let utxos = self.get_utxos().await?;
-
-            let now = Timestamp::now();
-
-            let mut balance = 0i128;
-            for utxo in utxos {
-                if utxo.spent_in_block.is_none() && utxo.recovery_data.utxo.can_spend_at(now) {
-                    let value = utxo.recovery_data.utxo.get_native_currency_amount();
-                    balance += value.to_nau();
-                }
-            }
-
-            Ok(NativeCurrencyAmount::from_nau(balance))
-        }
     }
 
     #[traced_test]

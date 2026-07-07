@@ -63,8 +63,7 @@ export function LinksGroup({
     }
   }
   function checkckDisableIndicator() {
-    // The update-available dot now rides on Settings, since About moved into it.
-    if (label != "Settings") {
+    if (label != "About") {
       return true;
     } else if (updateVersion && version && version != updateVersion.version) {
       return false;

@@ -1,17 +1,13 @@
-import { Center, Stack, Text } from "@mantine/core";
-import { IconInbox } from "@tabler/icons-react";
+import { Center, Flex } from "@mantine/core";
+import IconEmpty from "./icons/icon-empty";
 
-// Quiet, muted empty state — a dimmed line icon (matching the app's Tabler icon
-// language) rather than a heavy filled glyph, and dimmed text.
-const EmptyTable = ({ message = "No data" }: { message?: string }) => {
+const EmptyTable = ({ height = 402, padding = 30 }: { height?: number; padding?: number }) => {
   return (
-    <Center style={{ flex: 1, width: "100%", minHeight: 180 }} p={30}>
-      <Stack align="center" gap={8}>
-        <IconInbox size={44} stroke={1.5} color="var(--mantine-color-gray-5)" />
-        <Text size="sm" c="dimmed">
-          {message}
-        </Text>
-      </Stack>
+    <Center h={height} w={"100%"} p={padding}>
+      <Flex direction={"column"}>
+        <IconEmpty size={60}></IconEmpty>
+        <div style={{ margin: "0 auto" }}>{"No data"}</div>
+      </Flex>
     </Center>
   );
 };

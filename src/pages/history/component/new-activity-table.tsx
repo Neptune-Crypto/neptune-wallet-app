@@ -57,7 +57,7 @@ export default function NewActivityTable() {
           visible={loading}
           zIndex={1000}
           overlayProps={{ radius: "sm", blur: 2 }}
-          loaderProps={{ color: "blue" }}
+          loaderProps={{ color: "pink" }}
         />
         {!loading && historyList && historyList.length > 0 ? (
           <ScrollArea h={"calc(100vh - 180px)"} scrollbarSize={0}>

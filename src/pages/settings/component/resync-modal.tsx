@@ -1,6 +1,6 @@
 import { resetToHeight } from "@/commands/wallet";
-import { notify } from "@/utils/notify";
 import { Alert, Button, Flex, FocusTrap, Modal, NumberInput } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { useEffect, useState } from "react";
 
 export default function ResyncModal({ opened, close }: { opened: boolean; close: () => void }) {
@@ -16,23 +16,33 @@ export default function ResyncModal({ opened, close }: { opened: boolean; close:
     setLoading(true);
     try {
       await resetToHeight(Number(height));
-      notify.success("Resync Block Height Successfully!");
+      notifications.show({
+        position: "top-right",
+        title: "Success",
+        message: "Resync Block Height Successfully!",
+        color: "green",
+      });
       close();
     } catch (error: any) {
-      notify.error(error, "Resync Block Height Failed!");
+      notifications.show({
+        position: "top-right",
+        title: "Error",
+        message: error || "Resync Block Height Failed!",
+        color: "red",
+      });
     }
     setLoading(false);
   }
   return (
-    <Modal opened={opened} onClose={close} title="Resync block" centered>
+    <Modal opened={opened} onClose={close} title="Resync Block" centered>
       <FocusTrap.InitialFocus />
       <Flex direction="column" gap={16}>
         <Alert variant="light" color="yellow">
           Reset all historical records of the current account and resync the height.
         </Alert>
         <NumberInput
-          label="Resync start height"
-          placeholder="Enter height"
+          label="Resync Start Height"
+          placeholder="Input height"
           thousandSeparator=","
           rightSection={null}
           value={height}

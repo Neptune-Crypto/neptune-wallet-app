@@ -53,25 +53,6 @@ pub(crate) async fn delete_contact_address_execute(
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
-pub(crate) async fn update_contact_address_execute(
-    params: Vec<serde_json::Value>,
-) -> Result<Vec<serde_json::Value>, String> {
-    // params: [aliasName, address, type, remark, originalAddress]
-    const SQL: &str = "
-  UPDATE contacts
-  SET aliasName = ?, address = ?, type = ?, remark = ?
-  WHERE address = ?
-  ";
-
-    let store = crate::service::get_state::<PersisStore>();
-    let read_only = false;
-    store
-        .execute(SQL, params, read_only)
-        .await
-        .map_err(|e| e.to_string())
-}
-
-#[cfg_attr(feature = "gui", tauri::command)]
 pub(crate) async fn get_contact_list_execute() -> Result<Vec<serde_json::Value>, String> {
     const SQL: &str = "SELECT * FROM contacts";
 
