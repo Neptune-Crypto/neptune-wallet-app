@@ -1,10 +1,9 @@
-import CopyedIcon from "@/components/copyed-icon";
 import EmptyTable from "@/components/empty-table";
+import MonoText from "@/components/mono-text";
 import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
 import { useAllContacts, useLoadingContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
-import { ellipsis } from "@/utils/ellipsis-format";
 import {
   Box,
   Button,
@@ -66,12 +65,7 @@ export default function SelecteContact({
         <Text style={{ minWidth: "115px" }}>{element.aliasName}</Text>
       </Table.Td>
       <Table.Td>
-        {/* space-between pins the copy icon to the column edge, forming a clean
-            icon rail without a dedicated Actions column. */}
-        <Flex direction={"row"} gap={8} align={"center"} justify={"space-between"}>
-          <Text>{ellipsis(element.address)}</Text>
-          <CopyedIcon size={16} value={element.address} />
-        </Flex>
+        <MonoText value={element.address} />
       </Table.Td>
     </Table.Tr>
   );
@@ -102,7 +96,8 @@ export default function SelecteContact({
         </Table>
       </ScrollArea>
     ) : (
-      <EmptyTable />
+      // The empty state is shared by both tabs — word it for whichever is open.
+      <EmptyTable message={activeTab === "accounts" ? "No other accounts" : "No saved contacts"} />
     );
 
   return (

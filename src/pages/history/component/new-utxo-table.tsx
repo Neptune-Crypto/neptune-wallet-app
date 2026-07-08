@@ -1,5 +1,5 @@
-import CopyedIcon from "@/components/copyed-icon";
 import EmptyTable from "@/components/empty-table";
+import MonoText from "@/components/mono-text";
 import { queryAvailableUtxosList } from "@/store/history/history-slice";
 import { useAvailableUtxos, useLoadingAvailableUtxos } from "@/store/history/hooks";
 import { useAppDispatch } from "@/store/hooks";
@@ -7,7 +7,6 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
 import { bigNumberPlusToString } from "@/utils/common";
-import { ellipsisFormatLen } from "@/utils/ellipsis-format";
 import { amount_to_fixed } from "@/utils/math-util";
 import {
   Box,
@@ -22,8 +21,9 @@ import {
   Switch,
   Table,
   Text,
+  Tooltip,
 } from "@mantine/core";
-import { IconSortDescending } from "@tabler/icons-react";
+import { IconInfoCircle, IconSortDescending } from "@tabler/icons-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -93,17 +93,30 @@ export default function NewUtxoTable() {
           </Center>
         </Table.Td>
         <Table.Td>
-          <Flex direction={"row"} gap={8} align={"center"}>
-            <Text>{ellipsisFormatLen(element.hash, 12)}</Text>
-            <CopyedIcon size={16} value={element.hash} />
-          </Flex>
+          <MonoText value={element.hash} chars={12} copyLabel="Copy hash" />
         </Table.Td>
 
-        <Table.Td>
-          <Center>
-            <Text>{element.locked ? "Yes" : "No"}</Text>
-          </Center>
-        </Table.Td>
+        {/* Only rendered when locked coins are shown at all — with the default
+            filter every visible row is spendable and the column would be noise.
+            Shows WHEN the coin unlocks (same two-line pattern as the Time
+            column). Expired locks keep a past release_date but locked=false —
+            key off the flag so stale dates never show. */}
+        {containLocked && (
+          <Table.Td>
+            <Center>
+              {element.locked && element.release_date ? (
+                <Stack gap={0} align="center">
+                  <Text>{format(element.release_date, "yyyy-MM-dd HH:mm:ss")}</Text>
+                  <Text size="xs" c="dimmed">
+                    {formatDistanceToNow(element.release_date, { addSuffix: true })}
+                  </Text>
+                </Stack>
+              ) : (
+                <Text c="dimmed">—</Text>
+              )}
+            </Center>
+          </Table.Td>
+        )}
         <Table.Td>
           <Center>
             <Stack gap={0} align="center">
@@ -214,7 +227,6 @@ export default function NewUtxoTable() {
             stickyHeaderOffset={0}
             stickyHeader
             verticalSpacing={"sm"}
-            withRowBorders={false}
           >
             <Table.Thead>
               <Table.Tr>
@@ -235,9 +247,28 @@ export default function NewUtxoTable() {
                   <Center>Amount (NPT)</Center>
                 </Table.Th>
                 <Table.Th>Hash</Table.Th>
-                <Table.Th>
-                  <Center>Locked</Center>
-                </Table.Th>
+                {/* Rendered only when locked coins are shown (see the row cell).
+                    The flag is computed from release_date only, so the copy speaks
+                    of time-locks specifically (unlike the balance card's broader
+                    "locked balance", which also covers unconfirmed coins). */}
+                {containLocked && (
+                  <Table.Th>
+                    <Center>
+                      <Flex align="center" gap={4}>
+                        Locked until
+                        <Tooltip
+                          label="Time-locked coins can't be spent or selected until this date has passed."
+                          multiline
+                          w={240}
+                          withArrow
+                          position="top"
+                        >
+                          <IconInfoCircle size={14} style={{ opacity: 0.75, cursor: "help" }} />
+                        </Tooltip>
+                      </Flex>
+                    </Center>
+                  </Table.Th>
+                )}
                 <Table.Th>
                   <Center>Time</Center>
                 </Table.Th>
@@ -246,7 +277,9 @@ export default function NewUtxoTable() {
             <Table.Tbody>{rows}</Table.Tbody>
           </Table>
         ) : (
-          <EmptyTable />
+          // "UTXOs", not "transactions" — this tab lists coins, matching the tab
+          // label and the explainer above it.
+          <EmptyTable message="No UTXOs yet" />
         )}
       </Box>
     </Flex>

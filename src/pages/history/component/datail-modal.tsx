@@ -1,7 +1,6 @@
-import CopyedIcon from "@/components/copyed-icon";
+import MonoText from "@/components/mono-text";
 import { MerageHistory } from "@/store/types";
 import { bigNumberPlusToString } from "@/utils/common";
-import { ellipsisFormatLen } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import {
   Divider,
@@ -81,10 +80,7 @@ export default function DetailModal(props: Props) {
                 }}
               >
                 <Flex align={"end"} direction={"column"} gap={8}>
-                  <Flex direction={"row"} gap={8} align={"center"}>
-                    <Text>{ellipsisFormatLen(history.txid, 15)}</Text>
-                    <CopyedIcon size={16} value={history.txid} />
-                  </Flex>
+                  <MonoText value={history.txid} copyLabel="Copy transaction ID" />
                 </Flex>
               </Table.Td>
             </Table.Tr>
@@ -115,17 +111,18 @@ export default function DetailModal(props: Props) {
                     return (
                       <Flex align={"end"} direction={"column"} gap={8} key={index}>
                         <Flex direction={"row"} gap={8} align={"center"}>
-                          <Text>{ellipsisFormatLen(output.toAddress, 10)}</Text>
-                          <CopyedIcon size={16} value={output.toAddress} />
+                          <MonoText value={output.toAddress} />
                           <Flex direction={"row"} gap={3}>
-                            <Text c={"#6c757d"}>{`(Sent: `}</Text>
+                            {/* c="dimmed" (not a hardcoded hex) — the app's one
+                                secondary-text gray, same as labels/timestamps. */}
+                            <Text c="dimmed">{`(Sent: `}</Text>
                             <Text fw={600} c={"var(--color-negative)"}>
                               <NumberFormatter
                                 value={amount_to_positive_fixed(output.amount)}
                                 thousandSeparator
                               />
                             </Text>
-                            <Text c={"#6c757d"}>{`)`}</Text>
+                            <Text c="dimmed">{`)`}</Text>
                           </Flex>
                         </Flex>
                       </Flex>
@@ -160,10 +157,7 @@ export default function DetailModal(props: Props) {
                   {history.outputs?.map((output, index) => {
                     return (
                       <Flex align={"end"} direction={"column"} gap={8} key={index}>
-                        <Flex direction={"row"} gap={8} align={"center"}>
-                          <Text>{ellipsisFormatLen(output, 15)}</Text>
-                          <CopyedIcon size={16} value={output} />
-                        </Flex>
+                        <MonoText value={output} copyLabel="Copy output commitment" />
                       </Flex>
                     );
                   })}

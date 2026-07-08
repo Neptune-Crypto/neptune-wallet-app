@@ -1,6 +1,6 @@
 import { resetToHeight } from "@/commands/wallet";
 import { notify } from "@/utils/notify";
-import { Alert, Button, Flex, FocusTrap, Modal, NumberInput } from "@mantine/core";
+import { Alert, Button, Flex, FocusTrap, Modal, NumberInput, Stack, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
 
 export default function ResyncModal({ opened, close }: { opened: boolean; close: () => void }) {
@@ -16,22 +16,39 @@ export default function ResyncModal({ opened, close }: { opened: boolean; close:
     setLoading(true);
     try {
       await resetToHeight(Number(height));
-      notify.success("Resync Block Height Successfully!");
+      // The rollback is done; the forward re-scan continues in the background
+      // (progress shows on the sidebar sync card).
+      notify.success(`Re-scanning the chain from block ${height}.`, "Resync started");
       close();
     } catch (error: any) {
-      notify.error(error, "Resync Block Height Failed!");
+      notify.error(error, "Please try again.", "Couldn't resync account");
     }
     setLoading(false);
   }
   return (
-    <Modal opened={opened} onClose={close} title="Resync block" centered>
+    <Modal opened={opened} onClose={close} title="Resync account history" centered>
       <FocusTrap.InitialFocus />
       <Flex direction="column" gap={16}>
+        {/* Education, not just a warning: when to use it, what it does, and that
+            it is safe (a local-only rebuild: rollback + forward re-scan). */}
         <Alert variant="light" color="yellow">
-          Reset all historical records of the current account and resync the height.
+          <Stack gap={8}>
+            <Text size="sm">
+              <b>When to use this:</b> if the active account's balance or history looks wrong or
+              incomplete — for example after importing with a too-recent start height, or if a
+              transaction seems to be missing.
+            </Text>
+            <Text size="sm">
+              Resyncing rolls the active account's local records back to the chosen height and
+              re-scans the blockchain forward to rebuild them. <b>Your coins are never affected</b>{" "}
+              — this only rebuilds this app's local view. It can take a while, like the original
+              sync.
+            </Text>
+          </Stack>
         </Alert>
         <NumberInput
           label="Resync start height"
+          description="Use a height at or before the active account's first transaction. 0 re-scans the whole chain — slowest, but always correct."
           placeholder="Enter height"
           thousandSeparator=","
           rightSection={null}

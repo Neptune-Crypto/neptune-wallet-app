@@ -1,4 +1,4 @@
-import CopyedIcon from "@/components/copyed-icon.tsx";
+import MonoText from "@/components/mono-text";
 import { TimeClock } from "@/components/TimeClock";
 import { ExecutionHistory } from "@/database/types/localhistory";
 import { removeExecutionTransactionHistory } from "@/store/execution/execution-slice";
@@ -8,7 +8,6 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useCurrentWalledId } from "@/store/wallet/hooks";
 import { forgetPendingTransaction } from "@/utils/api/apis";
 import { bigNumberPlusToString } from "@/utils/common";
-import { ellipsisFormatLen } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
 import {
@@ -17,12 +16,15 @@ import {
   Collapse,
   Divider,
   Flex,
+  List,
   NumberFormatter,
+  Stack,
   Table,
   Text,
   UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { modals } from "@mantine/modals";
 import { IconChevronDown } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import styles from "./execution.module.css";
@@ -42,6 +44,39 @@ export default function ExecutionCard() {
     }
   }, [requesTransactionResponse]);
 
+  // "Forget" only deletes this app's local records (the pending entry and the
+  // coins' pending-spent markers) — it does NOT recall the transaction from the
+  // network. Spell that out before acting, since users will read it as "cancel".
+  function confirmForget(txid: string) {
+    modals.openConfirmModal({
+      title: "Forget this pending transaction?",
+      centered: true,
+      children: (
+        <Stack gap={12}>
+          <Text size="sm">
+            Forgetting removes the transaction from this app's pending list — it does not cancel it.
+            If it already reached the network, it can still confirm.
+          </Text>
+          <List size="sm" spacing={8}>
+            <List.Item>
+              <b>Coins are freed:</b> the coins it uses become available to spend again in this app.
+            </List.Item>
+            <List.Item>
+              <b>If it still confirms:</b> a new transaction reusing those coins would conflict, and
+              one of the two will fail.
+            </List.Item>
+          </List>
+          <Text size="sm">
+            Only forget a transaction you believe is permanently stuck or was never broadcast.
+          </Text>
+        </Stack>
+      ),
+      labels: { confirm: "Forget", cancel: "Cancel" },
+      confirmProps: { color: "red.9", variant: "light" },
+      onConfirm: () => forgetTx(txid),
+    });
+  }
+
   async function forgetTx(txid: string) {
     const id = notify.loading("Forgetting transaction", "Forgetting transaction, please wait...");
     try {
@@ -56,11 +91,9 @@ export default function ExecutionCard() {
       );
       notify.done(id, "Transaction forgotten", "Transaction forgotten successfully");
     } catch (error: any) {
-      notify.failed(
-        id,
-        error || "Transaction forget failed",
-        "Transaction forget failed, please try again later"
-      );
+      // Title = the action, body = the reason. (Previously the raw error object
+      // itself was passed as the toast title.)
+      notify.failed(id, "Couldn't forget transaction", error ? String(error) : "Please try again.");
     }
     setLoadingForget(false);
   }
@@ -155,7 +188,7 @@ export default function ExecutionCard() {
                             variant="light"
                             disabled={loadingForget}
                             size="xs"
-                            onClick={() => forgetTx(item.txid)}
+                            onClick={() => confirmForget(item.txid)}
                             className={styles.cancleBtn}
                             color="red.9"
                           >
@@ -173,10 +206,7 @@ export default function ExecutionCard() {
                         }}
                       >
                         <Flex key={index} align={"end"} direction={"column"} gap={8}>
-                          <Flex direction={"row"} gap={8} align={"center"}>
-                            <Text>{ellipsisFormatLen(item.txid, 15)}</Text>
-                            <CopyedIcon size={16} value={item.txid} />
-                          </Flex>
+                          <MonoText value={item.txid} copyLabel="Copy transaction ID" />
                         </Flex>
                       </Table.Td>
                     </Table.Tr>
@@ -192,10 +222,7 @@ export default function ExecutionCard() {
                           {item.outputs?.map((output, index) => {
                             return (
                               <Flex key={index} align={"end"} direction={"column"} gap={8}>
-                                <Flex direction={"row"} gap={8} align={"center"}>
-                                  <Text>{ellipsisFormatLen(output, 15)}</Text>
-                                  <CopyedIcon size={16} value={output} />
-                                </Flex>
+                                <MonoText value={output} copyLabel="Copy output commitment" />
                               </Flex>
                             );
                           })}
@@ -214,10 +241,7 @@ export default function ExecutionCard() {
                           {item.batchOutput?.map((output, index) => {
                             return (
                               <Flex key={index} align={"end"} direction={"column"} gap={8}>
-                                <Flex direction={"row"} gap={8} align={"center"}>
-                                  <Text>{ellipsisFormatLen(output.toAddress, 15)}</Text>
-                                  <CopyedIcon size={16} value={output.toAddress} />
-                                </Flex>
+                                <MonoText value={output.toAddress} />
                               </Flex>
                             );
                           })}

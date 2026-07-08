@@ -31,12 +31,6 @@ export interface AboutState {
   buildInfo: BuildInfo | null;
   version: string;
   tauriVersion: string;
-  updateVersion: UpdateVersion | null;
-}
-
-export interface UpdateVersion {
-  version: string;
-  url: string;
 }
 
 export interface BuildInfo {
@@ -71,6 +65,10 @@ export interface UtxoItem {
   confirm_height: number;
   confirmed_txid: string;
   locked: boolean;
+  // Time-lock release date (ms since epoch) when the UTXO carries one. May be a
+  // past date with locked=false once the lock has expired — display keys off
+  // `locked`, not off this field's presence.
+  release_date?: number;
   amount: string;
 }
 

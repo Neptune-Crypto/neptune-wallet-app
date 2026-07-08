@@ -1,6 +1,8 @@
 import { generateNewAddress, knownAddresses } from "@/commands/wallet";
+import AccountContextLabel from "@/components/account-context-label";
 import CopyedIcon from "@/components/copyed-icon";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
+import MonoText from "@/components/mono-text";
 import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { AddressRecord, NeptuneKeyType } from "@/utils/api/types";
 import {
@@ -161,14 +163,16 @@ export default function AddressesPage() {
             <Text mt="xl" size="sm" fw={500}>
               Address
             </Text>
-            <Text
-              ta="center"
-              size="xs"
-              c="dimmed"
-              style={{ wordBreak: "break-all", marginTop: "4px" }}
-            >
-              {selectedAddress}
-            </Text>
+            <Box mt={4}>
+              <MonoText
+                value={selectedAddress}
+                copy={false}
+                full
+                size="xs"
+                c="dimmed"
+                ta="center"
+              />
+            </Box>
             <CopyButton value={selectedAddress} timeout={2000}>
               {({ copied, copy }) => (
                 <Button
@@ -189,12 +193,18 @@ export default function AddressesPage() {
     </Modal>
   );
 
-  const addressRepresentation = (address: AddressRecord): string =>
-    activeTab === generation_tab ? address.address_short_form : address.address;
-
   return (
     <WithTitlePageHeader title="Receive addresses">
       {qr_modal}
+
+      {/* First element under the header on every page, so the "which account?"
+          glance always lands in the same spot (matches Wallet and Send). It sits
+          above the tabs because the account applies to all of them. */}
+      <Box mb="sm">
+        {/* Action-role label, mirroring the Send page's "Sending from": funds
+            received via the addresses below land in this account. */}
+        <AccountContextLabel label="Receiving to" name={activeAccountName} />
+      </Box>
 
       <Tabs
         value={activeTab}
@@ -216,15 +226,6 @@ export default function AddressesPage() {
           <Tabs.Tab value="echybrid">EC hybrid</Tabs.Tab>
           <Tabs.Tab value="viewing">Viewing</Tabs.Tab>
         </Tabs.List>
-
-        <Flex direction={"row"} gap={6} align={"center"} mb="sm">
-          <Text size="sm" c="dimmed">
-            Active account:
-          </Text>
-          <Text size="sm" fw={600}>
-            {activeAccountName || "—"}
-          </Text>
-        </Flex>
 
         <Tabs.Panel value={activeTab || generation_tab} className="page-tab-panel">
           <Flex direction="column" align="flex-start" mb="sm" gap="lg">
@@ -297,9 +298,14 @@ export default function AddressesPage() {
                       <Table.Tr key={item.key_index}>
                         <Table.Td>{item.key_index}</Table.Td>
                         <Table.Td>
-                          <Box style={{ wordBreak: "break-all" }}>
-                            {addressRepresentation(item)}
-                          </Box>
+                          {/* Generation addresses are too long to show in full, so
+                              abbreviate; the other types show in full. Copy lives in
+                              the Actions column, hence copy={false}. */}
+                          <MonoText
+                            value={item.address}
+                            copy={false}
+                            full={activeTab !== generation_tab}
+                          />
                         </Table.Td>
                         <Table.Td>
                           <Group gap="xs" justify="flex-end" wrap="nowrap">

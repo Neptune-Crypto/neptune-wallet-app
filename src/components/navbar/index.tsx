@@ -67,7 +67,11 @@ function Navbar() {
           <div data-tauri-drag-region className={classes.navbarMain}>
             {links}
           </div>
-          {bottomLinks}
+          {/* Wrap the bottom links in a block box (like navbarMain) so their
+              margins collapse to the same 8px gap as the main links — as direct
+              flex children of .navbar their margins wouldn't collapse, doubling
+              the gap between Contacts and Settings. */}
+          <div>{bottomLinks}</div>
           <div className={classes.footer}>
             <SyncBlockCard />
           </div>

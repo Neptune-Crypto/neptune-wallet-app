@@ -14,6 +14,3 @@ export const useVersion = () => {
 export const useTauriVersion = () => {
   return useAppSelector((state) => state.about.tauriVersion);
 };
-export const useUpdateVersion = () => {
-  return useAppSelector((state) => state.about.updateVersion);
-};

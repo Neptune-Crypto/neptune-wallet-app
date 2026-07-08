@@ -160,6 +160,7 @@ pub(crate) trait WalletRpc {
                     Some(v) => v > now,
                     None => false,
                 },
+                release_date: v.recovery_data.utxo.release_date(),
             })
             .collect::<Vec<_>>();
         Ok(utxos)
@@ -439,6 +440,10 @@ pub(crate) struct Utxo {
     pub(crate) confirmed_txid: Option<String>,
     pub(crate) amount: String,
     pub(crate) locked: bool,
+    // Time-lock release date (ms since epoch), when the UTXO carries one. The
+    // UI shows WHEN a locked coin unlocks, not just that it is locked. Note a
+    // date can be present with locked == false once the lock has expired.
+    pub(crate) release_date: Option<Timestamp>,
 }
 
 async fn avaliable_utxos() -> Result<ErasedJson, RestError> {

@@ -108,7 +108,7 @@ export default function ConfirmSecret(props: Props) {
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {
-      notify.error(error, "Failed to create account, please try again later.");
+      notify.error(error, "Please try again later.", "Couldn't create account");
     }
     setLoading(false);
   }

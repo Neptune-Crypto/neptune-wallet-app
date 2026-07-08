@@ -5,10 +5,11 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect } from "react";
 import "./app.css";
 import { ViewPort } from "./components/base/ViewPort";
+import { UpdateProvider } from "./components/update/update-context";
 import { UpdateHandler } from "./components/UpdateHandler"; // Path to the new component
 import WindowTitlebarCard from "./components/windowTitlebarCard";
 import { SYNC_FINISH_EVENT, SYNC_HEIGHT_EVENT, SYNC_SENT_STATUS_EVENT } from "./constant";
-import { checkHasUpdateVersion, queryAboutInfo } from "./store/about/about-slice";
+import { queryAboutInfo } from "./store/about/about-slice";
 import { checkAuthPassword, startRunRpcServer } from "./store/auth/auth-slice";
 import { useAuth, useStartRpcServer } from "./store/auth/hooks";
 import { updateSendState } from "./store/execution/execution-slice";
@@ -29,13 +30,15 @@ function App() {
     document.documentElement.style.setProperty("--body-radius", "0");
   }
   return (
-    <>
+    // UpdateProvider owns the single update check; UpdateHandler (startup prompt),
+    // the About view, and the sidebar badge all read from it.
+    <UpdateProvider>
       <WindowTitlebarCard />
-      <UpdateHandler /> {/* This handles the update logic */}
+      <UpdateHandler />
       <NotificationCard />
       <InitApp />
       <ViewPort />
-    </>
+    </UpdateProvider>
   );
 }
 const InitApp = (): null => {
@@ -52,7 +55,6 @@ const InitApp = (): null => {
     if (hasAuth) {
       dispatch(queryAboutInfo());
       dispatch(startRunRpcServer());
-      dispatch(checkHasUpdateVersion());
     }
   }, [hasAuth]);
   useEffect(() => {
@@ -90,7 +92,7 @@ const NotificationCard = (): null => {
     if (requesTransactionResponse.transaction) {
       notify.success("Create transaction success!");
     } else if (!requesTransactionResponse.transaction && requesTransactionResponse.message) {
-      notify.error(undefined, requesTransactionResponse.message);
+      notify.error(undefined, requesTransactionResponse.message, "Couldn't send transaction");
     }
   }
   return null;

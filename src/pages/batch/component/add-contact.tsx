@@ -38,7 +38,7 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
       close();
     } catch (error: any) {
       console.error(error);
-      notify.error(error, "Failed to add contact");
+      notify.error(error, "Please try again.", "Couldn't add contact");
     }
     setLoading(false);
   }

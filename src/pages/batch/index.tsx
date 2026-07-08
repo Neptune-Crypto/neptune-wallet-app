@@ -1,5 +1,8 @@
+import AccountContextLabel from "@/components/account-context-label";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader.tsx";
+import MonoText from "@/components/mono-text";
 import TransferForm from "@/pages/batch/component/transfer-form.tsx";
+import { useAllContacts } from "@/store/contact/hooks";
 import {
   queryExecutionHistorys,
   requestSedExecutionTransaction,
@@ -20,6 +23,7 @@ import {
   useWallets,
 } from "@/store/wallet/hooks.ts";
 import { Output, SendInputItem, SendTransactionParam } from "@/utils/api/types.ts";
+import { contactDisplayName } from "@/utils/contact-name";
 import {
   Box,
   Button,
@@ -39,7 +43,6 @@ import { Fragment, useEffect, useState } from "react";
 
 import { queryCurrentWalletID, queryWalletBalance } from "@/store/wallet/wallet-slice.ts";
 import { bigNumberMinus, bigNumberPlusToString } from "@/utils/common";
-import { ellipsis } from "@/utils/ellipsis-format";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
 import { useLocation } from "react-router-dom";
@@ -73,6 +76,9 @@ export default function BatchTranferPage() {
   const [selectedInputs, setSelectedInputs] = useState([] as number[]);
   const [selectedAmount, setSelectedAmount] = useState("");
   const balanceData = useBalanceData();
+  // For resolving recipient addresses to contact/account names in the confirm
+  // modal — a name is far easier to verify than a bech32m fragment.
+  const contacts = useAllContacts();
   useEffect(() => {
     dispatch(queryCurrentWalletID());
     dispatch(queryWalletBalance({ serverUrl }));
@@ -212,7 +218,10 @@ export default function BatchTranferPage() {
         <Stack gap={12}>
           <Flex align="center" gap={6}>
             <IconAlertTriangle size={14} color="var(--mantine-color-orange-6)" />
-            <Text size="xs" c="orange.8" fw={500}>
+            {/* No stock Mantine orange clears WCAG AA at 12px on white (orange.8
+                ~3.6:1, orange.9 ~4.3:1 vs the required 4.5). This deeper warm tone
+                is ~5.2:1 and still reads as a warning; the icon stays orange-6. */}
+            <Text size="xs" c="#c2410c" fw={500}>
               This action is irreversible.
             </Text>
           </Flex>
@@ -231,9 +240,18 @@ export default function BatchTranferPage() {
                 <Text size="sm" c="dimmed">
                   {sendInputs.length > 1 ? `Address ${index + 1}` : "Address"}
                 </Text>
-                <Text size="sm" ta="right" style={{ whiteSpace: "nowrap" }}>
-                  {ellipsis(item.toAddress)}
-                </Text>
+                {/* Known recipient: lead with the contact/account name (the thing a
+                    human actually verifies) and dim the address to supporting detail. */}
+                {contactDisplayName(contacts, item.toAddress) ? (
+                  <Flex direction="column" align="flex-end">
+                    <Text size="sm" fw={600}>
+                      {contactDisplayName(contacts, item.toAddress)}
+                    </Text>
+                    <MonoText value={item.toAddress} copy={false} size="xs" c="dimmed" ta="right" />
+                  </Flex>
+                ) : (
+                  <MonoText value={item.toAddress} copy={false} size="sm" ta="right" />
+                )}
                 <Text size="sm" c="dimmed">
                   Amount
                 </Text>
@@ -322,20 +340,17 @@ export default function BatchTranferPage() {
         <Stack gap="md">
           <Flex direction={"row"} justify={"space-between"} align={"center"} wrap={"wrap"} gap={8}>
             <Flex direction={"row"} gap={8} align={"center"}>
-              <Flex direction={"row"} gap={6} align={"center"}>
-                <Text size="sm" c="dimmed">
-                  Sending from:
-                </Text>
-                <Text size="sm" fw={600}>
-                  {currentAccountName || "—"}
-                </Text>
-              </Flex>
+              <AccountContextLabel label="Sending from" name={currentAccountName} />
               {selectedInputs && selectedInputs.length > 0 && (
                 <Flex direction={"row"} gap={8} align={"center"}>
-                  <Text c="dimmed">{`Selected ${selectedInputs.length} UTXOs amount:`}</Text>
+                  <Text
+                    size="sm"
+                    c="dimmed"
+                  >{`Selected ${selectedInputs.length} UTXOs amount:`}</Text>
                   <HoverCard width={320} shadow="md" withArrow openDelay={200} closeDelay={400}>
                     <HoverCard.Target>
                       <Text
+                        size="sm"
                         fw={600}
                         c="var(--color-positive)"
                         style={{
@@ -344,7 +359,7 @@ export default function BatchTranferPage() {
                         }}
                       >
                         {selectedAmount}{" "}
-                        <Text span c="dimmed" fw={400}>
+                        <Text span size="sm" c="dimmed" fw={400}>
                           NPT
                         </Text>
                       </Text>
@@ -375,11 +390,17 @@ export default function BatchTranferPage() {
               )}
             </Flex>
 
+            {/* size="sm" everywhere in this row: the theme already forces 14px, but
+                without the size prop the line-height stays at the md default (1.55),
+                making these ~1px taller than the account label — which then gets
+                center-shifted down relative to its position on other pages. */}
             <Flex direction={"row"} gap={8}>
-              <Text c="dimmed">Available balance:</Text>
-              <Text fw={600} c="var(--color-positive)">
+              <Text size="sm" c="dimmed">
+                Available balance:
+              </Text>
+              <Text size="sm" fw={600} c="var(--color-positive)">
                 {balanceData.available_balance}{" "}
-                <Text span c="dimmed" fw={400}>
+                <Text span size="sm" c="dimmed" fw={400}>
                   NPT
                 </Text>
               </Text>

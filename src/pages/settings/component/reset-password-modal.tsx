@@ -31,7 +31,7 @@ export default function ResetPasswordModal({
         notify.success("Password updated successfully");
         close();
       } catch (error: any) {
-        notify.error(error, "Failed to set password");
+        notify.error(error, "Please try again.", "Couldn't change password");
       }
     } else {
       notify.error(undefined, "Please enter the same password in both fields");

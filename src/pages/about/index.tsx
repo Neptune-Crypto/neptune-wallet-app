@@ -1,20 +1,19 @@
-import { checkHasUpdateVersion, queryAboutInfo } from "@/store/about/about-slice";
-import { useBuildInfo, useUpdateVersion, useVersion } from "@/store/about/hooks";
+import { useUpdate } from "@/components/update/update-context";
+import { queryAboutInfo } from "@/store/about/about-slice";
+import { useBuildInfo, useVersion } from "@/store/about/hooks";
 import { useAppDispatch } from "@/store/hooks";
-import { Flex, Table, Text } from "@mantine/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { Button, Flex, Loader, Table, Text } from "@mantine/core";
 import { useEffect } from "react";
 
 // Content-only view of the About info, rendered as the "About" tab inside
 // Settings. Kept free of a page header so it composes inside Settings' tabs.
 export function AboutView() {
   const buildInfo = useBuildInfo();
-  const updateVersion = useUpdateVersion();
   const version = useVersion();
+  const update = useUpdate();
   const dispatch = useAppDispatch();
   useEffect(() => {
     dispatch(queryAboutInfo());
-    dispatch(checkHasUpdateVersion());
   }, [dispatch]);
   return (
     <Table
@@ -59,32 +58,46 @@ export function AboutView() {
         <Table.Tr>
           <Table.Th>Version:</Table.Th>
           <Table.Td>
-            <Flex direction={"row"} align={"center"} gap={8}>
-              <Text>{version}</Text>
-              {updateVersion && updateVersion.version && updateVersion.version != version && (
-                <Text
-                  style={{ color: "green" }}
-                >{` ( New Version ${updateVersion.version} )`}</Text>
-              )}
-            </Flex>
+            <Text>{version}</Text>
           </Table.Td>
         </Table.Tr>
-        {updateVersion && updateVersion.version && updateVersion.version != version && (
-          <Table.Tr>
-            <Table.Th>Download:</Table.Th>
-            <Table.Td>
-              <Flex
-                direction={"row"}
-                style={{ cursor: "pointer" }}
-                onClick={() => {
-                  openUrl(updateVersion.url);
-                }}
-              >
-                <Text style={{ color: "green" }}>{`${updateVersion.url}`}</Text>
+
+        <Table.Tr>
+          <Table.Th>Updates:</Table.Th>
+          <Table.Td>
+            {update.status === "checking" && (
+              <Flex align="center" gap={8}>
+                <Loader size="xs" />
+                <Text c="dimmed">Checking for updates…</Text>
               </Flex>
-            </Table.Td>
-          </Table.Tr>
-        )}
+            )}
+            {update.status === "upToDate" && <Text c="dimmed">You're on the latest version.</Text>}
+            {update.status === "available" && (
+              <Flex align="center" gap={12} wrap="wrap">
+                <Text fw={600} c="var(--color-positive)">
+                  Version {update.version} available
+                </Text>
+                <Button size="xs" variant="light" onClick={() => update.install()}>
+                  Install &amp; restart
+                </Button>
+              </Flex>
+            )}
+            {update.status === "installing" && (
+              <Flex align="center" gap={8}>
+                <Loader size="xs" />
+                <Text c="dimmed">Installing update…</Text>
+              </Flex>
+            )}
+            {update.status === "error" && (
+              <Flex align="center" gap={12} wrap="wrap">
+                <Text c="dimmed">Couldn't check for updates.</Text>
+                <Button size="xs" variant="light" onClick={() => update.checkForUpdates()}>
+                  Retry
+                </Button>
+              </Flex>
+            )}
+          </Table.Td>
+        </Table.Tr>
       </Table.Tbody>
     </Table>
   );

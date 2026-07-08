@@ -1,14 +1,13 @@
-import { get_build_info, get_update_info } from "@/commands/app";
+import { get_build_info } from "@/commands/app";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { getTauriVersion, getVersion } from "@tauri-apps/api/app";
-import { AboutState, BuildInfo, UpdateVersion } from "../types";
+import { AboutState, BuildInfo } from "../types";
 
 const initialState: AboutState = {
   loadingAbout: false,
   buildInfo: null,
   version: "",
   tauriVersion: "",
-  updateVersion: null,
 };
 
 const aboutSlice = createSlice({
@@ -28,9 +27,6 @@ const aboutSlice = createSlice({
       state.version = action.payload.version;
       state.tauriVersion = action.payload.tauriVersion;
     });
-    builder.addCase(checkHasUpdateVersion.fulfilled, (state, action) => {
-      state.updateVersion = action.payload.data;
-    });
   },
 });
 
@@ -48,16 +44,6 @@ export const queryAboutInfo = createAsyncThunk<{
     tauriVersion,
   };
 });
-
-export const checkHasUpdateVersion = createAsyncThunk<{ data: UpdateVersion }>(
-  "/api/about/checkHasUpdateVersion",
-  async () => {
-    const req = await get_update_info();
-    return {
-      data: req,
-    };
-  }
-);
 
 export const {} = aboutSlice.actions;
 

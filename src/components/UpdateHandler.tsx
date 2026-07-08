@@ -1,50 +1,32 @@
 import { Text } from "@mantine/core";
 import { modals } from "@mantine/modals";
-import { isTauri } from "@tauri-apps/api/core";
-import { relaunch } from "@tauri-apps/plugin-process";
-import { check } from "@tauri-apps/plugin-updater";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useUpdate } from "./update/update-context";
 
+// Startup prompt: when the shared updater reports an available version, offer a
+// one-click install once. The actual check/install live in UpdateProvider so the
+// About view and sidebar badge share the same source of truth.
 export const UpdateHandler = () => {
+  const { status, version, install } = useUpdate();
+  const promptedFor = useRef<string | null>(null);
+
   useEffect(() => {
-    const checkForUpdates = async () => {
-      // Guard clause: bail out if we are in a normal browser (like Playwright)
-      if (!isTauri()) {
-        console.log("Running in browser, skipping Tauri update check.");
-        return;
-      }
+    if (status !== "available" || !version) return;
+    // Only prompt once per version, so dismissing with "Later" doesn't re-nag.
+    if (promptedFor.current === version) return;
+    promptedFor.current = version;
 
-      try {
-        const update = await check();
-
-        if (update?.available) {
-          // Trigger Mantine Modal for User Choice
-          modals.openConfirmModal({
-            title: "Update available",
-            centered: true,
-            children: (
-              <Text size="sm">
-                A new version ({update.version}) is available. Would you like to download and
-                install it now?
-              </Text>
-            ),
-            labels: { confirm: "Update now", cancel: "Later" },
-            confirmProps: { color: "blue" },
-            onConfirm: async () => {
-              // User clicked "Update Now"
-              await update.downloadAndInstall();
-              // Relaunch the app to apply the update
-              await relaunch();
-            },
-          });
-        }
-      } catch (error) {
-        console.error("Failed to check for updates:", error);
-      }
-    };
-
-    checkForUpdates();
-  }, []);
+    modals.openConfirmModal({
+      title: "Update available",
+      centered: true,
+      children: (
+        <Text size="sm">A new version ({version}) is available. Download and install it now?</Text>
+      ),
+      labels: { confirm: "Update now", cancel: "Later" },
+      confirmProps: { color: "blue" },
+      onConfirm: () => install(),
+    });
+  }, [status, version, install]);
 
   return null;
 };

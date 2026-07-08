@@ -52,11 +52,7 @@ export default function ExportWalletModal(props: Props) {
       let mnemonicWordList = await ExportWallet(value, id);
       setMnemonic(mnemonicWordList.join(" "));
     } catch (error: any) {
-      notify.error(
-        error,
-        "An error occurred while exporting your account.",
-        "Failed to export account"
-      );
+      notify.error(error, "Please try again.", "Couldn't export account");
     }
   }
   function clickShowMnemonic() {

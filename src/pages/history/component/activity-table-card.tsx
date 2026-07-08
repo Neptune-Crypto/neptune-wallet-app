@@ -58,7 +58,6 @@ export default function ActivityTableCard({ historyType }: { historyType: string
             stickyHeaderOffset={0}
             stickyHeader
             verticalSpacing={"sm"}
-            withRowBorders={false}
           >
             <Table.Thead>
               <Table.Tr>
@@ -90,7 +89,7 @@ export default function ActivityTableCard({ historyType }: { historyType: string
             </Table.Tbody>
           </Table>
         ) : (
-          <EmptyTable />
+          <EmptyTable message="No transactions yet" />
         )}
       </Box>
     </Flex>

@@ -29,7 +29,6 @@ export default function HistoryUtxoCard({ datas }: { datas: HistoryUtxo[] }) {
       stickyHeaderOffset={0}
       stickyHeader
       verticalSpacing={"sm"}
-      withRowBorders={false}
       tabularNums
     >
       <Table.Thead>

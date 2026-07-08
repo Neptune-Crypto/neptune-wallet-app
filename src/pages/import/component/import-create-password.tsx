@@ -29,7 +29,7 @@ export default function ImportCreatePassword({ nextStep }: { nextStep: () => voi
       dispatch(setOneTimeWalletName(name));
       nextStep();
     } catch (error: any) {
-      notify.error(error, "Failed to create password");
+      notify.error(error, "Please try again.", "Couldn't create password");
     }
   }
   return (

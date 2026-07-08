@@ -46,7 +46,7 @@ export default function CreateWallet({
       notify.success("Account created successfully!");
     } catch (error: any) {
       console.log(error);
-      notify.error(error, "Failed to create account");
+      notify.error(error, "Please try again.", "Couldn't create account");
     }
     setLoading(false);
   }
