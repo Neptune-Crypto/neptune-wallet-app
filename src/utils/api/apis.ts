@@ -83,7 +83,8 @@ export const sendTransactionRequest = ({
 };
 
 // Cheap pre-check: reports whether a send with these params requires lustration,
-// without running the (minutes-long) proving step. Response body is a boolean.
+// without running the (minutes-long) proving step. Response body is
+// { requires_lustration, input_ids } — the flag plus the ids of the inputs to pin.
 export const requiresLustrationRequest = ({
   serverUrl,
   param,

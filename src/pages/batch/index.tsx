@@ -313,8 +313,10 @@ export default function BatchTranferPage() {
     await broadcast(pinnedInputs, false);
   }
 
-  // Proves and broadcasts the transaction, spending exactly `inputs` (the pinned
-  // selection). `acceptLustrations` is true only after the user confirmed the prompt.
+  // Proves and broadcasts the transaction. `inputs` is passed as the must-include
+  // set: the pinned selection covers the amount, so the backend spends exactly those;
+  // only the pre-check-failed fallback (a partial selection) lets it auto-fill more.
+  // `acceptLustrations` is true only after the user confirmed the prompt.
   async function broadcast(inputs: number[], acceptLustrations: boolean) {
     const param = {
       outputs: buildOutputs(),
