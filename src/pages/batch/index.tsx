@@ -19,6 +19,7 @@ import {
   useCurrentWalledId,
   useWallets,
 } from "@/store/wallet/hooks.ts";
+import { requiresLustrationRequest } from "@/utils/api/apis.ts";
 import { Output, SendInputItem, SendTransactionParam } from "@/utils/api/types.ts";
 import {
   Box,
@@ -26,11 +27,11 @@ import {
   Divider,
   Flex,
   HoverCard,
+  List,
   NumberFormatter,
   NumberInput,
   ScrollArea,
   Stack,
-  Switch,
   Text,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
@@ -61,8 +62,6 @@ export default function BatchTranferPage() {
   ] as SendInputItem[]);
   const [fee, setFee] = useState<string>("0.5");
 
-  const [accept_lustrations, setLustrationAcceptance] = useState<boolean>(false);
-
   const latestBlock = useLatestBlock();
   const currentWalletID = useCurrentWalledId();
   const wallets = useWallets();
@@ -72,6 +71,8 @@ export default function BatchTranferPage() {
   const requesTransactionResponse = useRequesetSendTransactionResponse();
   const [selectedInputs, setSelectedInputs] = useState([] as number[]);
   const [selectedAmount, setSelectedAmount] = useState("");
+  // True while the cheap lustration pre-check RPC is in flight (before proving).
+  const [preflighting, setPreflighting] = useState(false);
   const balanceData = useBalanceData();
   useEffect(() => {
     dispatch(queryCurrentWalletID());
@@ -264,20 +265,68 @@ export default function BatchTranferPage() {
     });
   }
 
-  function sendTransaction() {
-    let outputs = [] as Output[];
+  function buildOutputs() {
+    const outputs = [] as Output[];
     sendInputs.forEach((item) => {
       outputs.push({ address: item.toAddress, amount: item.amount.toString() });
     });
-    let param = {
-      outputs,
+    return outputs;
+  }
+
+  // Entry point from the confirm modal. Runs the cheap pre-check, which also PINS
+  // the exact inputs the send will spend (the backend returns the ids it selected),
+  // then either prompts — if those inputs require lustration — or broadcasts. Pinning
+  // means a new block can't change the selection between here and the broadcast: the
+  // send reuses these exact coins, so the lustration decision stays authoritative.
+  async function sendTransaction() {
+    const preCheckParam = {
+      outputs: buildOutputs(),
       fee: fee.toString(),
       input_rule: "maximum",
       inputs: selectedInputs,
-      accept_lustrations,
+      accept_lustrations: false,
     } as SendTransactionParam;
 
-    dispatch(
+    // Default to the user's own selection; the pre-check refines this to the exact
+    // set the backend chose (auto-selected inputs included) so the send can pin it.
+    let pinnedInputs = selectedInputs;
+    try {
+      setPreflighting(true);
+      const rep = await requiresLustrationRequest({ serverUrl, param: preCheckParam });
+      const preCheck = rep.data as { requires_lustration: boolean; input_ids: number[] };
+      if (preCheck && Array.isArray(preCheck.input_ids)) {
+        pinnedInputs = preCheck.input_ids;
+      }
+      if (preCheck && preCheck.requires_lustration === true) {
+        promptLustration(pinnedInputs);
+        return;
+      }
+    } catch (error) {
+      // If the pre-check fails, fall back to sending with the user's selection
+      // (unpinned); the backend still enforces lustration and the safety net in
+      // broadcast() re-prompts if needed.
+      console.log(error);
+    } finally {
+      setPreflighting(false);
+    }
+
+    await broadcast(pinnedInputs, false);
+  }
+
+  // Proves and broadcasts the transaction. `inputs` is passed as the must-include
+  // set: the pinned selection covers the amount, so the backend spends exactly those;
+  // only the pre-check-failed fallback (a partial selection) lets it auto-fill more.
+  // `acceptLustrations` is true only after the user confirmed the prompt.
+  async function broadcast(inputs: number[], acceptLustrations: boolean) {
+    const param = {
+      outputs: buildOutputs(),
+      fee: fee.toString(),
+      input_rule: "maximum",
+      inputs,
+      accept_lustrations: acceptLustrations,
+    } as SendTransactionParam;
+
+    const action = await dispatch(
       requestSedExecutionTransaction({
         serverUrl,
         param,
@@ -287,6 +336,46 @@ export default function BatchTranferPage() {
         sendInputs,
       })
     );
+
+    // Safety net: pinning makes the lustration outcome deterministic, so this is
+    // normally unreachable. It still guards the rare case where a pinned coin became
+    // unavailable (e.g. spent from another instance) and the backend re-selected a
+    // below-barrier coin to cover the amount.
+    const result = (action as any)?.payload?.data;
+    if (!acceptLustrations && result && !result.transaction && result.requiresLustration) {
+      promptLustration(inputs);
+    }
+  }
+
+  function promptLustration(pinnedInputs: number[]) {
+    modals.openConfirmModal({
+      title: "Reveal older coins to spend them?",
+      centered: true,
+      children: (
+        <Stack gap={12}>
+          <Text size="sm">
+            Some coins in this transaction are old enough that the network requires them to be made
+            public before you can spend them — a standard rule for older coins.
+          </Text>
+          <List size="sm" spacing={8}>
+            <List.Item>
+              <b>Revealed:</b> these coins' amount, and the address that holds them (one of yours),
+              become public on the blockchain.
+            </List.Item>
+            <List.Item>
+              <b>Not affected:</b> your other coins aren't revealed by this transaction.
+            </List.Item>
+            <List.Item>
+              <b>Going forward:</b> newer coins aren't affected — you'd only see this again if you
+              later spend other old coins.
+            </List.Item>
+          </List>
+        </Stack>
+      ),
+      labels: { confirm: "Reveal & send", cancel: "Cancel" },
+      confirmProps: { color: "green" },
+      onConfirm: () => broadcast(pinnedInputs, true),
+    });
   }
 
   useEffect(() => {
@@ -305,7 +394,8 @@ export default function BatchTranferPage() {
         amount: "",
       },
     ] as SendInputItem[]);
-    (setFee("0.5"), setSelectedInputs([]), setLustrationAcceptance(false));
+    setFee("0.5");
+    setSelectedInputs([]);
     // Hide the progress panel: the backend's last status would otherwise linger
     // indefinitely (nothing else ever clears it). The success toast and the
     // Pending transactions section take over from here.
@@ -483,15 +573,6 @@ export default function BatchTranferPage() {
             </Flex>
           </Flex>
 
-          <Switch
-            mt="sm"
-            label="Accept lustrations"
-            size="sm"
-            styles={{ track: { cursor: "pointer" }, label: { cursor: "pointer" } }}
-            checked={accept_lustrations}
-            onChange={(event) => setLustrationAcceptance(event.currentTarget.checked)}
-          />
-
           {/* Live total (recipient amounts + fee), so the user sees what will
               leave the wallet before the confirm modal. Set off with a divider and
               an emphasized value so it reads as the summary, not another field.
@@ -520,8 +601,8 @@ export default function BatchTranferPage() {
             <Button
               variant="filled"
               size="sm"
-              disabled={checkButtonDisabled()}
-              loading={loading}
+              disabled={checkButtonDisabled() || preflighting}
+              loading={loading || preflighting}
               onClick={handleSendButtonClick}
             >
               Send
