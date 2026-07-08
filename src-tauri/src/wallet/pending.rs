@@ -134,7 +134,7 @@ impl TransactionUpdater {
     ) -> Result<TransactionDetails> {
         info!("update transaction {}", tx_id);
         let tx_inputs = detail.tx_inputs;
-        let mut tx_outputs = detail.tx_outputs;
+        let tx_outputs = detail.tx_outputs;
         let fee = detail.fee;
         let timestamp = Timestamp::now();
 
