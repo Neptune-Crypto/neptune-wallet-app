@@ -91,7 +91,13 @@ const NotificationCard = (): null => {
   function handleRequesTransactionResponse() {
     if (requesTransactionResponse.transaction) {
       notify.success("Create transaction success!");
-    } else if (!requesTransactionResponse.transaction && requesTransactionResponse.message) {
+    } else if (
+      !requesTransactionResponse.transaction &&
+      requesTransactionResponse.message &&
+      // The Send page prompts just-in-time and retries for this case; don't also
+      // surface it as a raw error toast.
+      !requesTransactionResponse.requiresLustration
+    ) {
       notify.error(undefined, requesTransactionResponse.message, "Couldn't send transaction");
     }
   }

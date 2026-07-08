@@ -253,6 +253,45 @@ pub(crate) trait WalletRpc {
                 .collect::<Vec<_>>(),
         })
     }
+
+    /// Cheap pre-check for the UI: would sending with these parameters require
+    /// lustration, and which inputs would it spend? Runs the same input selection as
+    /// [`Self::send_to_address`] but stops before proving, so the UI can prompt the
+    /// user once, up front, instead of proving the transaction twice. The returned
+    /// `input_ids` let the UI pin the selection for the actual send so a new block
+    /// can't change it. `accept_lustrations` is ignored here.
+    async fn requires_lustration(
+        params: SendToAddressParams,
+    ) -> Result<RequiresLustrationResponse, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+
+        let mut outputs = Vec::with_capacity(params.outputs.len());
+        for output in params.outputs {
+            let address = ReceivingAddress::from_bech32m(&output.address, wallet.network)?;
+            let amount = NativeCurrencyAmount::coins_from_str(&output.amount)?;
+            outputs.push((address, amount));
+        }
+
+        let fee = NativeCurrencyAmount::coins_from_str(&params.fee)?;
+
+        let rule = if let Some(input_rule) = params.input_rule {
+            InputSelectionRule::from_str(&input_rule)
+                .ok()
+                .unwrap_or_default()
+        } else {
+            InputSelectionRule::default()
+        };
+
+        let (requires_lustration, input_ids) = wallet
+            .requires_lustration(outputs, fee, rule, params.inputs)
+            .await
+            .map_err(|e| RestError(e.to_string()))?;
+
+        Ok(RequiresLustrationResponse {
+            requires_lustration,
+            input_ids,
+        })
+    }
 }
 
 pub(crate) async fn start_rpc_server() -> Result<(), anyhow::Error> {
@@ -282,6 +321,7 @@ pub(crate) async fn start_rpc_server() -> Result<(), anyhow::Error> {
             .route("/rpc/mempool/pendingtx", get(get_pending_transaction))
             .route("/rpc/forget_tx/{id}", get(forget_tx))
             .route("/rpc/send", post(send_to_address))
+            .route("/rpc/requires_lustration", post(requires_lustration))
             .route("/rpc/block/tip_height", get(get_tip_height));
 
         routes
@@ -424,9 +464,24 @@ pub(crate) struct SendResponse {
     outputs: Vec<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct RequiresLustrationResponse {
+    requires_lustration: bool,
+    // db ids of the inputs the pre-check selected, so the UI can pin them for the send.
+    input_ids: Vec<i64>,
+}
+
 async fn send_to_address(Json(params): Json<SendToAddressParams>) -> Result<ErasedJson, RestError> {
     Ok(ErasedJson::pretty(
         WalletRpcImpl::send_to_address(params).await?,
+    ))
+}
+
+async fn requires_lustration(
+    Json(params): Json<SendToAddressParams>,
+) -> Result<ErasedJson, RestError> {
+    Ok(ErasedJson::pretty(
+        WalletRpcImpl::requires_lustration(params).await?,
     ))
 }
 

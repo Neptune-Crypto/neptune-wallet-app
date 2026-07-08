@@ -16,6 +16,9 @@ export const WALLET_FORGET_TX = "/rpc/forget_tx/";
 // Send transaction
 export const WALLET_SEND_TRANSACTION = "/rpc/send";
 
+// Cheap pre-check (no proving) for whether a send would require lustration.
+export const WALLET_REQUIRES_LUSTRATION = "/rpc/requires_lustration";
+
 // Wallet balance
 export const WALLET_BALANCE = "/rpc/wallet/balance";
 
