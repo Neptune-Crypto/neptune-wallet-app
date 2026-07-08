@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App-icon source: the white N monogram (public/neptune-logo.svg) on the brand
+     blue, so the OS icon matches the in-app logo. The raw monogram is white on
+     transparent and would be invisible on light surfaces (Start menu, docks), so
+     it needs this background plate. Regenerate all platform icons with:
+       yarn tauri icon src-tauri/icons/app-icon.svg -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <!-- theme myColor[6] -> myColor[9] (src/theme/index.ts) -->
+      <stop offset="0" stop-color="#3e46ca"/>
+      <stop offset="1" stop-color="#1d2a90"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="300" rx="66" fill="url(#bg)"/>
+  <g fill="#ffffff">
+    <path d="M98.3,223.9H73.2v-95.9c0-30.6,24.9-55.5,55.5-55.5s55.5,24.9,55.5,55.5v51.7h-25.1v-51.7 c0-16.8-13.6-30.4-30.4-30.4s-30.4,13.6-30.4,30.4V223.9z"/>
+    <path d="M171.3,227.5c-30.6,0-55.5-24.9-55.5-55.5v-51.7h25.1v51.7c0,16.8,13.6,30.4,30.4,30.4s30.4-13.6,30.4-30.4 V76.1h25.1v95.9C226.8,202.6,201.9,227.5,171.3,227.5z"/>
+  </g>
+</svg>
