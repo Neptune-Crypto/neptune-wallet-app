@@ -167,7 +167,7 @@ impl super::WalletState {
     }
 
     /// Cheap pre-check: would a transaction built from these parameters require
-    /// lustration?
+    /// lustration, and which inputs would it spend?
     ///
     /// Runs the same input selection as [`Self::send_to_address`] and applies the
     /// same consensus rule that decides whether an input must lustrate (its AOCL
@@ -177,26 +177,29 @@ impl super::WalletState {
     /// prompting, and then proving a second time.
     ///
     /// Because selection happens here (server-side), this works for auto-selected
-    /// inputs as well as an explicit `must_include_utxos` set.
+    /// inputs as well as an explicit `must_include_utxos` set. Returns the db ids of
+    /// the selected inputs so the caller can pin them: passing them back as the
+    /// send's inputs keeps the selection — and thus this lustration decision — stable
+    /// even if a new block arrives before the send re-selects.
     pub(crate) async fn requires_lustration(
         &self,
         outputs: Vec<(ReceivingAddress, NativeCurrencyAmount)>,
         fee: NativeCurrencyAmount,
         rule: InputSelectionRule,
         must_include_utxos: Vec<i64>,
-    ) -> anyhow::Result<bool> {
-        let (tx_inputs, _db_ids, _tip_msa, tip_header) = self
+    ) -> anyhow::Result<(bool, Vec<i64>)> {
+        let (tx_inputs, db_ids, _tip_msa, tip_header) = self
             .create_input(&outputs, fee, rule, must_include_utxos)
             .await?;
 
         // No threshold set (e.g. before the relevant hard fork) => never required.
         let Ok(lustration_status) = tip_header.pow.lustration_status() else {
-            return Ok(false);
+            return Ok((false, db_ids));
         };
 
         // Reuse the exact logic the real send uses to decide which inputs lustrate.
         let lustrations = Announcement::lustration_announcements(lustration_status, &tx_inputs);
-        Ok(!lustrations.is_empty())
+        Ok((!lustrations.is_empty(), db_ids))
     }
 
     async fn generate_tx_outputs(

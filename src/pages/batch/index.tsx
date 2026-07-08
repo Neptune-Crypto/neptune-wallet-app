@@ -265,41 +265,64 @@ export default function BatchTranferPage() {
     });
   }
 
-  // acceptLustrations defaults to false; the wallet only sets it to true after the
-  // user confirms the just-in-time lustration prompt below.
-  async function sendTransaction(acceptLustrations = false) {
-    let outputs = [] as Output[];
+  function buildOutputs() {
+    const outputs = [] as Output[];
     sendInputs.forEach((item) => {
       outputs.push({ address: item.toAddress, amount: item.amount.toString() });
     });
-    let param = {
-      outputs,
+    return outputs;
+  }
+
+  // Entry point from the confirm modal. Runs the cheap pre-check, which also PINS
+  // the exact inputs the send will spend (the backend returns the ids it selected),
+  // then either prompts — if those inputs require lustration — or broadcasts. Pinning
+  // means a new block can't change the selection between here and the broadcast: the
+  // send reuses these exact coins, so the lustration decision stays authoritative.
+  async function sendTransaction() {
+    const preCheckParam = {
+      outputs: buildOutputs(),
       fee: fee.toString(),
       input_rule: "maximum",
       inputs: selectedInputs,
-      accept_lustrations: acceptLustrations,
+      accept_lustrations: false,
     } as SendTransactionParam;
 
-    // Cheap pre-check before the minutes-long proving step: if the selected inputs
-    // are old enough to require lustration and the user hasn't accepted yet, ask
-    // once (explaining the privacy trade-off) and stop here. Proving only happens
-    // after this returns false or the user accepts, so we never prove twice.
-    if (!acceptLustrations) {
-      try {
-        setPreflighting(true);
-        const rep = await requiresLustrationRequest({ serverUrl, param });
-        if (rep.data === true) {
-          promptLustration();
-          return;
-        }
-      } catch (error) {
-        // If the pre-check itself fails, fall through and send anyway; the backend
-        // still enforces lustration and the safety net below re-prompts if needed.
-        console.log(error);
-      } finally {
-        setPreflighting(false);
+    // Default to the user's own selection; the pre-check refines this to the exact
+    // set the backend chose (auto-selected inputs included) so the send can pin it.
+    let pinnedInputs = selectedInputs;
+    try {
+      setPreflighting(true);
+      const rep = await requiresLustrationRequest({ serverUrl, param: preCheckParam });
+      const preCheck = rep.data as { requires_lustration: boolean; input_ids: number[] };
+      if (preCheck && Array.isArray(preCheck.input_ids)) {
+        pinnedInputs = preCheck.input_ids;
       }
+      if (preCheck && preCheck.requires_lustration === true) {
+        promptLustration(pinnedInputs);
+        return;
+      }
+    } catch (error) {
+      // If the pre-check fails, fall back to sending with the user's selection
+      // (unpinned); the backend still enforces lustration and the safety net in
+      // broadcast() re-prompts if needed.
+      console.log(error);
+    } finally {
+      setPreflighting(false);
     }
+
+    await broadcast(pinnedInputs, false);
+  }
+
+  // Proves and broadcasts the transaction, spending exactly `inputs` (the pinned
+  // selection). `acceptLustrations` is true only after the user confirmed the prompt.
+  async function broadcast(inputs: number[], acceptLustrations: boolean) {
+    const param = {
+      outputs: buildOutputs(),
+      fee: fee.toString(),
+      input_rule: "maximum",
+      inputs,
+      accept_lustrations: acceptLustrations,
+    } as SendTransactionParam;
 
     const action = await dispatch(
       requestSedExecutionTransaction({
@@ -312,18 +335,17 @@ export default function BatchTranferPage() {
       })
     );
 
-    // Safety net: the pre-check and the real send select inputs independently, so
-    // if the wallet's available UTXOs change in between (a new block lands, or
-    // another spend marks some pending), the send may pick a different input set —
-    // one that includes an old, below-barrier coin the pre-check didn't. The
-    // backend then rejects; prompt once and retry with acceptance.
+    // Safety net: pinning makes the lustration outcome deterministic, so this is
+    // normally unreachable. It still guards the rare case where a pinned coin became
+    // unavailable (e.g. spent from another instance) and the backend re-selected a
+    // below-barrier coin to cover the amount.
     const result = (action as any)?.payload?.data;
     if (!acceptLustrations && result && !result.transaction && result.requiresLustration) {
-      promptLustration();
+      promptLustration(inputs);
     }
   }
 
-  function promptLustration() {
+  function promptLustration(pinnedInputs: number[]) {
     modals.openConfirmModal({
       title: "Reveal older coins to spend them?",
       centered: true,
@@ -350,7 +372,7 @@ export default function BatchTranferPage() {
       ),
       labels: { confirm: "Reveal & send", cancel: "Cancel" },
       confirmProps: { color: "green" },
-      onConfirm: () => sendTransaction(true),
+      onConfirm: () => broadcast(pinnedInputs, true),
     });
   }
 

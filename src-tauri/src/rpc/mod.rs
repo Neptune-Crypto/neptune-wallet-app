@@ -254,10 +254,14 @@ pub(crate) trait WalletRpc {
     }
 
     /// Cheap pre-check for the UI: would sending with these parameters require
-    /// lustration? Runs the same input selection as [`Self::send_to_address`] but
-    /// stops before proving, so the UI can prompt the user once, up front, instead
-    /// of proving the transaction twice. `accept_lustrations` is ignored here.
-    async fn requires_lustration(params: SendToAddressParams) -> Result<bool, RestError> {
+    /// lustration, and which inputs would it spend? Runs the same input selection as
+    /// [`Self::send_to_address`] but stops before proving, so the UI can prompt the
+    /// user once, up front, instead of proving the transaction twice. The returned
+    /// `input_ids` let the UI pin the selection for the actual send so a new block
+    /// can't change it. `accept_lustrations` is ignored here.
+    async fn requires_lustration(
+        params: SendToAddressParams,
+    ) -> Result<RequiresLustrationResponse, RestError> {
         let wallet = &get_state::<Arc<SyncState>>().wallet;
 
         let mut outputs = Vec::with_capacity(params.outputs.len());
@@ -277,12 +281,15 @@ pub(crate) trait WalletRpc {
             InputSelectionRule::default()
         };
 
-        let requires = wallet
+        let (requires_lustration, input_ids) = wallet
             .requires_lustration(outputs, fee, rule, params.inputs)
             .await
             .map_err(|e| RestError(e.to_string()))?;
 
-        Ok(requires)
+        Ok(RequiresLustrationResponse {
+            requires_lustration,
+            input_ids,
+        })
     }
 }
 
@@ -454,6 +461,13 @@ pub(crate) struct Output {
 pub(crate) struct SendResponse {
     txid: String,
     outputs: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct RequiresLustrationResponse {
+    requires_lustration: bool,
+    // db ids of the inputs the pre-check selected, so the UI can pin them for the send.
+    input_ids: Vec<i64>,
 }
 
 async fn send_to_address(Json(params): Json<SendToAddressParams>) -> Result<ErasedJson, RestError> {
