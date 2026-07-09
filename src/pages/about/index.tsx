@@ -68,10 +68,10 @@ export function AboutView() {
             {update.status === "checking" && (
               <Flex align="center" gap={8}>
                 <Loader size="xs" />
-                <Text c="dimmed">Checking for updates…</Text>
+                <Text>Checking for updates…</Text>
               </Flex>
             )}
-            {update.status === "upToDate" && <Text c="dimmed">You're on the latest version.</Text>}
+            {update.status === "upToDate" && <Text>You're on the latest version.</Text>}
             {update.status === "available" && (
               <Flex align="center" gap={12} wrap="wrap">
                 <Text fw={600} c="var(--color-positive)">
@@ -85,12 +85,12 @@ export function AboutView() {
             {update.status === "installing" && (
               <Flex align="center" gap={8}>
                 <Loader size="xs" />
-                <Text c="dimmed">Installing update…</Text>
+                <Text>Installing update…</Text>
               </Flex>
             )}
             {update.status === "error" && (
               <Flex align="center" gap={12} wrap="wrap">
-                <Text c="dimmed">Couldn't check for updates.</Text>
+                <Text>Couldn't check for updates.</Text>
                 <Button size="xs" variant="light" onClick={() => update.checkForUpdates()}>
                   Retry
                 </Button>
