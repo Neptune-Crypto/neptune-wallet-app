@@ -12,8 +12,8 @@ export default function CopyedIcon({
   tooltipLable?: string;
 }) {
   // The success toast is the copy feedback. The icon deliberately does NOT swap
-  // to a checkmark: that changed its footprint and shifted right-aligned inline
-  // text (e.g. addresses in a confirm modal), and the toast already confirms it.
+  // to a checkmark: swapping would change its footprint and shift right-aligned
+  // inline text (e.g. addresses in a confirm modal), and the toast already confirms it.
   return (
     <Tooltip label={tooltipLable} withArrow>
       {/* A real button so the copy action is keyboard-focusable and labelled. */}

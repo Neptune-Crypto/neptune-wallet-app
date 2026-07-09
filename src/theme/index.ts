@@ -72,9 +72,7 @@ const theme = createTheme({
     },
     Button: {
       // Default all buttons to the blue accent, but let each button's variant
-      // (filled/light) and explicit color prop work normally. (Previously this
-      // forced backgroundColor with !important, which neutered variants and
-      // collided with per-button color props.)
+      // (filled/light) and explicit color prop work normally.
       defaultProps: {
         color: "blue",
       },
@@ -98,8 +96,8 @@ const theme = createTheme({
       styles: () => ({
         root: {
           wordWrap: "break-word",
-          // 400 (regular) reads lighter than the previous 500 so tables and body
-          // copy no longer feel heavy. Cells that set an explicit `fw` keep it.
+          // 400 (regular) keeps tables and body copy light. Cells that set an
+          // explicit `fw` keep it.
           fontWeight: 400,
           fontSize: "14px",
         },

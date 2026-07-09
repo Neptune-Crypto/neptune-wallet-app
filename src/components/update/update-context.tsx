@@ -4,12 +4,9 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
-// Single source of truth for app updates. Previously there were TWO mechanisms:
-// the startup modal used Tauri's real one-click updater, while the About page and
-// the sidebar badge used a separate custom "update_info" command that only yielded
-// a version + a URL to open in a browser. This context routes all three consumers
-// (startup modal, About view, sidebar badge) through the Tauri updater, so the
-// About page can offer the same one-click install and check failures are visible.
+// Single source of truth for app updates: routes all three consumers (startup
+// modal, About view, sidebar badge) through Tauri's one-click updater, so every
+// surface offers the same install action and check failures are visible.
 
 export type UpdateStatus = "checking" | "upToDate" | "available" | "installing" | "error";
 

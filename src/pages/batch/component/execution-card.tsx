@@ -91,8 +91,7 @@ export default function ExecutionCard() {
       );
       notify.done(id, "Transaction forgotten", "Transaction forgotten successfully");
     } catch (error: any) {
-      // Title = the action, body = the reason. (Previously the raw error object
-      // itself was passed as the toast title.)
+      // Title = the action, body = the reason.
       notify.failed(id, "Couldn't forget transaction", error ? String(error) : "Please try again.");
     }
     setLoadingForget(false);

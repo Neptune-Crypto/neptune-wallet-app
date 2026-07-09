@@ -1,6 +1,5 @@
 // Truncation mark for the omitted middle: three ASCII dots (the conventional
-// "content omitted" mark) — reads clearly and copy-pastes safely, unlike the
-// single "…" glyph (too narrow) or the old six-dot run (excessive).
+// "content omitted" mark) — reads clearly and copy-pastes safely.
 const ELLIPSIS = "...";
 
 // Canonical address rendering: first 15 + ... + last 15 (33 chars max). Both ends

@@ -20,8 +20,8 @@ export default function HomeScreen() {
               Neptune Wallet
             </Text>
           </Group>
-          {/* The N app mark (matches the OS icon) instead of the old planet
-              image; drag-region kept so the window stays draggable from here. */}
+          {/* The N app mark matches the OS icon; drag-region kept so the window
+              stays draggable from here. */}
           <Flex justify={"center"} align={"center"} data-tauri-drag-region py={16}>
             <AppMark size={96} />
           </Flex>

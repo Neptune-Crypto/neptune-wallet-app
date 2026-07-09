@@ -86,8 +86,6 @@ export default function WalletTable() {
   // The cached balance is neptune's display_lossless() string: "<int>.<34 decimals>"
   // (empty until the first sync completes). Show 4 decimals, truncated — truncation
   // (vs rounding) can only ever UNDERSTATE a balance, never overstate it.
-  // Parsed explicitly rather than the old substring(0, len - 30) trick, which
-  // silently corrupted the integer part if upstream ever changed its precision.
   // Always pad to 4 decimals so a brand-new account (cached balance "") reads the
   // same "0.0000" as a synced zero balance, not a bare "0".
   function amount_to_fixed(amount: string) {
