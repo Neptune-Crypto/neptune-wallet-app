@@ -4,8 +4,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
-use neptune_cash::api::export::KeyType;
-use neptune_cash::api::export::Network;
+use neptune_primitives::network::Network;
+use neptune_wallet::address::KeyType;
 
 use crate::config::wallet::ScanConfig;
 use crate::config::wallet::WalletData;

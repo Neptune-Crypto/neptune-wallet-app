@@ -1,9 +1,9 @@
 use anyhow::Result;
-use neptune_cash::api::export::KeyType;
-use neptune_cash::api::export::Network;
-use neptune_cash::api::export::SpendingKey;
-use neptune_cash::state::wallet::secret_key_material::SecretKeyMaterial;
-use neptune_cash::state::wallet::wallet_entropy::WalletEntropy;
+use neptune_primitives::network::Network;
+use neptune_wallet::address::KeyType;
+use neptune_wallet::address::SpendingKey;
+use neptune_wallet::secret_key_material::SecretKeyMaterial;
+use neptune_wallet::wallet_entropy::WalletEntropy;
 use serde::Deserialize;
 use serde::Serialize;
 use sqlx::Row;

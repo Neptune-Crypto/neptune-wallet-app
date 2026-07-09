@@ -1,9 +1,10 @@
 use anyhow::Result;
-use neptune_cash::api::export::Announcement;
-use neptune_cash::api::export::Timestamp;
-use neptune_cash::api::export::TransactionDetails;
-use neptune_cash::api::export::TxProvingCapability;
-use neptune_cash::state::wallet::expected_utxo::UtxoNotifier;
+use neptune_consensus::proof_abstractions::tx_proving_capability::TxProvingCapability;
+use neptune_consensus::transaction::announcement::Announcement;
+use neptune_consensus::transaction::transparent_input::TransparentInput;
+use neptune_primitives::timestamp::Timestamp;
+use neptune_wallet::expected_utxo::UtxoNotifier;
+use neptune_wallet::transaction_details::TransactionDetails;
 use sqlx::Row;
 use sqlx::SqliteConnection;
 use sqlx::SqlitePool;
@@ -133,7 +134,8 @@ impl TransactionUpdater {
         detail: TransactionDetails,
     ) -> Result<TransactionDetails> {
         info!("update transaction {}", tx_id);
-        let tx_inputs = detail.tx_inputs;
+        let tx_inputs: Vec<TransparentInput> =
+            detail.tx_inputs.iter().cloned().map(|x| x.into()).collect();
         let tx_outputs = detail.tx_outputs;
         let fee = detail.fee;
         let timestamp = Timestamp::now();

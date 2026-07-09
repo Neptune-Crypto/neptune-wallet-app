@@ -1,9 +1,9 @@
 use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use neptune_cash::api::export::BlockHeight;
-use neptune_cash::prelude::tasm_lib::prelude::Digest;
-use neptune_cash::protocol::consensus::block::block_selector::BlockSelector;
+use neptune_primitives::block_height::BlockHeight;
+use neptune_primitives::block_selector::BlockSelector;
+use neptune_wallet::twenty_first::tip5::Digest;
 use tracing::debug;
 use tracing::trace;
 

@@ -1,13 +1,14 @@
-use anyhow::Result;
-use itertools::Itertools;
-use neptune_cash::api::export::AbsoluteIndexSet;
-use neptune_cash::api::export::Digest;
-use neptune_cash::api::export::KeyType;
-use neptune_cash::state::wallet::wallet_state::IncomingUtxoRecoveryData;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::range::Range;
 use std::sync::atomic::Ordering;
+
+use anyhow::Result;
+use itertools::Itertools;
+use neptune_mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
+use neptune_wallet::address::KeyType;
+use neptune_wallet::incoming_utxo::IncomingUtxoRecoveryData;
+use neptune_wallet::twenty_first::tip5::Digest;
 use strum::IntoEnumIterator;
 use tracing::debug;
 use tracing::trace;
@@ -196,18 +197,17 @@ impl super::WalletState {
 
 #[cfg(test)]
 mod tests {
-    use neptune_cash::api::export::Network;
-    use neptune_cash::api::export::SpendingKey;
-    use neptune_cash::api::export::WalletEntropy;
+    use neptune_primitives::network::Network;
+    use neptune_wallet::address::SpendingKey;
+    use neptune_wallet::wallet_entropy::WalletEntropy;
     use tracing_test::traced_test;
 
+    use super::*;
     use crate::config::wallet::ScanConfig;
     use crate::config::wallet::WalletConfig;
     use crate::tests::load_incoming_randomness;
     use crate::tests::test_wallet_db;
     use crate::wallet::WalletState;
-
-    use super::*;
 
     async fn setup_wallet(num_future_keys: u64) -> WalletState {
         let network = Network::Main;

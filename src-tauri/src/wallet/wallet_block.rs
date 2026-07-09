@@ -1,9 +1,9 @@
-use neptune_cash::api::export::AdditionRecord;
-use neptune_cash::api::export::Digest;
-use neptune_cash::application::json_rpc::core::model::wallet::block::RpcWalletBlock;
-use neptune_cash::prelude::twenty_first::prelude::Mmr;
-use neptune_cash::protocol::consensus::block::block_kernel::BlockKernel;
-use neptune_cash::util_types::mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
+use neptune_consensus::block::block_kernel::BlockKernel;
+use neptune_mutator_set::addition_record::AdditionRecord;
+use neptune_mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
+use neptune_rpc_api::model::wallet::block::RpcWalletBlock;
+use neptune_wallet::twenty_first::tip5::Digest;
+use neptune_wallet::twenty_first::util_types::mmr::mmr_trait::Mmr;
 use serde::Deserialize;
 use serde::Serialize;
 

@@ -12,9 +12,9 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use neptune_cash::api::export::Network;
-use neptune_cash::application::json_rpc::core::model::wallet::block::RpcWalletBlock;
-use neptune_cash::protocol::consensus::block::Block;
+use neptune_consensus::block::Block;
+use neptune_primitives::network::Network;
+use neptune_rpc_api::model::wallet::block::RpcWalletBlock;
 use num_traits::Zero;
 use serde::Deserialize;
 use serde::Serialize;
@@ -462,7 +462,7 @@ impl SnapshotReader {
 mod tests {
     use std::time::Instant;
 
-    use neptune_cash::api::export::BlockHeight;
+    use neptune_primitives::block_height::BlockHeight;
     use tracing_test::traced_test;
 
     use super::*;

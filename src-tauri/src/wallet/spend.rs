@@ -1,26 +1,26 @@
 use itertools::Itertools;
-use neptune_cash::api::export::Announcement;
-use neptune_cash::api::export::Timestamp;
-use neptune_cash::api::export::TransactionDetails;
-use neptune_cash::api::export::TransactionProof;
-use neptune_cash::api::export::TxProvingCapability;
-use neptune_cash::prelude::tasm_lib::prelude::Digest;
-use neptune_cash::protocol::consensus::block::block_header::BlockHeader;
-use neptune_cash::protocol::consensus::block::block_height::BlockHeight;
-use neptune_cash::protocol::consensus::transaction::primitive_witness::PrimitiveWitness;
-use neptune_cash::protocol::consensus::transaction::utxo::Utxo;
-use neptune_cash::protocol::consensus::transaction::Transaction;
-use neptune_cash::protocol::consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
-use neptune_cash::state::wallet::address::ReceivingAddress;
-use neptune_cash::state::wallet::address::SpendingKey;
-use neptune_cash::state::wallet::expected_utxo::ExpectedUtxo;
-use neptune_cash::state::wallet::expected_utxo::UtxoNotifier;
-use neptune_cash::state::wallet::transaction_output::TxOutput;
-use neptune_cash::state::wallet::transaction_output::TxOutputList;
-use neptune_cash::state::wallet::unlocked_utxo::UnlockedUtxo;
-use neptune_cash::state::wallet::utxo_notification::UtxoNotificationMedium;
-use neptune_cash::state::wallet::utxo_notification::UtxoNotificationMethod;
-use neptune_cash::util_types::mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
+use neptune_consensus::block::block_header::BlockHeader;
+use neptune_consensus::proof_abstractions::tx_proving_capability::TxProvingCapability;
+use neptune_consensus::transaction::announcement::Announcement;
+use neptune_consensus::transaction::transparent_input::TransparentInput;
+use neptune_consensus::transaction::utxo::Utxo;
+use neptune_consensus::transaction::Transaction;
+use neptune_consensus::transaction::TransactionProof;
+use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
+use neptune_mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
+use neptune_primitives::block_height::BlockHeight;
+use neptune_primitives::timestamp::Timestamp;
+use neptune_wallet::address::ReceivingAddress;
+use neptune_wallet::address::SpendingKey;
+use neptune_wallet::expected_utxo::ExpectedUtxo;
+use neptune_wallet::expected_utxo::UtxoNotifier;
+use neptune_wallet::transaction_details::TransactionDetails;
+use neptune_wallet::transaction_output::TxOutput;
+use neptune_wallet::transaction_output::TxOutputList;
+use neptune_wallet::twenty_first::tip5::Digest;
+use neptune_wallet::unlocked_utxo::UnlockedUtxo;
+use neptune_wallet::utxo_notification::UtxoNotificationMedium;
+use neptune_wallet::utxo_notification::UtxoNotificationMethod;
 use num_traits::CheckedSub;
 use thiserror::Error;
 use tracing::*;
@@ -198,6 +198,7 @@ impl super::WalletState {
         };
 
         // Reuse the exact logic the real send uses to decide which inputs lustrate.
+        let tx_inputs: Vec<TransparentInput> = tx_inputs.into_iter().map(|x| x.into()).collect();
         let lustrations = Announcement::lustration_announcements(lustration_status, &tx_inputs);
         Ok((!lustrations.is_empty(), db_ids))
     }
@@ -324,6 +325,7 @@ impl super::WalletState {
         );
 
         // if lustration is required create those here
+        let tx_inputs: Vec<TransparentInput> = tx_inputs.into_iter().map(|x| x.into()).collect();
         if let Ok(lustration_status) = tip_header.pow.lustration_status() {
             let lustrations = Announcement::lustration_announcements(lustration_status, &tx_inputs);
 
@@ -414,7 +416,7 @@ impl super::WalletState {
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
     ) -> anyhow::Result<Transaction> {
-        let primitive_witness = PrimitiveWitness::from_transaction_details(transaction_details);
+        let primitive_witness = transaction_details.primitive_witness();
 
         debug!("primitive witness for transaction: {}", primitive_witness);
 

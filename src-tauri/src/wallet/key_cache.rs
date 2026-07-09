@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use neptune_cash::api::export::{KeyType, SpendingKey};
+use neptune_wallet::address::KeyType;
+use neptune_wallet::address::SpendingKey;
 
 pub(super) struct KeyCache {
     symmetric_keys: DashMap<u64, Arc<SpendingKey>>,

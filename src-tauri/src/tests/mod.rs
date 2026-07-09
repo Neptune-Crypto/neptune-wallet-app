@@ -6,10 +6,10 @@ use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
 
-use neptune_cash::api::export::Network;
-use neptune_cash::api::export::WalletEntropy;
-use neptune_cash::application::json_rpc::core::model::wallet::block::RpcWalletBlock;
-use neptune_cash::state::wallet::wallet_state::IncomingUtxoRecoveryData;
+use neptune_primitives::network::Network;
+use neptune_rpc_api::model::wallet::block::RpcWalletBlock;
+use neptune_wallet::incoming_utxo::IncomingUtxoRecoveryData;
+use neptune_wallet::wallet_entropy::WalletEntropy;
 use rand::distr::Alphanumeric;
 use rand::distr::SampleString;
 

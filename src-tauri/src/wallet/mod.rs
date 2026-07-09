@@ -10,20 +10,21 @@ use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use itertools::Itertools;
-use neptune_cash::api::export::AdditionRecord;
-use neptune_cash::api::export::KeyType;
-use neptune_cash::api::export::NativeCurrencyAmount;
-use neptune_cash::api::export::Network;
-use neptune_cash::api::export::Timestamp;
-use neptune_cash::api::export::Tip5;
-use neptune_cash::api::export::Utxo;
-use neptune_cash::application::config::data_directory::DataDirectory;
-use neptune_cash::prelude::tasm_lib::prelude::Digest;
-use neptune_cash::state::wallet::incoming_utxo::IncomingUtxo;
-use neptune_cash::state::wallet::wallet_entropy::WalletEntropy;
-use neptune_cash::state::wallet::wallet_state::IncomingUtxoRecoveryData;
-use neptune_cash::util_types::mutator_set::commit;
-use neptune_cash::util_types::mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
+use neptune_consensus::transaction::utxo::Utxo;
+use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
+use neptune_mutator_set::addition_record::AdditionRecord;
+use neptune_mutator_set::commit;
+use neptune_mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
+use neptune_mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
+use neptune_primitives::data_directory::DataDirectory;
+use neptune_primitives::network::Network;
+use neptune_primitives::timestamp::Timestamp;
+use neptune_wallet::address::KeyType;
+use neptune_wallet::incoming_utxo::IncomingUtxo;
+use neptune_wallet::incoming_utxo::IncomingUtxoRecoveryData;
+use neptune_wallet::twenty_first::tip5::Digest;
+use neptune_wallet::twenty_first::tip5::Tip5;
+use neptune_wallet::wallet_entropy::WalletEntropy;
 use num_traits::Zero;
 use pending::TransactionUpdater;
 use rayon::prelude::*;
@@ -267,17 +268,13 @@ impl WalletState {
                     incoming.sender_randomness,
                     incoming.receiver_preimage,
                 ) {
-                Ok(msmp) => msmp,
-                Err(err) => bail!(
-                    "Server returned bad mutator set membership proof recovery data: {}",
-                    err
-                ),
+                Some(msmp) => msmp,
+                None => bail!("Server returned bad mutator set membership proof recovery data"),
             };
 
             let item = Tip5::hash(&incoming.utxo);
-            let valid = msmps_recovery_data
-                .tip_mutator_set
-                .verify(item, &membership_proof);
+            let msa: MutatorSetAccumulator = msmps_recovery_data.synced_mutator_set.into();
+            let valid = msa.verify(item, &membership_proof);
 
             // If valid keep it
             if valid {
@@ -713,10 +710,9 @@ fn incoming_utxo_recovery_data_from_incomming_utxo(
 mod tests {
     use std::range::Range;
 
-    use neptune_cash::api::export::NativeCurrencyAmount;
-    use neptune_cash::api::export::SpendingKey;
-    use neptune_cash::application::json_rpc::core::model::wallet::block::RpcWalletBlock;
-    use neptune_cash::protocol::consensus::block::Block;
+    use neptune_consensus::block::Block;
+    use neptune_rpc_api::model::wallet::block::RpcWalletBlock;
+    use neptune_wallet::address::SpendingKey;
     use num_traits::Zero;
     use tracing_test::traced_test;
 
