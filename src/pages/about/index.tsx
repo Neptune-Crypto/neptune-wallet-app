@@ -1,8 +1,10 @@
 import { useUpdate } from "@/components/update/update-context";
+import { RELEASES_URL } from "@/constant";
 import { queryAboutInfo } from "@/store/about/about-slice";
 import { useBuildInfo, useVersion } from "@/store/about/hooks";
 import { useAppDispatch } from "@/store/hooks";
-import { Button, Flex, Loader, Table, Text } from "@mantine/core";
+import { Anchor, Button, Flex, Loader, Table, Text } from "@mantine/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useEffect } from "react";
 
 // Content-only view of the About info, rendered as the "About" tab inside
@@ -80,6 +82,12 @@ export function AboutView() {
                 <Button size="xs" variant="light" onClick={() => update.install()}>
                   Install &amp; restart
                 </Button>
+                {/* One-click install can't service every packaging (e.g. Linux
+                    .deb/.rpm installs, which the updater cannot replace in
+                    place), so always offer the releases page as a manual path. */}
+                <Anchor size="xs" onClick={() => openUrl(RELEASES_URL)}>
+                  Download from the releases page
+                </Anchor>
               </Flex>
             )}
             {update.status === "installing" && (
@@ -94,6 +102,9 @@ export function AboutView() {
                 <Button size="xs" variant="light" onClick={() => update.checkForUpdates()}>
                   Retry
                 </Button>
+                <Anchor size="xs" onClick={() => openUrl(RELEASES_URL)}>
+                  Download from the releases page
+                </Anchor>
               </Flex>
             )}
           </Table.Td>
