@@ -38,3 +38,7 @@ export const LOG_LEVELS = [
 ];
 
 export const NETWORKS = [{ value: "main", label: "Mainnet" }];
+
+// Manual-download fallback for installs the one-click updater can't service
+// (e.g. Linux .deb/.rpm, which Tauri's updater cannot replace in place).
+export const RELEASES_URL = "https://github.com/Neptune-Crypto/neptune-wallet-app/releases/latest";

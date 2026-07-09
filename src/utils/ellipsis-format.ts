@@ -1,47 +1,25 @@
+// Truncation mark for the omitted middle: three ASCII dots (the conventional
+// "content omitted" mark) — reads clearly and copy-pastes safely.
+const ELLIPSIS = "...";
+
+// Canonical address rendering: first 15 + ... + last 15 (33 chars max). Both ends
+// always visible — the start identifies the address type/prefix, the end is what
+// users compare against the recipient's copy. Never layer CSS truncation (Mantine
+// `truncate`) on top: it re-cuts the tail and silently destroys the end part.
 export function ellipsis(value?: string): string {
-  if (!value) {
-    return "";
-  }
-  const len = value.length;
-  if (!value) return "";
-  if (value.length > 40) {
-    return `${value.substring(0, 20)}......${value.substring(len - 20, len)}`;
-  }
-  return value;
+  return ellipsisFormatLen(value, 15);
 }
 
-export function ellipsis5(value?: string): string {
-  if (!value) {
-    return "";
-  }
-  const len = value.length;
-  if (!value) return "";
-  if (value.length > 20) {
-    return `${value.substring(0, 5)}......${value.substring(len - 5, len)}`;
-  }
-  return value;
-}
-
+// Same shape with a custom head/tail length — for non-address digests (tx ids,
+// UTXO hashes, output commitments) where a column wants a tighter fit.
 export function ellipsisFormatLen(value?: string, formatLen?: number): string {
   if (!value) {
     return "";
   }
-  const len = value.length;
-  if (!value) return "";
-  if (value.length > 20) {
-    return `${value.substring(0, formatLen ?? 5)}......${value.substring(len - (formatLen ?? 5), len)}`;
-  }
-  return value;
-}
-
-export function ellipsis30(value?: string): string {
-  if (!value) {
-    return "";
-  }
-  const len = value.length;
-  if (!value) return "";
-  if (value.length > 70) {
-    return `${value.substring(0, 30)}......${value.substring(len - 30, len)}`;
+  const len = formatLen ?? 15;
+  // Only truncate when doing so is actually shorter than showing the whole thing.
+  if (value.length > 2 * len + ELLIPSIS.length) {
+    return `${value.substring(0, len)}${ELLIPSIS}${value.substring(value.length - len)}`;
   }
   return value;
 }

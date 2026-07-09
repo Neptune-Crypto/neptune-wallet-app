@@ -38,7 +38,7 @@ export default function CreatePassword(props: Props) {
       dispatch(setMnemonic(bip39.generateMnemonic(wordlist, 192)));
       nextStep();
     } catch (error: any) {
-      notify.error(error, "Failed to create password");
+      notify.error(error, "Please try again.", "Couldn't create password");
     }
   }
   return (

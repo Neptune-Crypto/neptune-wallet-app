@@ -87,11 +87,17 @@ export const queryActivityHistory = createAsyncThunk<
   };
 });
 
+// Rolling window for the activity chart, including today. 30 days is the standard
+// "last 30 days" convention; wallet activity is often sparse, so a generous window
+// keeps the chart useful at no extra data cost — the full history is already in
+// memory; this only changes the bucketing.
+const CHART_WINDOW_DAYS = 30;
+
 function getTotalPerDay(activitys: MerageHistory[]) {
   let timestamp = new Date().getTime();
   let perDay = [] as DayHistory[];
 
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < CHART_WINDOW_DAYS; i++) {
     perDay.push({
       start_height: 0,
       end_height: 0,
@@ -124,9 +130,9 @@ function getTotalPerDay(activitys: MerageHistory[]) {
     }
   });
 
-  // Keep the full 14-day window (including days with no transactions) so the
-  // chart x-axis stays a continuous timeline instead of collapsing gaps. But
-  // if the whole window is empty, return nothing so the chart hides entirely.
+  // Keep the full window (including days with no transactions) so the chart
+  // x-axis stays a continuous timeline instead of collapsing gaps. But if the
+  // whole window is empty, return nothing so the chart hides entirely.
   const hasActivity = perDay.some((item) => item.end_height !== 0);
   return hasActivity ? perDay : [];
 }

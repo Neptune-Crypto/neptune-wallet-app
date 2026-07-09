@@ -1,8 +1,9 @@
+import AccountContextLabel from "@/components/account-context-label";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import { useActivityPerDay, useActivityTransactions } from "@/store/history/hooks";
 import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { BarChart, ChartTooltip } from "@mantine/charts";
-import { Box, Flex, Group, ScrollArea, Select, Tabs, Text } from "@mantine/core";
+import { Box, Group, ScrollArea, Select, Tabs, Text } from "@mantine/core";
 import { useState } from "react";
 import ActivityTableCard from "./component/activity-table-card";
 import NewUtxoTable from "./component/new-utxo-table";
@@ -37,6 +38,12 @@ export default function HistoryPage() {
 
   return (
     <WithTitlePageHeader title="History">
+      {/* First element under the header on every page, so the "which account?"
+          glance always lands in the same spot (matches Wallet and Send). It sits
+          above the tabs because the account applies to all of them. */}
+      <Box mb="sm">
+        <AccountContextLabel name={activeAccountName} />
+      </Box>
       <Tabs
         value={section}
         onChange={(value) => setSection(value ?? "activity")}
@@ -71,15 +78,6 @@ export default function HistoryPage() {
           )}
         </Box>
 
-        <Flex direction={"row"} gap={6} align={"center"} mb="sm">
-          <Text size="sm" c="dimmed">
-            Active account:
-          </Text>
-          <Text size="sm" fw={600}>
-            {activeAccountName || "—"}
-          </Text>
-        </Flex>
-
         <Tabs.Panel value="activity" className="page-tab-panel">
           <ScrollArea
             type="auto"
@@ -91,14 +89,14 @@ export default function HistoryPage() {
                 activity at all, the table's own empty state covers it. */}
             {(!perDay || perDay.length === 0) && (activityTransactions?.length ?? 0) > 0 && (
               <Text size="sm" c="dimmed" mb="md">
-                No activity in the last 14 days.
+                No activity in the last 30 days.
               </Text>
             )}
             {perDay && perDay.length > 0 && (
               <>
                 <Box pos="relative" mb="xs">
                   <Text size="sm" fw={500} ta="center">
-                    Last 14 days
+                    Last 30 days
                   </Text>
                   <Group
                     gap="lg"
@@ -135,6 +133,10 @@ export default function HistoryPage() {
                   type="stacked"
                   yAxisLabel="NPT"
                   styles={{ axisLabel: { fill: "var(--mantine-color-text)" } }}
+                  // 30 day labels don't all fit: drop overlapping middle ticks but
+                  // always keep both ends (the oldest day and "Today") anchored.
+                  // Exact dates for the hidden days remain available via the tooltip.
+                  xAxisProps={{ interval: "preserveStartEnd" }}
                   yAxisProps={{
                     domain: [0, "auto"],
                     tickFormatter: formatYAxisTick,

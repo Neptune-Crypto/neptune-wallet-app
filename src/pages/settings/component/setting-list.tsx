@@ -65,7 +65,7 @@ export default function SettingList() {
       setChecked(enable);
       notify.success("Disk cache has been changed");
     } catch (error: any) {
-      notify.error(error, "Failed to change disk cache.");
+      notify.error(error, "Please try again.", "Couldn't change disk cache");
     }
   }
 
@@ -75,7 +75,7 @@ export default function SettingList() {
         await set_log_level(value);
         setSelectedLogLevel(value);
       } catch (error: any) {
-        notify.error(error, "Failed to change log level.");
+        notify.error(error, "Please try again.", "Couldn't change log level");
       }
     }
   }
@@ -106,7 +106,7 @@ export default function SettingList() {
           dispatch(querySyncBlockStatus({ serverUrl }));
           notify.success("Switched to " + value, "Network changed");
         } catch (error: any) {
-          notify.error(error, "Failed to change network.");
+          notify.error(error, "Please try again.", "Couldn't switch network");
         }
       },
     });
@@ -190,11 +190,11 @@ export default function SettingList() {
         rightSection={<ResetPasswordIcon />}
       />
 
-      <SectionHeader>Maintenance</SectionHeader>
+      <SectionHeader>Data &amp; storage</SectionHeader>
       <BaseItem
         leftSection={<IconCube />}
         label={"Resync block height"}
-        description="Re-scan the blockchain from a chosen block height to rebuild balances and history."
+        description="Re-scan the blockchain from a chosen block height to rebuild the active account's balances and history — useful if a balance looks wrong."
         rightSection={<ResyncIcon />}
       />
 

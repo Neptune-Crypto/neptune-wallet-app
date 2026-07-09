@@ -1,4 +1,5 @@
-import { Button, Card, Center, Flex, Group, Image, Text } from "@mantine/core";
+import { AppMark } from "@/components/loading-card";
+import { Button, Card, Center, Flex, Group, Text } from "@mantine/core";
 import { useState } from "react";
 import CreatePage from "../create";
 import ImportPage from "../import";
@@ -19,8 +20,10 @@ export default function HomeScreen() {
               Neptune Wallet
             </Text>
           </Group>
-          <Flex justify={"center"} align={"center"}>
-            <Image data-tauri-drag-region src={"/logo.png"} w={"100%"} h={129} />
+          {/* The N app mark matches the OS icon; drag-region kept so the window
+              stays draggable from here. */}
+          <Flex justify={"center"} align={"center"} data-tauri-drag-region py={16}>
+            <AppMark size={96} />
           </Flex>
           <Flex
             direction="column"

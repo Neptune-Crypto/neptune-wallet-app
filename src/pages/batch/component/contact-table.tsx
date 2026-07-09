@@ -1,10 +1,9 @@
-import CopyedIcon from "@/components/copyed-icon";
 import EmptyTable from "@/components/empty-table";
+import MonoText from "@/components/mono-text";
 import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
 import { useAllContacts, useLoadingContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
-import { ellipsis } from "@/utils/ellipsis-format";
 import { notify } from "@/utils/notify";
 import { deleteContactAddress } from "@/utils/storage";
 import {
@@ -40,7 +39,7 @@ export default function ContactTable() {
       dispatch(queryAllContacts());
       notify.success("Contact deleted successfully");
     } catch (error: any) {
-      notify.error(error, "Failed to delete contact");
+      notify.error(error, "Please try again.", "Couldn't delete contact");
     }
   }
 
@@ -66,14 +65,7 @@ export default function ContactTable() {
         <Text style={{ minWidth: "115px" }}>{element.aliasName}</Text>
       </Table.Td>
       <Table.Td>
-        <Flex direction={"row"} gap={8} align={"center"}>
-          {/* Fixed width pins every row's copy icon at the same x — the same
-              icon rail as the Wallet accounts table. */}
-          <Text w={340} truncate>
-            {ellipsis(element.address)}
-          </Text>
-          <CopyedIcon tooltipLable="Copy address" size={16} value={element.address} />
-        </Flex>
+        <MonoText value={element.address} />
       </Table.Td>
       <Table.Td>
         <Center>
@@ -159,7 +151,7 @@ export default function ContactTable() {
             </Table>
           </ScrollArea>
         ) : (
-          <EmptyTable />
+          <EmptyTable message="No contacts yet" />
         )}
       </Box>
     </Flex>

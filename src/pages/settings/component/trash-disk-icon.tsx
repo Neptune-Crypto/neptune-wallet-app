@@ -39,7 +39,7 @@ export function TrashModal({ opened, close }: { opened: boolean; close: () => vo
       <FocusTrap.InitialFocus />
       <Table
         striped
-        withTableBorder
+        highlightOnHover
         horizontalSpacing="lg"
         verticalSpacing="sm"
         styles={{
@@ -76,7 +76,7 @@ export function ChacheFileItem({ item }: { item: BlockCacheFile }) {
       dispatch(queryDiskCacheFiles());
       notify.success("Delete cache file success!");
     } catch (error: any) {
-      notify.error(error, "Delete cache file failed!");
+      notify.error(error, "Please try again.", "Couldn't delete cache file");
     }
     setLoading(false);
   }

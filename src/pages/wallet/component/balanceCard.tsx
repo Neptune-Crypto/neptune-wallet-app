@@ -1,3 +1,4 @@
+import AccountContextLabel from "@/components/account-context-label";
 import {
   useBalanceData,
   useCurrentWalledId,
@@ -126,14 +127,7 @@ export default function BalanceCard() {
 
   return (
     <Flex direction={"column"} w={"100%"} gap={8}>
-      <Flex direction={"row"} gap={6} align={"center"}>
-        <Text size="sm" c="dimmed">
-          Active account:
-        </Text>
-        <Text size="sm" fw={600}>
-          {activeAccountName || "—"}
-        </Text>
-      </Flex>
+      <AccountContextLabel name={activeAccountName} />
       <Box pos="relative">
         <LoadingOverlay visible={false} zIndex={1000} overlayProps={{ radius: "sm", blur: 2 }} />
         <Grid grow gutter={"lg"}>

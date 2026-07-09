@@ -73,13 +73,19 @@ export const routesConfig: RouteObject[] = [
   },
 ];
 
+// Account-scoped views — everything here reflects the account chosen in the
+// switcher directly above, so they stay grouped together under it.
 export const linkdata = [
   { label: "Wallet", href: "/wallet", icon: IconWallet },
   { label: "Send", href: "/send", icon: IconTransfer },
   { label: "Receive", href: "/addresses", icon: IconArrowDownCircle },
-  { label: "Contacts", href: "/contacts", icon: IconUsers },
   { label: "History", href: "/history", icon: IconHistory },
 ];
 
-// Rendered pinned to the bottom of the sidebar, above the sync card.
-export const bottomLinkdata = [{ label: "Settings", href: "/settings", icon: IconSettings }];
+// App-level items, pinned to the bottom (above the sync card), separated from the
+// account-scoped views. Contacts lives here because the address book is shared
+// across all accounts — not tied to the active one — the same reason Settings is.
+export const bottomLinkdata = [
+  { label: "Contacts", href: "/contacts", icon: IconUsers },
+  { label: "Settings", href: "/settings", icon: IconSettings },
+];

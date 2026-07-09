@@ -53,7 +53,7 @@ export default function EditContact({
       close();
     } catch (error: any) {
       console.error(error);
-      notify.error(error, "Failed to update contact");
+      notify.error(error, "Please try again.", "Couldn't update contact");
     }
     setLoading(false);
   }

@@ -1,4 +1,4 @@
-import { useUpdateVersion, useVersion } from "@/store/about/hooks";
+import { useUpdate } from "@/components/update/update-context";
 import { Box, Collapse, Group, Indicator, Text, UnstyledButton } from "@mantine/core";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -26,8 +26,7 @@ export function LinksGroup({
   const hasLinks = Array.isArray(links) && links.length > 0;
   const [opened, setOpened] = useState(initiallyOpened || false);
   const navigate = useNavigate();
-  const updateVersion = useUpdateVersion();
-  const version = useVersion();
+  const update = useUpdate();
   const items = (hasLinks ? links : []).map((link) => (
     <Text<"a">
       component="a"
@@ -63,13 +62,12 @@ export function LinksGroup({
     }
   }
   function checkckDisableIndicator() {
-    // The update-available dot now rides on Settings, since About moved into it.
+    // The update-available dot rides on Settings (About lives inside it). Show it
+    // whenever the shared updater reports an available version.
     if (label != "Settings") {
       return true;
-    } else if (updateVersion && version && version != updateVersion.version) {
-      return false;
     }
-    return true;
+    return update.status !== "available";
   }
   return (
     <>

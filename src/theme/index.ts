@@ -14,6 +14,10 @@ const myColor: MantineColorsTuple = [
 const FONT_FAMILY = "'Inter Variable', 'Segoe UI', system-ui, sans-serif";
 
 const theme = createTheme({
+  // Pointer cursor on all checkboxes, radios and switches (they're clickable
+  // controls, so the cursor should say so — e.g. the contact-select and UTXO
+  // tables). Mantine defaults to the plain arrow.
+  cursorType: "pointer",
   // Inter (self-hosted variable font, imported in main.tsx) for all Mantine
   // components; app.css applies the same stack to non-Mantine text.
   fontFamily: FONT_FAMILY,
@@ -41,6 +45,17 @@ const theme = createTheme({
     ],
   },
   components: {
+    Notification: {
+      styles: {
+        // Toast body text: Mantine dims the message to gray-6 (#868e96) when a
+        // title is present — only ~3.3:1 on the white toast, failing AA's 4.5:1
+        // for 14px text. gray-7 (~8.2:1) keeps the secondary look and passes.
+        // Error toasts carry backend messages users must be able to read.
+        description: {
+          color: "var(--mantine-color-gray-7)",
+        },
+      },
+    },
     Modal: {
       styles: {
         content: {
@@ -57,9 +72,7 @@ const theme = createTheme({
     },
     Button: {
       // Default all buttons to the blue accent, but let each button's variant
-      // (filled/light) and explicit color prop work normally. (Previously this
-      // forced backgroundColor with !important, which neutered variants and
-      // collided with per-button color props.)
+      // (filled/light) and explicit color prop work normally.
       defaultProps: {
         color: "blue",
       },
@@ -83,8 +96,8 @@ const theme = createTheme({
       styles: () => ({
         root: {
           wordWrap: "break-word",
-          // 400 (regular) reads lighter than the previous 500 so tables and body
-          // copy no longer feel heavy. Cells that set an explicit `fw` keep it.
+          // 400 (regular) keeps tables and body copy light. Cells that set an
+          // explicit `fw` keep it.
           fontWeight: 400,
           fontSize: "14px",
         },

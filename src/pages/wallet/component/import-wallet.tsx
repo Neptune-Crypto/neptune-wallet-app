@@ -27,7 +27,7 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
       onCreated();
     } catch (error: any) {
       console.log(error);
-      notify.error(error, "Failed to import account");
+      notify.error(error, "Please try again.", "Couldn't import account");
     }
     setLoading(false);
   }

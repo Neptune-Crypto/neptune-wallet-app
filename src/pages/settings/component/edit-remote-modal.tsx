@@ -32,7 +32,7 @@ export default function EditRemoteModal({
         notify.success("Update remote rest url successfully.");
         close();
       } catch (error: any) {
-        notify.error(error, "Failed to change network.");
+        notify.error(error, "Please try again.", "Couldn't update node URL");
       }
     }
   }

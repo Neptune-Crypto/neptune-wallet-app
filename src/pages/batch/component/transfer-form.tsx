@@ -1,5 +1,16 @@
+import { useAllContacts } from "@/store/contact/hooks";
 import { SendInputItem } from "@/utils/api/types.ts";
-import { ActionIcon, Button, Divider, Flex, NumberInput, Text, TextInput } from "@mantine/core";
+import { contactDisplayName } from "@/utils/contact-name";
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Divider,
+  Flex,
+  NumberInput,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { IconAddressBook, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import SelecteContact from "./selecte-contact";
@@ -29,6 +40,11 @@ export default function TransferForm(props: Props) {
     onChangeAmount,
   } = props;
   const [showSelectContactModal, setShowSelectContactModal] = useState(false);
+  // Known recipient? Resolve the entered address against the contact list (and
+  // the wallet's own accounts) so the user sees WHO they're paying, not just a
+  // bech32m string — names are far easier to verify than address fragments.
+  const contacts = useAllContacts();
+  const recipientName = contactDisplayName(contacts, data.toAddress);
   return (
     <Flex direction={"column"} gap={4} key={data.index}>
       <SelecteContact
@@ -53,6 +69,11 @@ export default function TransferForm(props: Props) {
           >
             <IconAddressBook size={18} />
           </ActionIcon>
+          {recipientName && (
+            <Badge variant="light" radius="sm" tt="none" fw={600}>
+              {recipientName}
+            </Badge>
+          )}
         </Flex>
         {showRemove && (
           <ActionIcon

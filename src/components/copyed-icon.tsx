@@ -1,7 +1,6 @@
 import { notify } from "@/utils/notify";
 import { ActionIcon, Tooltip } from "@mantine/core";
-import { IconCircleCheck, IconCopy } from "@tabler/icons-react";
-import { useState } from "react";
+import { IconCopy } from "@tabler/icons-react";
 
 export default function CopyedIcon({
   value,
@@ -12,32 +11,24 @@ export default function CopyedIcon({
   size?: number;
   tooltipLable?: string;
 }) {
-  const [copyed, setCopyed] = useState(false);
+  // The success toast is the copy feedback. The icon deliberately does NOT swap
+  // to a checkmark: swapping would change its footprint and shift right-aligned
+  // inline text (e.g. addresses in a confirm modal), and the toast already confirms it.
   return (
-    <>
-      {copyed ? (
-        <IconCircleCheck color="var(--color-positive)" size={size} />
-      ) : (
-        <Tooltip label={tooltipLable} withArrow>
-          {/* A real button so the copy action is keyboard-focusable and labelled. */}
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size={size + 6}
-            aria-label={tooltipLable}
-            onClick={() => {
-              navigator.clipboard.writeText(value);
-              setCopyed(true);
-              notify.success("Copied to clipboard");
-              setTimeout(() => {
-                setCopyed(false);
-              }, 2000);
-            }}
-          >
-            <IconCopy size={size} />
-          </ActionIcon>
-        </Tooltip>
-      )}
-    </>
+    <Tooltip label={tooltipLable} withArrow>
+      {/* A real button so the copy action is keyboard-focusable and labelled. */}
+      <ActionIcon
+        variant="subtle"
+        color="gray"
+        size={size + 6}
+        aria-label={tooltipLable}
+        onClick={() => {
+          navigator.clipboard.writeText(value);
+          notify.success("Copied to clipboard");
+        }}
+      >
+        <IconCopy size={size} />
+      </ActionIcon>
+    </Tooltip>
   );
 }

@@ -34,7 +34,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {
-      notify.error(error, "Failed to import wallet");
+      notify.error(error, "Please try again.", "Couldn't import wallet");
     }
     setLoading(false);
   }

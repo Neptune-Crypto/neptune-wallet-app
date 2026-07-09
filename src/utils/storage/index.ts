@@ -134,7 +134,7 @@ export async function addExecutionHistory({ localHistory }: { localHistory: Exec
     return true;
   } catch (error: any) {
     console.log("Failed to insert execution history:", error);
-    notify.error(error, "Failed to insert execution history");
+    notify.error(error, "Please try again.", "Couldn't save transaction record");
     return false;
   }
 }
@@ -146,7 +146,7 @@ export async function deleteExecutionHistory({ txid }: { txid: string }): Promis
     return true;
   } catch (error: any) {
     console.log("Failed to delete execution history element:", error);
-    notify.error(error, "Failed to delete execution history");
+    notify.error(error, "Please try again.", "Couldn't remove transaction record");
     return false;
   }
 }

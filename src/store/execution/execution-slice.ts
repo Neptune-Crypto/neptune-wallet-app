@@ -179,10 +179,13 @@ export const requestSedExecutionTransaction = createAsyncThunk<
           newLocalHistory = await queryPendingTransactions(currentWalletID, serverUrl);
         } catch (error) {}
       } else {
-        message = "Send transaction failed!";
+        // Shown as the body under the "Couldn't send transaction" toast title,
+        // so it carries the next step, not a restatement of the failure.
+        message = "Please try again.";
       }
     } catch (error: any) {
-      let errorMessage = "Send transaction failed!";
+      // Prefer the backend's reason; fall back to a next step.
+      let errorMessage = "Please try again.";
       if (error.response && error.response.data) {
         errorMessage = error.response.data;
       }

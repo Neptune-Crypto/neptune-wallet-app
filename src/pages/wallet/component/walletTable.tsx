@@ -1,5 +1,5 @@
 import { removeWallet, renameWallet, setCurrentWallet } from "@/commands/wallet";
-import CopyedIcon from "@/components/copyed-icon";
+import MonoText from "@/components/mono-text";
 import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
 import { querySyncBlockStatus } from "@/store/sync/sync-slice";
@@ -7,7 +7,6 @@ import { Wallet } from "@/store/types";
 import { useCurrentWalledId, useLoadingWallets, useWallets } from "@/store/wallet/hooks";
 import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
 import { bigNumberPlusToString } from "@/utils/common";
-import { ellipsis } from "@/utils/ellipsis-format";
 import { handleImportRandomness } from "@/utils/import-wallet-randomness";
 import { notify } from "@/utils/notify";
 import { deleteContactAddress } from "@/utils/storage";
@@ -84,10 +83,14 @@ export default function WalletTable() {
   const [renameWalletData, setRenameWalletData] = useState({} as Wallet);
   const [renameValue, setRenameValue] = useState("");
 
+  // The cached balance is neptune's display_lossless() string: "<int>.<34 decimals>"
+  // (empty until the first sync completes). Show 4 decimals, truncated — truncation
+  // (vs rounding) can only ever UNDERSTATE a balance, never overstate it.
+  // Always pad to 4 decimals so a brand-new account (cached balance "") reads the
+  // same "0.0000" as a synced zero balance, not a bare "0".
   function amount_to_fixed(amount: string) {
-    if (!amount) return "0";
-    let len = amount.length;
-    return amount.substring(0, len - 30);
+    const [int = "0", frac = ""] = (amount || "0").split(".");
+    return `${int}.${frac.substring(0, 4).padEnd(4, "0")}`;
   }
 
   // Portfolio total across all accounts. Sum the already-formatted per-account
@@ -126,11 +129,7 @@ export default function WalletTable() {
       dispatch(queryWallets());
       notify.success("Account " + wallet.name + " has been deleted", "Account deleted");
     } catch (error: any) {
-      notify.error(
-        error,
-        "An error occurred while deleting the account.",
-        "Failed to delete account"
-      );
+      notify.error(error, "Please try again.", "Couldn't delete account");
     }
   }
 
@@ -148,11 +147,7 @@ export default function WalletTable() {
       dispatch(queryWallets());
       notify.success('Account renamed to "' + name + '"', "Account renamed");
     } catch (error: any) {
-      notify.error(
-        error,
-        "An error occurred while renaming the account.",
-        "Failed to rename account"
-      );
+      notify.error(error, "Please try again.", "Couldn't rename account");
     }
     stack.closeAll();
   }
@@ -209,11 +204,10 @@ export default function WalletTable() {
       </Table.Td>
       <Table.Td>
         <Flex direction={"row"} gap={8} align={"center"}>
-          <Text w={340} truncate>
-            {ellipsis(element.address)}
-          </Text>
-          <span style={{ display: "inline-flex" }} onClick={(e) => e.stopPropagation()}>
-            <CopyedIcon size={16} value={element.address} />
+          {/* stopPropagation so selecting/copying the address doesn't also switch
+              account (the row's click handler); the rest of the row still switches. */}
+          <span onClick={(e) => e.stopPropagation()}>
+            <MonoText value={element.address} />
           </span>
         </Flex>
       </Table.Td>
@@ -302,7 +296,11 @@ export default function WalletTable() {
           </Text>
         )}
       </Flex>
-      <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8} offsetScrollbars>
+      {/* No offsetScrollbars: it pads the right edge by the scrollbar size whenever
+          the list scrolls, pushing the table 8px out of line with the balance cards
+          and the portfolio total above. The thin auto scrollbar overlays instead —
+          same behavior as the History/Send page scroll areas. */}
+      <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8}>
         <Box pos="relative">
           <LoadingOverlay
             visible={loading}
