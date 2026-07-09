@@ -134,7 +134,7 @@ impl TransactionUpdater {
     ) -> Result<TransactionDetails> {
         info!("update transaction {}", tx_id);
         let tx_inputs = detail.tx_inputs;
-        let mut tx_outputs = detail.tx_outputs;
+        let tx_outputs = detail.tx_outputs;
         let fee = detail.fee;
         let timestamp = Timestamp::now();
 
@@ -148,13 +148,6 @@ impl TransactionUpdater {
 
         let (unlocked_new, tip_mutator_set_accumulator, tip_header) =
             wallet_state.unlock_utxos(recovery_data_list).await?;
-
-        for tx_output in tx_outputs.iter_mut() {
-            let new_sender_randomness = wallet_state
-                .key
-                .generate_sender_randomness(tip_header.height, tx_output.receiver_digest());
-            tx_output.set_sender_randomness(new_sender_randomness);
-        }
 
         let expected_utxo = wallet_state.extract_expected_utxos(&tx_outputs, UtxoNotifier::Myself);
 
