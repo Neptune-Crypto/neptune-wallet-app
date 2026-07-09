@@ -87,10 +87,10 @@ export const queryActivityHistory = createAsyncThunk<
   };
 });
 
-// Rolling window for the activity chart, including today. 30 days (the standard
-// "last 30 days" convention) rather than 14: wallet activity is often sparse, and
-// the longer window makes the chart useful far more often at no extra data cost —
-// the full history is already in memory; this only changes the bucketing.
+// Rolling window for the activity chart, including today. 30 days is the standard
+// "last 30 days" convention; wallet activity is often sparse, so a generous window
+// keeps the chart useful at no extra data cost — the full history is already in
+// memory; this only changes the bucketing.
 const CHART_WINDOW_DAYS = 30;
 
 function getTotalPerDay(activitys: MerageHistory[]) {
