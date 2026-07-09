@@ -1,8 +1,8 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use neptune_cash::api::export::KeyType;
-use neptune_cash::state::wallet::wallet_state::IncomingUtxoRecoveryData;
+use neptune_wallet::address::KeyType;
+use neptune_wallet::incoming_utxo::IncomingUtxoRecoveryData;
 use tracing::*;
 
 use super::tls;

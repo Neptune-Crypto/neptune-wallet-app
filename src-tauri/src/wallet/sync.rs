@@ -6,12 +6,13 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use neptune_cash::api::export::Network;
-use neptune_cash::api::export::SpendingKey;
-use neptune_cash::api::export::Timestamp;
-use neptune_cash::protocol::consensus::block::Block;
-use neptune_cash::state::wallet::expected_utxo::ExpectedUtxo;
-use neptune_cash::state::wallet::expected_utxo::UtxoNotifier;
+use neptune_consensus::block::Block;
+use neptune_mempool::transaction_kernel_id::Txid;
+use neptune_primitives::network::Network;
+use neptune_primitives::timestamp::Timestamp;
+use neptune_wallet::address::SpendingKey;
+use neptune_wallet::expected_utxo::ExpectedUtxo;
+use neptune_wallet::expected_utxo::UtxoNotifier;
 use serde::Serialize;
 use tokio::select;
 use tokio::sync::Mutex;
@@ -415,8 +416,8 @@ impl SyncState {
 
 #[cfg(test)]
 mod tests {
-    use neptune_cash::api::export::NativeCurrencyAmount;
-    use neptune_cash::api::export::WalletEntropy;
+    use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
+    use neptune_wallet::wallet_entropy::WalletEntropy;
 
     use super::*;
 

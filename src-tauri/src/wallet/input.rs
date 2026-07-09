@@ -4,16 +4,17 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
-use neptune_cash::api::export::NativeCurrencyAmount;
-use neptune_cash::api::export::ReceivingAddress;
-use neptune_cash::api::export::SpendingKey;
-use neptune_cash::api::export::Timestamp;
-use neptune_cash::api::export::Tip5;
-use neptune_cash::api::export::Utxo;
-use neptune_cash::protocol::consensus::block::block_header::BlockHeader;
-use neptune_cash::state::wallet::unlocked_utxo::UnlockedUtxo;
-use neptune_cash::util_types::mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
-use neptune_cash::util_types::mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
+use neptune_consensus::block::block_header::BlockHeader;
+use neptune_consensus::transaction::utxo::Utxo;
+use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
+use neptune_mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
+use neptune_mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
+use neptune_primitives::block_height::BlockHeight;
+use neptune_primitives::timestamp::Timestamp;
+use neptune_wallet::address::ReceivingAddress;
+use neptune_wallet::address::SpendingKey;
+use neptune_wallet::twenty_first::tip5::Tip5;
+use neptune_wallet::unlocked_utxo::UnlockedUtxo;
 use rand::seq::SliceRandom;
 use tracing::trace;
 
@@ -193,7 +194,8 @@ impl super::WalletState {
 
             let tip_header = rpc_client::node_rpc_client().get_tip_header().await?;
 
-            if tip_header.height == msmps_recovery_data.tip_height {
+            let msmp_height: BlockHeight = msmps_recovery_data.synced_height.into();
+            if tip_header.height == msmp_height {
                 break (msmps_recovery_data, tip_header);
             }
         };
@@ -209,11 +211,8 @@ impl super::WalletState {
                 utxo.sender_randomness,
                 utxo.receiver_preimage,
             ) {
-                Ok(msmp) => msmp,
-                Err(err) => bail!(
-                    "Server returned bad mutator set membership proof recovery data: {}",
-                    err
-                ),
+                Some(msmp) => msmp,
+                None => bail!("Server returned bad mutator set membership proof recovery data",),
             };
 
             unlocked.push(UnlockedUtxo::unlock(
@@ -223,7 +222,11 @@ impl super::WalletState {
             ));
         }
 
-        Ok((unlocked, msmps_recovery_data.tip_mutator_set, tip_header))
+        Ok((
+            unlocked,
+            msmps_recovery_data.synced_mutator_set.into(),
+            tip_header,
+        ))
     }
 
     // returns Some(SpendingKey) if the utxo can be unlocked by one of the known

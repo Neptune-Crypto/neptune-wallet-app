@@ -12,7 +12,7 @@ use anyhow::Context;
 use anyhow::Result;
 use enum_dispatch::enum_dispatch;
 use futures::lock::Mutex;
-use neptune_cash::api::export::Network;
+use neptune_primitives::network::Network;
 use serde::Serialize;
 use sqlx::prelude::*;
 use sqlx::sqlite::SqliteJournalMode;

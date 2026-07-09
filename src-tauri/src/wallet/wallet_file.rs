@@ -2,7 +2,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use neptune_cash::api::export::Network;
+use neptune_primitives::network::Network;
 use tracing::*;
 
 use super::WalletState;

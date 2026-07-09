@@ -4,19 +4,19 @@ use std::sync::atomic::Ordering;
 
 use anyhow::ensure;
 use anyhow::Result;
-use neptune_cash::api::export::AdditionRecord;
-use neptune_cash::api::export::BlockHeight;
-use neptune_cash::api::export::Digest;
-use neptune_cash::api::export::Transaction;
-use neptune_cash::application::json_rpc::core::api::rpc::RpcApi;
-use neptune_cash::application::json_rpc::core::api::rpc::RpcError;
-use neptune_cash::application::json_rpc::core::model::wallet::transaction::RpcTransaction;
-use neptune_cash::protocol::consensus::block::block_header::BlockHeader;
-use neptune_cash::protocol::consensus::block::block_selector::BlockSelector;
-use neptune_cash::util_types::mutator_set::archival_mutator_set::MsMembershipProofPrivacyPreserving;
-use neptune_cash::util_types::mutator_set::archival_mutator_set::ResponseMsMembershipProofPrivacyPreserving;
-use neptune_cash::util_types::mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
+use neptune_consensus::block::block_header::BlockHeader;
+use neptune_consensus::transaction::Transaction;
+use neptune_mempool::transaction_kernel_id::Txid;
+use neptune_mutator_set::addition_record::AdditionRecord;
+use neptune_mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
+use neptune_primitives::block_height::BlockHeight;
+use neptune_primitives::block_selector::BlockSelector;
+use neptune_rpc_api::api::rpc::RpcApi;
+use neptune_rpc_api::api::rpc::RpcError;
+use neptune_rpc_api::model::wallet::mutator_set::RpcMsMembershipSnapshot;
+use neptune_rpc_api::model::wallet::transaction::RpcTransaction;
 use neptune_rpc_client::http::HttpClient;
+use neptune_wallet::twenty_first::tip5::Digest;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 use tracing::debug;
@@ -211,7 +211,7 @@ impl NodeRpcClient {
     pub(crate) async fn restore_msmps(
         &self,
         request: Vec<AbsoluteIndexSet>,
-    ) -> Result<ResponseMsMembershipProofPrivacyPreserving> {
+    ) -> Result<RpcMsMembershipSnapshot> {
         debug!(
             "request: restore_msmps, of {} membership proofs",
             request.len()
@@ -219,24 +219,8 @@ impl NodeRpcClient {
         let client = self.rest_server();
 
         let resp = client.restore_membership_proof(request).await?;
-        let resp = resp.snapshot;
-        let tip_height = resp.synced_height;
-        let tip_hash = resp.synced_hash;
-        let tip_mutator_set = resp.synced_mutator_set;
-        let membership_proofs: Vec<MsMembershipProofPrivacyPreserving> = resp
-            .membership_proofs
-            .into_iter()
-            .map(|x| x.into())
-            .collect();
 
-        let res = ResponseMsMembershipProofPrivacyPreserving {
-            tip_hash,
-            membership_proofs,
-            tip_height: tip_height.into(),
-            tip_mutator_set: tip_mutator_set.into(),
-        };
-
-        Ok(res)
+        Ok(resp.snapshot)
     }
 
     pub(crate) async fn are_bloom_indices_set(

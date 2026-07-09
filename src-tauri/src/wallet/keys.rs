@@ -7,11 +7,11 @@ use std::sync::Arc;
 
 use anyhow::ensure;
 use anyhow::Result;
-use neptune_cash::api::export::KeyType;
-use neptune_cash::api::export::Network;
-use neptune_cash::api::export::ReceivingAddress;
-use neptune_cash::api::export::SpendingKey;
-use neptune_cash::api::export::SymmetricKey;
+use neptune_primitives::network::Network;
+use neptune_wallet::address::symmetric_key::SymmetricKey;
+use neptune_wallet::address::KeyType;
+use neptune_wallet::address::ReceivingAddress;
+use neptune_wallet::address::SpendingKey;
 use rayon::prelude::*;
 use serde::Serialize;
 use strum::IntoEnumIterator;
@@ -248,9 +248,8 @@ impl super::WalletState {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::test_devnet_wallet;
-
     use super::*;
+    use crate::tests::test_devnet_wallet;
 
     #[tokio::test]
     async fn looks_ahead_right_number_of_addresses() {
