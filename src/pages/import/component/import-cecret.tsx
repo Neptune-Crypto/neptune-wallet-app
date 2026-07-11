@@ -34,7 +34,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {
-      notify.error(error, "Please try again.", "Couldn't import wallet");
+      notify.error(error, "Please try again.", "Couldn't import account");
     }
     setLoading(false);
   }
@@ -42,11 +42,11 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={14} fw={600} style={{ textAlign: "center" }}>
-        Access your account with your recovery phrase.
+        Access your account with your seed phrase.
       </Text>
       <Stack w={"100%"}>
         <Textarea
-          label="Recovery phrase"
+          label="Seed phrase"
           value={importData.mnemonic}
           onChange={(event) => {
             if (event && event.target.value) {
@@ -62,7 +62,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
               });
             }
           }}
-          placeholder="Enter your recovery phrase"
+          placeholder="Enter your seed phrase"
           rows={4}
         />
 

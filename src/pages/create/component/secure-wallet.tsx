@@ -1,6 +1,7 @@
 import { useMnemonic } from "@/store/wallet/hooks";
 import { Box, Button, Center, Flex, Grid, LoadingOverlay, Text } from "@mantine/core";
 import { IconCircleCheck, IconCopy, IconEye, IconReload } from "@tabler/icons-react";
+import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import { useState } from "react";
 
 import { useAppDispatch } from "@/store/hooks";
@@ -15,22 +16,18 @@ export default function SecureWallet(props: Props) {
   const { nextStep } = props;
   const mnemonic = useMnemonic();
   const [showCopyIcon, setShowCopyIcon] = useState(false);
-  const [visibleMnemonic, setVisibleMnemonic] = useState(false);
   const [copyed, setCopyed] = useState(false);
   const dispatch = useAppDispatch();
 
-  function showMnemonic() {
-    setVisibleMnemonic(true);
-    setTimeout(() => {
-      setVisibleMnemonic(false);
-    }, 50000);
-  }
+  // Shared 60s auto-hide (see use-seed-hide-timer.ts): reveal restarts the
+  // full window, never stacks.
+  const { visible: visibleMnemonic, reveal: showMnemonic } = useSeedHideTimer();
 
   return (
     <Flex direction="column" justify={"center"} align="center" gap={8} w={"100%"}>
       <Text fz={14} fw={600} style={{ textAlign: "center" }}>
-        Write down this 18-word recovery phrase and save it in a place that you trust and only you
-        can access.
+        Write down this 18-word seed phrase and store it where only you can access it. It is the
+        only way to recover your account — and anyone who has it can spend your funds.
       </Text>
       <Box pos="relative">
         <LoadingOverlay
@@ -41,7 +38,7 @@ export default function SecureWallet(props: Props) {
               <Center
                 style={{ cursor: "pointer" }}
                 onClick={() => {
-                  // Match the "Reveal recovery phrase" button: revealing via the
+                  // Match the "Reveal seed phrase" button: revealing via the
                   // cover must also flip to the revealed state (copy row + Next).
                   setShowCopyIcon(true);
                   showMnemonic();
@@ -95,7 +92,6 @@ export default function SecureWallet(props: Props) {
           </Grid>
         </Box>
       </Box>
-
       {showCopyIcon ? (
         <Flex
           direction={"row"}
@@ -113,12 +109,12 @@ export default function SecureWallet(props: Props) {
             onClick={() => {
               dispatch(setMnemonic(bip39.generateMnemonic(wordlist, 192)));
               showMnemonic();
-              notify.success("New recovery phrase generated");
+              notify.success("New seed phrase generated");
             }}
           >
             <IconReload size={16} />
             <Text fz={14} fw={500}>
-              {"Change recovery phrase"}
+              {"Change seed phrase"}
             </Text>
           </Flex>
           <Flex
@@ -173,7 +169,7 @@ export default function SecureWallet(props: Props) {
               showMnemonic();
             }}
           >
-            Reveal recovery phrase
+            Reveal seed phrase
           </Button>
         )}
       </Flex>

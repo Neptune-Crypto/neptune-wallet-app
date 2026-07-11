@@ -4,8 +4,19 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock } from "@/store/sync/hooks";
 import { queryLatestBlock } from "@/store/sync/sync-slice";
 import { notify } from "@/utils/notify";
-import { Box, Button, Center, Flex, Grid, LoadingOverlay, Text, TextInput } from "@mantine/core";
+import {
+  Box,
+  Button,
+  Center,
+  Checkbox,
+  Flex,
+  Grid,
+  LoadingOverlay,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { IconCircleCheck, IconCopy, IconEye, IconReload } from "@tabler/icons-react";
+import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import { useEffect, useState } from "react";
 
 export default function CreateWallet({
@@ -21,18 +32,18 @@ export default function CreateWallet({
   const [loading, setLoading] = useState(false);
   const { serverUrl } = useSettingActionData();
   const [showCopyIcon, setShowCopyIcon] = useState(false);
-  const [visibleMnemonic, setVisibleMnemonic] = useState(false);
   const [copyed, setCopyed] = useState(false);
+  // Backup attestation gating Create (same pattern as the delete-account
+  // modal's "I understand" checkbox): nothing says "this matters" like the
+  // app refusing to proceed until the user confirms they wrote it down.
+  const [acknowledged, setAcknowledged] = useState(false);
   const latestBlock = useLatestBlock();
 
   const dispatch = useAppDispatch();
 
-  function showMnemonic() {
-    setVisibleMnemonic(true);
-    setTimeout(() => {
-      setVisibleMnemonic(false);
-    }, 50000);
-  }
+  // Shared 60s auto-hide (see use-seed-hide-timer.ts): reveal restarts the
+  // full window, never stacks.
+  const { visible: visibleMnemonic, reveal: showMnemonic } = useSeedHideTimer();
 
   useEffect(() => {
     dispatch(queryLatestBlock({ serverUrl }));
@@ -61,9 +72,15 @@ export default function CreateWallet({
       />
       <Flex direction={"column"}>
         <Flex direction={"row"} gap={4}>
-          <Text>Recovery phrase</Text>
+          <Text>Seed phrase</Text>
           <Text c="var(--input-asterisk-color, var(--mantine-color-error))">*</Text>
         </Flex>
+        {/* Always-visible (not a tooltip): fund-loss consequences must not hide
+            behind a hover. Mirrors the onboarding flow's wording. */}
+        <Text size="sm" c="dimmed" mb={6}>
+          Write these 18 words down and store them safely. They are the only way to recover this
+          account — and anyone who has them can spend its funds.
+        </Text>
         <Box pos="relative">
           <LoadingOverlay
             visible={!visibleMnemonic}
@@ -73,7 +90,7 @@ export default function CreateWallet({
                 <Center
                   style={{ cursor: "pointer" }}
                   onClick={() => {
-                    // Match the "Reveal recovery phrase" button: revealing via the
+                    // Match the "Reveal seed phrase" button: revealing via the
                     // cover must also flip to the revealed state (copy row + Create).
                     setShowCopyIcon(true);
                     showMnemonic();
@@ -148,11 +165,14 @@ export default function CreateWallet({
             onClick={() => {
               refreshMnemonic();
               showMnemonic();
+              // The attestation referred to the OLD phrase; a new one must be
+              // written down and confirmed again.
+              setAcknowledged(false);
             }}
           >
             <IconReload size={16} />
             <Text fz={14} fw={500}>
-              {"Change recovery phrase"}
+              {"Change seed phrase"}
             </Text>
           </Flex>
           <Flex
@@ -183,6 +203,17 @@ export default function CreateWallet({
         </Flex>
       ) : null}
 
+      {showCopyIcon && (
+        <Checkbox
+          mt="sm"
+          px="lg"
+          size="sm"
+          label="I have written down my seed phrase"
+          checked={acknowledged}
+          onChange={(event) => setAcknowledged(event.currentTarget.checked)}
+        />
+      )}
+
       <Flex
         direction={"row"}
         align={"center"}
@@ -199,7 +230,7 @@ export default function CreateWallet({
           <Button
             variant="light"
             fullWidth
-            disabled={!name || !mnemonic}
+            disabled={!name || !mnemonic || !acknowledged}
             loading={loading}
             onClick={handleCreate}
           >
@@ -214,7 +245,7 @@ export default function CreateWallet({
               showMnemonic();
             }}
           >
-            Reveal recovery phrase
+            Reveal seed phrase
           </Button>
         )}
       </Flex>

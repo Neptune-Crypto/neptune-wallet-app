@@ -96,7 +96,7 @@ export default function ConfirmSecret(props: Props) {
 
   async function checkSecret() {
     if (verifyWords.join(" ") != mnemonic) {
-      notify.error(undefined, "The recovery phrase is incorrect, please check again.");
+      notify.error(undefined, "Some words are in the wrong place. Check them and try again.");
       return;
     }
     setLoading(true);
@@ -108,7 +108,7 @@ export default function ConfirmSecret(props: Props) {
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {
-      notify.error(error, "Please try again later.", "Couldn't create account");
+      notify.error(error, "Please try again.", "Couldn't create account");
     }
     setLoading(false);
   }
@@ -217,7 +217,7 @@ export default function ConfirmSecret(props: Props) {
           loading={loading}
           onClick={checkSecret}
         >
-          Confirm recovery phrase
+          Confirm seed phrase
         </Button>
       </Flex>
     </Flex>

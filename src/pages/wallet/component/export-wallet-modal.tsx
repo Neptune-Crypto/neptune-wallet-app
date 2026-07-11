@@ -1,12 +1,10 @@
 import { ExportWallet } from "@/commands/wallet";
 import { notify } from "@/utils/notify";
 import {
-  Alert,
   Box,
   Button,
   Center,
   Flex,
-  FocusTrap,
   LoadingOverlay,
   Modal,
   PasswordInput,
@@ -14,12 +12,13 @@ import {
   Textarea,
 } from "@mantine/core";
 import {
+  IconAlertTriangle,
   IconCircleCheck,
   IconCopy,
   IconEye,
   IconEyeOff,
-  IconInfoCircle,
 } from "@tabler/icons-react";
+import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -31,8 +30,14 @@ export default function ExportWalletModal(props: Props) {
   const { opened, closeModal: close, id } = props;
   const [value, setValue] = useState("");
   const [mnemonic, setMnemonic] = useState("");
-  const [showMnemonic, setShowMnemonic] = useState(false);
   const [copyed, setCopyed] = useState(false);
+  // Shared 60s auto-hide (see use-seed-hide-timer.ts): reveal restarts the
+  // full window, never stacks; manual hide retires the timer.
+  const {
+    visible: showMnemonic,
+    reveal: clickShowMnemonic,
+    hide: hideMnemonic,
+  } = useSeedHideTimer();
 
   useEffect(() => {
     if (opened) {
@@ -43,7 +48,7 @@ export default function ExportWalletModal(props: Props) {
   function clearData() {
     setValue("");
     setMnemonic("");
-    setShowMnemonic(false);
+    hideMnemonic();
     setCopyed(false);
   }
 
@@ -52,23 +57,30 @@ export default function ExportWalletModal(props: Props) {
       let mnemonicWordList = await ExportWallet(value, id);
       setMnemonic(mnemonicWordList.join(" "));
     } catch (error: any) {
-      notify.error(error, "Please try again.", "Couldn't export account");
+      notify.error(error, "Please try again.", "Couldn't show seed phrase");
     }
   }
-  function clickShowMnemonic() {
-    setShowMnemonic(true);
-    setTimeout(() => {
-      setShowMnemonic(false);
-    }, 12000);
-  }
-
   return (
-    <Modal opened={opened} onClose={close} title="Export account">
-      <FocusTrap.InitialFocus />
+    <Modal opened={opened} onClose={close} title="View seed phrase">
       <Flex direction={"column"} gap={16} w={"100%"}>
-        <Alert variant="light" color="red" title="" icon={<IconInfoCircle />}>
-          Make sure no one is looking at your screen.
-        </Alert>
+        {/* Confidentiality/anti-phishing warning — the message the reveal cover
+            does NOT carry (the cover handles shoulder-surfing). This modal is
+            where scam victims get directed ("support" asking for the seed), so
+            the "nobody legitimate will ever ask" line lives here. Styling
+            matches the send confirm modal's warning (icon orange-6; text tone
+            is AA-checked there — no stock Mantine orange clears 4.5:1 at this
+            size on white). */}
+        <Flex align="flex-start" gap={6}>
+          <IconAlertTriangle
+            size={14}
+            color="var(--mantine-color-orange-6)"
+            style={{ flexShrink: 0, marginTop: 2 }}
+          />
+          <Text size="xs" c="#c2410c" fw={500}>
+            Never share your seed phrase. Anyone who has it can spend this account's funds — and
+            no legitimate support will ever ask for it.
+          </Text>
+        </Flex>
         {mnemonic ? (
           <Flex direction={"column"} gap={16}>
             <Box pos="relative">
@@ -92,8 +104,8 @@ export default function ExportWalletModal(props: Props) {
                 }}
               />
               <Textarea
-                label="Recovery phrase"
-                placeholder="Recovery phrase"
+                label="Seed phrase"
+                placeholder="Seed phrase"
                 value={mnemonic}
                 readOnly
                 autosize
@@ -109,7 +121,7 @@ export default function ExportWalletModal(props: Props) {
                 style={{ cursor: "pointer", caretColor: "transparent" }}
                 onClick={() => {
                   if (showMnemonic) {
-                    setShowMnemonic(!showMnemonic);
+                    hideMnemonic();
                   } else {
                     clickShowMnemonic();
                   }
@@ -117,7 +129,7 @@ export default function ExportWalletModal(props: Props) {
               >
                 {showMnemonic ? <IconEyeOff size={14} /> : <IconEye size={14} />}
                 <Text fz={14} fw={500}>
-                  {showMnemonic ? "Hide recovery phrase" : "Reveal recovery phrase"}
+                  {showMnemonic ? "Hide seed phrase" : "Reveal seed phrase"}
                 </Text>
               </Flex>
               <Flex
@@ -149,9 +161,19 @@ export default function ExportWalletModal(props: Props) {
           </Flex>
         ) : (
           <PasswordInput
+            // Single-purpose modal: focus the one input so typing can start
+            // immediately (lock screen / rename modal convention).
+            data-autofocus
             label="Enter password to continue"
             value={value}
             onChange={(event) => setValue(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              // Enter submits — same gate as the Confirm button (the lock
+              // screen and rename modal already follow this convention).
+              if (event.key === "Enter" && value) {
+                exportWallet();
+              }
+            }}
           />
         )}
         <Flex
