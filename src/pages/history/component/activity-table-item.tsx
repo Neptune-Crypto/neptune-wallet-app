@@ -25,9 +25,7 @@ export default function ActivityTableItem(props: Props) {
           fw={600}
           ta="right"
           c={
-            element.changeAmount.startsWith("-")
-              ? "var(--color-negative)"
-              : "var(--color-positive)"
+            element.changeAmount.startsWith("-") ? "var(--color-negative)" : "var(--color-positive)"
           }
           style={{ fontVariantNumeric: "tabular-nums" }}
         >

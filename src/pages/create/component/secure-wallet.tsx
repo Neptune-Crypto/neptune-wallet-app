@@ -1,7 +1,7 @@
 import { useMnemonic } from "@/store/wallet/hooks";
+import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import { Box, Button, Center, Flex, Grid, LoadingOverlay, Text } from "@mantine/core";
 import { IconCircleCheck, IconCopy, IconEye, IconReload } from "@tabler/icons-react";
-import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import { useState } from "react";
 
 import { useAppDispatch } from "@/store/hooks";

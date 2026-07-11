@@ -1,5 +1,6 @@
 import { ExportWallet } from "@/commands/wallet";
 import { notify } from "@/utils/notify";
+import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import {
   Box,
   Button,
@@ -18,7 +19,6 @@ import {
   IconEye,
   IconEyeOff,
 } from "@tabler/icons-react";
-import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import { useEffect, useState } from "react";
 
 interface Props {
@@ -77,8 +77,8 @@ export default function ExportWalletModal(props: Props) {
             style={{ flexShrink: 0, marginTop: 2 }}
           />
           <Text size="xs" c="#c2410c" fw={500}>
-            Never share your seed phrase. Anyone who has it can spend this account's funds — and
-            no legitimate support will ever ask for it.
+            Never share your seed phrase. Anyone who has it can spend this account's funds — and no
+            legitimate support will ever ask for it.
           </Text>
         </Flex>
         {mnemonic ? (

@@ -89,7 +89,12 @@ export default function NewUtxoTable() {
           {/* Right-aligned like any numeric column: centered values float by
               their own width, leaving a ragged edge. Tabular figures line the
               digits up. */}
-          <Text fw={600} ta="right" c={"var(--color-positive)"} style={{ fontVariantNumeric: "tabular-nums" }}>
+          <Text
+            fw={600}
+            ta="right"
+            c={"var(--color-positive)"}
+            style={{ fontVariantNumeric: "tabular-nums" }}
+          >
             <NumberFormatter value={amount_to_fixed(element.amount)} thousandSeparator />
           </Text>
         </Table.Td>

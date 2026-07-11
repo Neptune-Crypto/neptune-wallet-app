@@ -4,6 +4,7 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock } from "@/store/sync/hooks";
 import { queryLatestBlock } from "@/store/sync/sync-slice";
 import { notify } from "@/utils/notify";
+import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import {
   Box,
   Button,
@@ -16,7 +17,6 @@ import {
   TextInput,
 } from "@mantine/core";
 import { IconCircleCheck, IconCopy, IconEye, IconReload } from "@tabler/icons-react";
-import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import { useEffect, useState } from "react";
 
 export default function CreateWallet({
