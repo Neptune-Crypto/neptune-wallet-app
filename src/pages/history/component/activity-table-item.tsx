@@ -19,17 +19,20 @@ export default function ActivityTableItem(props: Props) {
         </Text>
       </Table.Td>
       <Table.Td>
-        <Center>
-          {element.changeAmount.startsWith("-") ? (
-            <Text fw={600} c={"var(--color-negative)"}>
-              {element.changeAmount}
-            </Text>
-          ) : (
-            <Text fw={600} c={"var(--color-positive)"}>
-              {element.changeAmount}
-            </Text>
-          )}
-        </Center>
+        {/* Right-aligned like any numeric column: centered values float by their
+            own width, leaving a ragged edge. Tabular figures line the digits up. */}
+        <Text
+          fw={600}
+          ta="right"
+          c={
+            element.changeAmount.startsWith("-")
+              ? "var(--color-negative)"
+              : "var(--color-positive)"
+          }
+          style={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          {element.changeAmount}
+        </Text>
       </Table.Td>
       <Table.Td>
         <Center>

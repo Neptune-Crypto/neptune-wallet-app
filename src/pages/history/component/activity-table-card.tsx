@@ -62,9 +62,8 @@ export default function ActivityTableCard({ historyType }: { historyType: string
             <Table.Thead>
               <Table.Tr>
                 <Table.Th>Block height</Table.Th>
-                <Table.Th>
-                  <Center>Balance change (NPT)</Center>
-                </Table.Th>
+                {/* Numeric column: right-aligned (see the row cells). */}
+                <Table.Th style={{ textAlign: "right" }}>Balance change (NPT)</Table.Th>
                 <Table.Th>
                   <Center>Time</Center>
                 </Table.Th>

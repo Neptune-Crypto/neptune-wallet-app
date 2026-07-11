@@ -86,11 +86,12 @@ export default function NewUtxoTable() {
           </Text>
         </Table.Td>
         <Table.Td>
-          <Center>
-            <Text fw={600} c={"var(--color-positive)"}>
-              <NumberFormatter value={amount_to_fixed(element.amount)} thousandSeparator />
-            </Text>
-          </Center>
+          {/* Right-aligned like any numeric column: centered values float by
+              their own width, leaving a ragged edge. Tabular figures line the
+              digits up. */}
+          <Text fw={600} ta="right" c={"var(--color-positive)"} style={{ fontVariantNumeric: "tabular-nums" }}>
+            <NumberFormatter value={amount_to_fixed(element.amount)} thousandSeparator />
+          </Text>
         </Table.Td>
         <Table.Td>
           <MonoText value={element.hash} chars={12} copyLabel="Copy hash" />
@@ -243,9 +244,8 @@ export default function NewUtxoTable() {
                   <Center>ID</Center>
                 </Table.Th>
                 <Table.Th>Block height</Table.Th>
-                <Table.Th>
-                  <Center>Amount (NPT)</Center>
-                </Table.Th>
+                {/* Numeric column: right-aligned (see the row cells). */}
+                <Table.Th style={{ textAlign: "right" }}>Amount (NPT)</Table.Th>
                 <Table.Th>Hash</Table.Th>
                 {/* Rendered only when locked coins are shown (see the row cell).
                     The flag is computed from release_date only, so the copy speaks
