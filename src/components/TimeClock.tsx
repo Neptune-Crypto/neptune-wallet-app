@@ -34,21 +34,22 @@ export const TimeClock = (props: clockProps) => {
   }, []);
 
   useEffect(() => {
-    let minute = Math.trunc(ts / 60);
-    let second = ts % 60;
-    if (minute <= 0) {
-      setValue(`${getSec(second)}`);
-    } else {
-      setValue(`${getMin(minute)} ${getSec(second)}`);
-    }
+    setValue(formatElapsed(ts));
   }, [ts]);
 
-  function getSec(second: number) {
-    return `${second} s ago`;
-  }
-
-  function getMin(minute: number) {
-    return `${minute} m`;
+  // Two most significant units only: seconds are noise (and a per-second tick
+  // is a distraction) once the elapsed time is in hours — e.g. a pending
+  // transaction from this morning reads "5 h 12 m ago".
+  function formatElapsed(elapsed: number) {
+    const t = Math.max(0, elapsed);
+    const days = Math.trunc(t / 86400);
+    const hours = Math.trunc((t % 86400) / 3600);
+    const minutes = Math.trunc((t % 3600) / 60);
+    const seconds = t % 60;
+    if (t < 60) return `${seconds} s ago`;
+    if (t < 3600) return `${minutes} m ${seconds} s ago`;
+    if (t < 86400) return `${hours} h ${minutes} m ago`;
+    return `${days} d ${hours} h ago`;
   }
 
   return <span style={{ ...style }}>{value}</span>;

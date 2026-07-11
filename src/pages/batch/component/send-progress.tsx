@@ -1,6 +1,6 @@
 import { TimeClock } from "@/components/TimeClock";
-import { Alert, Flex, Loader, Text } from "@mantine/core";
-import { IconCircle, IconCircleCheck, IconInfoCircle } from "@tabler/icons-react";
+import { Card, Flex, Loader, Text } from "@mantine/core";
+import { IconCircle, IconCircleCheck } from "@tabler/icons-react";
 import { useState } from "react";
 
 // The backend emits six technical steps ("stmi: step N. ..." in spend.rs), but
@@ -13,7 +13,10 @@ const PHASES = [
       "Your transaction is being proven privately on this device — this can take up to a minute or two.",
   },
   { label: "Broadcasting to the network" },
-  { label: "Done" },
+  // Never shown active: the panel unmounts when broadcasting completes, handing
+  // off to the "Transactions awaiting network confirmation" section that
+  // auto-expands below — this step is the roadmap pointing at it.
+  { label: "Awaiting confirmation" },
 ];
 
 function phaseFromStatus(status: string): number {
@@ -29,8 +32,17 @@ export default function SendProgress({ status }: { status: string }) {
   const current = phaseFromStatus(status);
 
   return (
-    <Alert variant="light" color="blue" title="Sending transaction" icon={<IconInfoCircle />}>
-      <Flex direction="column" gap={10} mt={4} mb={6}>
+    // A plain Card, deliberately not an Alert: alert-tinted boxes with (i)
+    // icons read as tooltips/info notes, while this is live operation status.
+    // Card matches the pending-transactions panel beside it; the checklist
+    // rows carry their own spinner/check icons.
+    <Card withBorder radius="md" padding="md">
+      {/* fz 16 matches the "Transactions awaiting network confirmation" section
+          header below and stays clearly above the 14px active-step labels. */}
+      <Text fw={600} fz={16}>
+        Sending transaction
+      </Text>
+      <Flex direction="column" gap={10} mt={10} mb={6}>
         {PHASES.map((phase, index) => {
           const done = index < current;
           const active = index === current;
@@ -64,6 +76,6 @@ export default function SendProgress({ status }: { status: string }) {
           );
         })}
       </Flex>
-    </Alert>
+    </Card>
   );
 }
