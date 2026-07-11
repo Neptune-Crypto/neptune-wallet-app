@@ -41,16 +41,56 @@ impl super::WalletState {
         Ok(history)
     }
 
+    /// Sum of this wallet's own outputs (change and self-sends) across all
+    /// unfinished pending transactions: the amount that will be credited back
+    /// once those transactions are mined.
+    ///
+    /// Deliberately NOT the pending transactions' input sum — most of an input's
+    /// value leaves the wallet (recipient amount + fee); only these outputs
+    /// return, so only they may be reported as "awaiting confirmation".
+    pub(crate) async fn get_expected_incoming(&self) -> Result<NativeCurrencyAmount> {
+        let mut conn = self.pool.acquire().await?;
+        let pending = self.updater.get_pending_transactions(&mut conn).await?;
+
+        let mut incoming = 0i128;
+        for (_txid, detail, _input_ids) in pending {
+            for txo in detail.tx_outputs.iter() {
+                let utxo = txo.utxo();
+                if self.find_spending_key_for_utxo(&utxo).is_some() {
+                    incoming += utxo.get_native_currency_amount().to_nau();
+                }
+            }
+        }
+
+        Ok(NativeCurrencyAmount::from_nau(incoming))
+    }
+
+    /// Returns (available, pending, total).
+    ///
+    /// `available` is what a new send can spend right now: inputs of unconfirmed
+    /// transactions are excluded — spending them again would double-spend
+    /// (issue #50). `pending` is the expected incoming amount (change and
+    /// self-sends) that returns once those transactions confirm. `total` is
+    /// available + time-locked + pending — so it drops by the sent amount at
+    /// broadcast, not at confirmation.
     pub(crate) async fn get_all_balance(
         &self,
-    ) -> Result<(NativeCurrencyAmount, NativeCurrencyAmount)> {
+    ) -> Result<(
+        NativeCurrencyAmount,
+        NativeCurrencyAmount,
+        NativeCurrencyAmount,
+    )> {
         let utxos = self.get_utxos().await?;
+        let pending_ids = self.updater.get_pending_spent_utxos().await?;
         let now = Timestamp::now();
 
         let mut balance = 0i128;
         let mut locked = 0i128;
         for utxo in utxos {
-            if utxo.spent_in_block.is_none() {
+            // Skip inputs of pending transactions entirely: their value is
+            // leaving the wallet, and the part that returns is counted below
+            // via get_expected_incoming.
+            if utxo.spent_in_block.is_none() && !pending_ids.contains(&utxo.id) {
                 let value = utxo.recovery_data.utxo.get_native_currency_amount();
                 if utxo.recovery_data.utxo.can_spend_at(now) {
                     balance += value.to_nau();
@@ -60,9 +100,12 @@ impl super::WalletState {
             }
         }
 
+        let pending = self.get_expected_incoming().await?;
+
         Ok((
             NativeCurrencyAmount::from_nau(balance),
-            NativeCurrencyAmount::from_nau(balance + locked),
+            pending,
+            NativeCurrencyAmount::from_nau(balance + locked + pending.to_nau()),
         ))
     }
 }

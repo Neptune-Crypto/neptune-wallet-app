@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use neptune_consensus::proof_abstractions::tx_proving_capability::TxProvingCapability;
 use neptune_consensus::transaction::announcement::Announcement;
@@ -15,6 +17,7 @@ use sqlx_migrator::Plan;
 use tracing::*;
 
 use super::WalletState;
+use crate::config::Config;
 use crate::rpc_client;
 
 impl super::WalletState {
@@ -24,7 +27,29 @@ impl super::WalletState {
     }
 
     pub(crate) async fn forget_tx(&self, txid: &str) -> Result<()> {
-        self.updater.delete_transaction(txid).await
+        self.updater.delete_transaction(txid).await?;
+
+        // Forgetting frees the pending inputs, so the account's balance grows
+        // back; refresh the accounts list's cached total (otherwise only
+        // rewritten on block sync). Best-effort, same as after a send: the
+        // forget itself already succeeded.
+        match self.get_all_balance().await {
+            Ok((_available, _pending, total)) => {
+                let config = crate::service::get_state::<Arc<Config>>();
+                if let Err(e) = config
+                    .update_wallet_balance(self.id, total.display_lossless())
+                    .await
+                {
+                    warn!(
+                        "Could not update cached account balance after forget: {}",
+                        e
+                    );
+                }
+            }
+            Err(e) => warn!("Could not compute balance after forget: {}", e),
+        }
+
+        Ok(())
     }
 }
 

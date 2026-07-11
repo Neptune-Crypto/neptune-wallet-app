@@ -85,14 +85,17 @@ impl super::WalletState {
         MutatorSetAccumulator,
         BlockHeader,
     )> {
-        let mut utxos = {
+        let utxos = {
             let mut tx = self.pool.begin().await?;
             self.get_unspent_utxos(&mut tx).await?
         };
         trace!("Num unspent utxos (not mined): {}", utxos.len());
 
-        let pending_utxos = self.updater.get_pending_spent_utxos().await?;
-        utxos.retain(|utxo| !pending_utxos.contains(&utxo.id));
+        let pending_ids = self.updater.get_pending_spent_utxos().await?;
+        let utxos: Vec<_> = utxos
+            .into_iter()
+            .filter(|utxo| !pending_ids.contains(&utxo.id))
+            .collect();
         trace!(
             "Num unspent utxos (not mined and not in mempool): {}",
             utxos.len()
@@ -147,6 +150,32 @@ impl super::WalletState {
             total_input_amount += recovery_data.utxo.get_native_currency_amount().to_nau();
             inputs.push(recovery_data);
             db_idxs.push(utxo.id);
+        }
+
+        // Fail fast when the spendable UTXOs cannot cover amount + fee. Without
+        // this check, selection returns an underfunded (worst case 0-input) set
+        // and the transaction proves for many seconds only to fail the VM's
+        // balance assertion with a cryptic error. Distinguish "covered once the
+        // pending change confirms" from "balance is too low" — using the
+        // expected incoming amount, not the pending inputs' full value, so the
+        // wait-and-retry advice is only given when retrying can actually work.
+        if total_input_amount < total_amount {
+            let pending_incoming = self.get_expected_incoming().await?.to_nau();
+            if pending_incoming > 0 && total_input_amount + pending_incoming >= total_amount {
+                bail!(
+                    "Funds are awaiting confirmation. This transaction needs {} NPT; {} NPT \
+                     returns to your balance once your pending transaction is confirmed. \
+                     Try again after that.",
+                    NativeCurrencyAmount::from_nau(total_amount),
+                    NativeCurrencyAmount::from_nau(pending_incoming),
+                );
+            }
+            bail!(
+                "Insufficient funds. This transaction needs {} NPT (amounts plus fee), but the \
+                 spendable balance is {} NPT.",
+                NativeCurrencyAmount::from_nau(total_amount),
+                NativeCurrencyAmount::from_nau(total_input_amount),
+            );
         }
 
         trace!("Selected a total of {} inputs", inputs.len());

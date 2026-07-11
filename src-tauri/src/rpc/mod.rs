@@ -97,6 +97,9 @@ impl RpcHandler {
 #[derive(Debug, Serialize)]
 pub(crate) struct WalletBalance {
     pub(crate) available_balance: String,
+    // Expected incoming amount (change and self-sends) from this wallet's
+    // pending transactions; credited back to the balance once they are mined.
+    pub(crate) pending_balance: String,
     pub(crate) total_balance: String,
 }
 
@@ -111,9 +114,11 @@ pub(crate) trait WalletRpc {
 
     async fn wallet_balance() -> Result<WalletBalance, RestError> {
         let wallet = &get_state::<Arc<SyncState>>().wallet;
-        let (available_balance, total_balance) = wallet.get_all_balance().await?;
+        let (available_balance, pending_balance, total_balance) =
+            wallet.get_all_balance().await?;
         Ok(WalletBalance {
             available_balance: available_balance.display_lossless(),
+            pending_balance: pending_balance.display_lossless(),
             total_balance: total_balance.display_lossless(),
         })
     }
