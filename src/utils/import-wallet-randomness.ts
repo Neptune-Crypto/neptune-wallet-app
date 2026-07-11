@@ -60,6 +60,10 @@ export async function handleImportRandomness(): Promise<void> {
     console.error("Failed to import randomness:", error);
 
     // Error Notification
-    notify.error(error, "Check the log for details.", "Couldn't import randomness");
+    // Sticky: the import can run long, and "check the log" is useless advice
+    // if the pointer to it evaporates.
+    notify.error(error, "Check the log for details.", "Couldn't import randomness", {
+      sticky: true,
+    });
   }
 }

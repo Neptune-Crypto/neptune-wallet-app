@@ -22,7 +22,10 @@ export default function CopyedIcon({
         color="gray"
         size={size + 6}
         aria-label={tooltipLable}
-        onClick={() => {
+        onClick={(e) => {
+          // Copying must never also trigger a click-to-act ancestor (e.g. the
+          // accounts table row, where a row click switches the active account).
+          e.stopPropagation();
           navigator.clipboard.writeText(value);
           notify.success("Copied to clipboard");
         }}

@@ -74,7 +74,7 @@ export function ChacheFileItem({ item }: { item: BlockCacheFile }) {
     try {
       await delete_cache(item.path);
       dispatch(queryDiskCacheFiles());
-      notify.success("Delete cache file success!");
+      notify.success("Cache file deleted");
     } catch (error: any) {
       notify.error(error, "Please try again.", "Couldn't delete cache file");
     }

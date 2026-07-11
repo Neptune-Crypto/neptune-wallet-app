@@ -66,10 +66,11 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
       await update.downloadAndInstall();
       await relaunch();
     } catch (e: any) {
-      // Install is a user action, so failing it does deserve a toast.
+      // Install is a user action, so failing it does deserve a toast. Sticky:
+      // the download/install runs for minutes and the user may have tabbed away.
       setError(e?.message ?? String(e));
       setStatus("available");
-      notify.error(e, "Please try again.", "Couldn't install update");
+      notify.error(e, "Please try again.", "Couldn't install update", { sticky: true });
     }
   }, []);
 

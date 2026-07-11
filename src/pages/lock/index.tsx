@@ -16,7 +16,9 @@ function LockPage() {
       await input_password(password);
       dispatch(checkAuthPassword());
     } catch (error) {
-      notify.error(undefined, "Invalid password");
+      // Fixed id: repeated wrong attempts replace this toast instead of
+      // stacking one per try.
+      notify.error(undefined, "Incorrect password", "Couldn't unlock", { id: "unlock-error" });
     }
   }
   async function handleSetPassword() {
