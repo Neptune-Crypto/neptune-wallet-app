@@ -16,15 +16,15 @@ import { updateSendState } from "./store/execution/execution-slice";
 import { useRequesetSendTransactionResponse } from "./store/execution/hooks";
 import { useAppDispatch } from "./store/hooks";
 import { useCurrentPlatform, useSettingActionData } from "./store/settings/hooks";
-import { useCurrentWalledId } from "./store/wallet/hooks";
 import { queryCurrentPlatform, querySettingActionData } from "./store/settings/settings-slice";
-import { queryWalletBalance, queryWallets } from "./store/wallet/wallet-slice";
 import {
   handleFinishBlockStatus,
   queryLatestBlock,
   querySyncBlockStatus,
   updateSyncedBlock,
 } from "./store/sync/sync-slice";
+import { useCurrentWalledId } from "./store/wallet/hooks";
+import { queryWalletBalance, queryWallets } from "./store/wallet/wallet-slice";
 
 function App() {
   const platform = useCurrentPlatform();

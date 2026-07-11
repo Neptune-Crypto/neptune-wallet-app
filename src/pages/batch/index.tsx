@@ -133,8 +133,7 @@ export default function BatchTranferPage() {
   // Expected change from pending transactions — credited back once they're
   // mined. Shown so the user can tell "balance returns after confirmation"
   // apart from "balance is too low".
-  const pendingBalance =
-    (balanceData?.pending_balance ?? "0").toString().replace(/\.$/, "") || "0";
+  const pendingBalance = (balanceData?.pending_balance ?? "0").toString().replace(/\.$/, "") || "0";
   const hasPendingBalance = Number(pendingBalance) > 0;
   const feeInvalid = fee.toString().trim() === "" || Number.isNaN(Number(fee));
   const totalOut = sendInputs.reduce(
