@@ -6,6 +6,9 @@ export const useLoadingExecution = () => {
 export const useExecutionDatas = () => {
   return useAppSelector((state) => state.execution.executionData);
 };
+export const useExecutionAddressId = () => {
+  return useAppSelector((state) => state.execution.executionAddressId);
+};
 
 export const useSendState = () => {
   return useAppSelector((state) => state.execution.send_state);

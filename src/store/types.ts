@@ -184,6 +184,10 @@ export interface SyncingData {
 export interface ExecutionState {
   loadingExecution: boolean;
   executionData: ExecutionHistory[];
+  // Which account executionData belongs to. The Send page renders the pending
+  // list only when this matches the active account — otherwise a stale list
+  // from the previously active account flashes until the refetch lands.
+  executionAddressId: number;
   send_state: string;
   executionPending: boolean;
   requesetSendTransactionResponse: {

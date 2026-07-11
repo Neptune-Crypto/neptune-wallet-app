@@ -13,6 +13,7 @@ const initialState: WalletState = {
   loadingBalance: false,
   balanceData: {
     available_balance: "0",
+    pending_balance: "0",
     total_balance: "0",
   },
   mnemonic: "",
@@ -100,6 +101,7 @@ export const queryWalletBalance = createAsyncThunk<
   return {
     data: {
       available_balance: amount_to_fixed(balanceData.available_balance),
+      pending_balance: amount_to_fixed(balanceData.pending_balance),
       total_balance: amount_to_fixed(balanceData.total_balance),
     },
   };

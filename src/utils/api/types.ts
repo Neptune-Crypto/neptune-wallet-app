@@ -17,6 +17,9 @@ export interface Output {
 
 export interface WalletBalanceData {
   available_balance: string;
+  // Expected incoming amount (change and self-sends) from pending transactions;
+  // credited back to the balance once they are mined.
+  pending_balance: string;
   total_balance: string;
 }
 

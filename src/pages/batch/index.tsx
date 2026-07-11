@@ -42,7 +42,11 @@ import { modals } from "@mantine/modals";
 import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { Fragment, useEffect, useState } from "react";
 
-import { queryCurrentWalletID, queryWalletBalance } from "@/store/wallet/wallet-slice.ts";
+import {
+  queryCurrentWalletID,
+  queryWalletBalance,
+  queryWallets,
+} from "@/store/wallet/wallet-slice.ts";
 import { bigNumberMinus, bigNumberPlusToString } from "@/utils/common";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
@@ -113,9 +117,25 @@ export default function BatchTranferPage() {
     dispatch(queryExecutionHistorys({ addressId: currentWalletID, serverUrl }));
   }, [dispatch, currentWalletID, serverUrl]);
 
+  // Refetch the pending list when a block lands (same gate the History page
+  // uses), so a confirmed transaction leaves "Pending transactions" on its
+  // own. The balance refresh for this case is wired app-wide via SYNC_FINISH;
+  // this list is Send-page-local state.
+  useEffect(() => {
+    if (latestBlock && syncedBlock && latestBlock <= syncedBlock) {
+      dispatch(queryExecutionHistorys({ addressId: currentWalletID, serverUrl }));
+    }
+  }, [latestBlock, syncedBlock, currentWalletID, serverUrl]);
+
   // --- Composing-time validation (feedback before the confirm modal) ---
   const availableBalance =
     (balanceData?.available_balance ?? "0").toString().replace(/\.$/, "") || "0";
+  // Expected change from pending transactions — credited back once they're
+  // mined. Shown so the user can tell "balance returns after confirmation"
+  // apart from "balance is too low".
+  const pendingBalance =
+    (balanceData?.pending_balance ?? "0").toString().replace(/\.$/, "") || "0";
+  const hasPendingBalance = Number(pendingBalance) > 0;
   const feeInvalid = fee.toString().trim() === "" || Number.isNaN(Number(fee));
   const totalOut = sendInputs.reduce(
     (sum, item) => bigNumberPlusToString(sum, item.amount || "0"),
@@ -402,6 +422,13 @@ export default function BatchTranferPage() {
   function handleRequesTransactionResponse() {
     if (requesTransactionResponse && requesTransactionResponse.transaction) {
       clearDatas();
+      // The broadcast moved coins into the pending bucket; refetch so the
+      // available figure and the "awaiting confirmation" hint update without
+      // requiring a page switch. The wallets list carries the accounts table's
+      // cached per-account total (rewritten by the backend after the send), so
+      // refetch it too — otherwise the table would disagree with the cards.
+      dispatch(queryWalletBalance({ serverUrl }));
+      dispatch(queryWallets());
     }
   }
   function clearDatas() {
@@ -485,8 +512,11 @@ export default function BatchTranferPage() {
                 making these ~1px taller than the account label — which then gets
                 center-shifted down relative to its position on other pages. */}
             <Flex direction={"row"} gap={8}>
+              {/* This figure is the send ceiling: unlike the Wallet page's
+                  ownership figure, it must exclude change awaiting
+                  confirmation. */}
               <Text size="sm" c="dimmed">
-                Available balance:
+                Spendable now:
               </Text>
               <Text size="sm" fw={600} c="var(--color-positive)">
                 {balanceData.available_balance}{" "}
@@ -494,6 +524,11 @@ export default function BatchTranferPage() {
                   NPT
                 </Text>
               </Text>
+              {hasPendingBalance && (
+                <Text size="sm" c="dimmed">
+                  · {pendingBalance} NPT awaiting confirmation
+                </Text>
+              )}
             </Flex>
           </Flex>
 
@@ -615,7 +650,10 @@ export default function BatchTranferPage() {
             <Text c="red" size="sm">
               {selectionKnown
                 ? `Amounts plus fee exceed the selected UTXOs' value (${spendCeiling} NPT).`
-                : `Amounts plus fee exceed your available balance (${availableBalance} NPT).`}
+                : `Amounts plus fee exceed what's spendable right now (${availableBalance} NPT).` +
+                  (hasPendingBalance
+                    ? ` ${pendingBalance} NPT is awaiting confirmation and becomes spendable once your pending transaction is confirmed.`
+                    : "")}
             </Text>
           )}
           <Flex mt="md">

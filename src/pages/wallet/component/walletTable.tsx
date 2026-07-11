@@ -41,7 +41,7 @@ function DeleteAccountConfirm({ wallet, onConfirm }: { wallet: Wallet; onConfirm
     <Flex direction={"column"} gap={16}>
       <Text size="sm">
         Are you sure you want to delete "{wallet.name}"? Its keys will be erased from this device —
-        without its recovery phrase you will permanently lose access to its funds.
+        without its seed phrase you will permanently lose access to its funds.
       </Text>
       <Checkbox
         size="sm"
@@ -188,7 +188,12 @@ export default function WalletTable() {
       bg={currentWalletID === element.id ? "var(--mantine-color-blue-light)" : undefined}
       // Row click switches the active account (the menu's Switch item remains);
       // interactive cells below stop propagation so they don't trigger a switch.
-      onClick={() => changeWallet(element)}
+      // Skip when the user was drag-selecting text (e.g. an address) — that
+      // gesture ends in a click event but isn't one.
+      onClick={() => {
+        if (window.getSelection()?.toString()) return;
+        changeWallet(element);
+      }}
       title={currentWalletID === element.id ? undefined : "Switch to this account"}
       style={{ cursor: currentWalletID === element.id ? "default" : "pointer" }}
     >
@@ -203,18 +208,20 @@ export default function WalletTable() {
         </Flex>
       </Table.Td>
       <Table.Td>
+        {/* The whole cell must deliver the switch the row's pointer cursor
+            promises; the copy button stops its own propagation, and the row
+            handler skips text selections. */}
         <Flex direction={"row"} gap={8} align={"center"}>
-          {/* stopPropagation so selecting/copying the address doesn't also switch
-              account (the row's click handler); the rest of the row still switches. */}
-          <span onClick={(e) => e.stopPropagation()}>
-            <MonoText value={element.address} />
-          </span>
+          <MonoText value={element.address} />
         </Flex>
       </Table.Td>
       <Table.Td>
         {
-          <Flex direction={"row"} align={"center"} gap={8} justify={"center"}>
-            <Text fw={600} c="var(--color-positive)">
+          /* Right-aligned like any numeric column: centered values float by their
+             own width, so short balances sit visibly off the column edge. Tabular
+             figures keep digit columns lined up between rows. */
+          <Flex direction={"row"} align={"center"} gap={8} justify={"end"}>
+            <Text fw={600} c="var(--color-positive)" style={{ fontVariantNumeric: "tabular-nums" }}>
               {amount_to_fixed(element.balance ?? "0")}
             </Text>
             NPT
@@ -302,8 +309,13 @@ export default function WalletTable() {
           same behavior as the History/Send page scroll areas. */}
       <ScrollArea style={{ flex: 1, minHeight: 0 }} type="auto" scrollbarSize={8}>
         <Box pos="relative">
+          {/* Overlay only while the list is EMPTY (first load). Background
+              refetches (each new block, post-send/forget) swap data in place —
+              blurring an already-populated table on every refetch reads as the
+              page "refreshing". Stale rows are safe here: the table lists all
+              accounts, so its contents don't change on account switch. */}
           <LoadingOverlay
-            visible={loading}
+            visible={loading && (wallets ?? []).length === 0}
             zIndex={1000}
             overlayProps={{ radius: "sm", blur: 2 }}
             loaderProps={{ color: "blue" }}
@@ -324,7 +336,7 @@ export default function WalletTable() {
               <Table.Tr>
                 <Table.Th>Account name</Table.Th>
                 <Table.Th>Address</Table.Th>
-                <Table.Th>Total balance</Table.Th>
+                <Table.Th style={{ textAlign: "right" }}>Total balance</Table.Th>
                 <Table.Th>Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>

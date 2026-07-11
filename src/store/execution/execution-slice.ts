@@ -12,6 +12,7 @@ import { ExecutionState } from "../types";
 const initialState: ExecutionState = {
   loadingExecution: false,
   executionData: [],
+  executionAddressId: -1,
   send_state: "",
   executionPending: false,
   requesetSendTransactionResponse: {
@@ -31,6 +32,7 @@ const executionSlice = createSlice({
   extraReducers: (builder) => {
     builder.addCase(addExecutionTransactionHistory.fulfilled, (state, action) => {
       state.executionData = action.payload.data;
+      state.executionAddressId = action.meta.arg.addressId;
     });
 
     builder.addCase(queryExecutionHistorys.pending, (state) => {
@@ -42,9 +44,11 @@ const executionSlice = createSlice({
     builder.addCase(queryExecutionHistorys.fulfilled, (state, action) => {
       state.loadingExecution = false;
       state.executionData = action.payload.data;
+      state.executionAddressId = action.meta.arg.addressId;
     });
     builder.addCase(removeExecutionTransactionHistory.fulfilled, (state, action) => {
       state.executionData = action.payload.data;
+      state.executionAddressId = action.meta.arg.addressId;
     });
     builder.addCase(requestSedExecutionTransaction.pending, (state) => {
       state.executionPending = true;
@@ -55,6 +59,7 @@ const executionSlice = createSlice({
     builder.addCase(requestSedExecutionTransaction.fulfilled, (state, action) => {
       state.requesetSendTransactionResponse = action.payload.data;
       state.executionData = action.payload.newLocalHistory;
+      state.executionAddressId = action.meta.arg.currentWalletID;
       state.send_state = "";
       state.executionPending = false;
     });
