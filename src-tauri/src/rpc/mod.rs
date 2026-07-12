@@ -114,8 +114,7 @@ pub(crate) trait WalletRpc {
 
     async fn wallet_balance() -> Result<WalletBalance, RestError> {
         let wallet = &get_state::<Arc<SyncState>>().wallet;
-        let (available_balance, pending_balance, total_balance) =
-            wallet.get_all_balance().await?;
+        let (available_balance, pending_balance, total_balance) = wallet.get_all_balance().await?;
         Ok(WalletBalance {
             available_balance: available_balance.display_lossless(),
             pending_balance: pending_balance.display_lossless(),
