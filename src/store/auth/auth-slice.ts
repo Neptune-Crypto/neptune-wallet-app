@@ -21,13 +21,13 @@ const authSlice = createSlice({
   initialState,
   reducers: {},
   extraReducers: (builder) => {
-    builder.addCase(checkAuthPassword.pending, (state, action) => {
+    builder.addCase(checkAuthPassword.pending, (state) => {
       state.data = {
         ...state.data,
         loading: true,
       };
     });
-    builder.addCase(checkAuthPassword.rejected, (state, action) => {
+    builder.addCase(checkAuthPassword.rejected, (state) => {
       state.data = {
         ...state.data,
         loading: false,

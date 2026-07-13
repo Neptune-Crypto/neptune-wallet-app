@@ -1,6 +1,7 @@
 clippy:
 	cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 	yarn lint
+	yarn typecheck
 
 format:
 	cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check

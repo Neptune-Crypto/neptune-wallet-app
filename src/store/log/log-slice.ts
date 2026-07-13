@@ -12,10 +12,10 @@ const logSlice = createSlice({
   initialState,
   reducers: {},
   extraReducers: (builder) => {
-    builder.addCase(queryLogMessages.pending, (state, action) => {
+    builder.addCase(queryLogMessages.pending, (state) => {
       state.loadingLogs = true;
     });
-    builder.addCase(queryLogMessages.rejected, (state, action) => {
+    builder.addCase(queryLogMessages.rejected, (state) => {
       state.loadingLogs = false;
     });
     builder.addCase(queryLogMessages.fulfilled, (state, action) => {

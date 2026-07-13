@@ -45,7 +45,7 @@ const InitApp = (): null => {
   const dispatch = useAppDispatch();
   const { hasAuth } = useAuth();
   const startedRpcServer = useStartRpcServer();
-  const { serverUrl, remoteUrl } = useSettingActionData();
+  const { serverUrl } = useSettingActionData();
   useEffect(() => {
     dispatch(queryCurrentPlatform());
     dispatch(checkAuthPassword());
@@ -73,7 +73,7 @@ const InitApp = (): null => {
     listen<number>(SYNC_HEIGHT_EVENT, (event) => {
       dispatch(updateSyncedBlock(event.payload));
     });
-    listen<number>(SYNC_FINISH_EVENT, (event) => {
+    listen<number>(SYNC_FINISH_EVENT, () => {
       console.log("sync finish");
       dispatch(handleFinishBlockStatus({ serverUrl }));
     });
