@@ -51,13 +51,16 @@ jobs:
       - name: install frontend dependencies
         run: yarn install
 
-      - name: frontend lint (Prettier)
+      - name: frontend typecheck
         # Only run on one OS to save time
+        if: matrix.platform == 'ubuntu-latest'
+        run: yarn typecheck
+
+      - name: frontend lint (Prettier)
         if: matrix.platform == 'ubuntu-latest'
         run: yarn lint
 
       - name: Verify yarn.lock
-        # Only run on one OS to save time
         if: matrix.platform == 'ubuntu-latest'
         run: yarn install --frozen-lockfile
 
@@ -66,7 +69,6 @@ jobs:
         run: yarn test
 
       - name: rust fmt
-        # Only run on one OS to save time
         if: matrix.platform == 'ubuntu-latest'
         run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 
