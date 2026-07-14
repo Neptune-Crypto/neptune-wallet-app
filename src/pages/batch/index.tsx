@@ -128,13 +128,10 @@ export default function BatchTranferPage() {
   }, [latestBlock, syncedBlock, currentWalletID, serverUrl]);
 
   // --- Composing-time validation (feedback before the confirm modal) ---
-  const availableBalance =
-    (balanceData?.available_balance ?? "0").toString().replace(/\.$/, "") || "0";
-  // Expected change from pending transactions — credited back once they're
-  // mined. Shown so the user can tell "balance returns after confirmation"
-  // apart from "balance is too low".
-  const pendingBalance = (balanceData?.pending_balance ?? "0").toString().replace(/\.$/, "") || "0";
-  const hasPendingBalance = Number(pendingBalance) > 0;
+  const spendableBalance =
+    (balanceData?.spendable_balance ?? "0").toString().replace(/\.$/, "") || "0";
+  const pendingChange = (balanceData?.pending_change ?? "0").toString().replace(/\.$/, "") || "0";
+  const hasPendingChange = Number(pendingChange) > 0;
   const feeInvalid = fee.toString().trim() === "" || Number.isNaN(Number(fee));
   const totalOut = sendInputs.reduce(
     (sum, item) => bigNumberPlusToString(sum, item.amount || "0"),
@@ -150,7 +147,7 @@ export default function BatchTranferPage() {
   // hasn't loaded on this page), so the form is never wrongly disabled.
   const hasSelection = selectedInputs && selectedInputs.length > 0;
   const selectionKnown = hasSelection && Number(selectedAmount) > 0;
-  const spendCeiling = selectionKnown ? selectedAmount : availableBalance;
+  const spendCeiling = selectionKnown ? selectedAmount : spendableBalance;
   const overBalance = hasAnyAmount && bigNumberMinus(spendCeiling, totalWithFee) < 0;
   // Rows repeating an address already used by an earlier row.
   const duplicateIndexes = new Set<number>();
@@ -169,7 +166,7 @@ export default function BatchTranferPage() {
       .filter((i) => i >= 0)
   );
 
-  // Max an individual recipient can receive: available minus fee and the other rows.
+  // Max an individual recipient can receive: spendable minus fee and the other rows.
   function maxAmountFor(index: number) {
     let others = "0";
     sendInputs.forEach((item, i) => {
@@ -518,14 +515,14 @@ export default function BatchTranferPage() {
                 Spendable now:
               </Text>
               <Text size="sm" fw={600} c="var(--color-positive)">
-                {balanceData.available_balance}{" "}
+                {balanceData.spendable_balance}{" "}
                 <Text span size="sm" c="dimmed" fw={400}>
                   NPT
                 </Text>
               </Text>
-              {hasPendingBalance && (
+              {hasPendingChange && (
                 <Text size="sm" c="dimmed">
-                  · {pendingBalance} NPT awaiting confirmation
+                  · {pendingChange} NPT awaiting confirmation
                 </Text>
               )}
             </Flex>
@@ -649,9 +646,9 @@ export default function BatchTranferPage() {
             <Text c="red" size="sm">
               {selectionKnown
                 ? `Amounts plus fee exceed the selected UTXOs' value (${spendCeiling} NPT).`
-                : `Amounts plus fee exceed what's spendable right now (${availableBalance} NPT).` +
-                  (hasPendingBalance
-                    ? ` ${pendingBalance} NPT is awaiting confirmation and becomes spendable once your pending transaction is confirmed.`
+                : `Amounts plus fee exceed what's spendable right now (${spendableBalance} NPT).` +
+                  (hasPendingChange
+                    ? ` ${pendingChange} NPT is awaiting confirmation and becomes spendable once your pending transaction is confirmed.`
                     : "")}
             </Text>
           )}

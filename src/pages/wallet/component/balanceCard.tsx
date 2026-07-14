@@ -40,16 +40,15 @@ export default function BalanceCard() {
     handleOverviewData();
   }, [balanceData]);
   function handleOverviewData() {
-    let available_balance =
-      balanceData && balanceData.available_balance ? balanceData.available_balance : 0;
-    let pending_balance =
-      balanceData && balanceData.pending_balance ? balanceData.pending_balance : 0;
+    let spendable_balance =
+      balanceData && balanceData.spendable_balance ? balanceData.spendable_balance : 0;
+    let pending_change = balanceData && balanceData.pending_change ? balanceData.pending_change : 0;
     let total_balance = balanceData && balanceData.total_balance ? balanceData.total_balance : 0;
-    // total = available + time-locked + pending (expected incoming change), so
+    // total = spendable + time-locked + pending (expected incoming change), so
     // locked here is strictly the time-locked bucket.
     let lock_balance =
-      bigNumberMinus(bigNumberMinus(total_balance, available_balance), pending_balance) > 0
-        ? bigNumberMinus(bigNumberMinus(total_balance, available_balance), pending_balance)
+      bigNumberMinus(bigNumberMinus(total_balance, spendable_balance), pending_change) > 0
+        ? bigNumberMinus(bigNumberMinus(total_balance, spendable_balance), pending_change)
         : "0.0000";
     // The Wallet page is the OWNERSHIP view: the card includes change awaiting
     // confirmation (it's still the user's money), so the figure doesn't crash to
@@ -57,8 +56,8 @@ export default function BalanceCard() {
     // action view and shows what's spendable right now — lifecycle detail lives
     // there, where it constrains something. Here it's a tooltip, on demand.
     const withPending = bigNumberPlusToString(
-      available_balance.toString(),
-      pending_balance.toString()
+      spendable_balance.toString(),
+      pending_change.toString()
     );
     const options = [
       {

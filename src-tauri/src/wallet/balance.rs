@@ -65,14 +65,22 @@ impl super::WalletState {
         Ok(NativeCurrencyAmount::from_nau(incoming))
     }
 
-    /// Returns (available, pending, total).
+    /// Returns `(spendable_balance, pending_change, total_balance)`.
     ///
-    /// `available` is what a new send can spend right now: inputs of unconfirmed
-    /// transactions are excluded — spending them again would double-spend
-    /// (issue #50). `pending` is the expected incoming amount (change and
-    /// self-sends) that returns once those transactions confirm. `total` is
-    /// available + time-locked + pending — so it drops by the sent amount at
-    /// broadcast, not at confirmation.
+    /// `spendable_balance` is what a new send can spend right now. Inputs of
+    /// unconfirmed transactions are excluded, because spending them again would
+    /// double-spend.
+    ///
+    /// `pending_change` is the amount receivable back from outgoing pending
+    /// transactions (change, and any outputs to the wallet's own addresses),
+    /// credited once they are mined. Always non-negative: it is a sum of output
+    /// amounts, never the net effect of the pending transactions.
+    ///
+    /// `total_balance` is `spendable_balance` + time-locked + `pending_change`,
+    /// i.e. the balance as it will stand once all outgoing pending transactions
+    /// are confirmed. It therefore drops by the sent amount at broadcast, not at
+    /// confirmation. The time-locked sum is not returned separately; it is
+    /// derivable as `total_balance - spendable_balance - pending_change`.
     pub(crate) async fn get_all_balance(
         &self,
     ) -> Result<(
@@ -100,12 +108,12 @@ impl super::WalletState {
             }
         }
 
-        let pending = self.get_expected_incoming().await?;
+        let pending_change = self.get_expected_incoming().await?;
 
         Ok((
             NativeCurrencyAmount::from_nau(balance),
-            pending,
-            NativeCurrencyAmount::from_nau(balance + locked + pending.to_nau()),
+            pending_change,
+            NativeCurrencyAmount::from_nau(balance + locked + pending_change.to_nau()),
         ))
     }
 }
