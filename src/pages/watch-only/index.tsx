@@ -9,6 +9,7 @@ import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import MonoText from "@/components/mono-text";
 import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { WatchOnlyAddressRecord, WatchOnlyKeyType } from "@/utils/api/types";
+import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
 import {
   ActionIcon,
@@ -19,6 +20,7 @@ import {
   Group,
   Loader,
   Modal,
+  NumberFormatter,
   ScrollArea,
   Select,
   Table,
@@ -32,11 +34,18 @@ import { IconLock, IconPlus, IconTrash } from "@tabler/icons-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Only ViewingAddress can be imported today; EC hybrid is scoped but gated on
-// serializable viewing-key support in neptune-wallet.
+// Match the rest of the wallet: full-precision amounts from the backend are
+// shown with four decimals, but an exact zero renders as a plain "0".
+function formatNpt(amount?: string): string {
+  const fixed = amount_to_positive_fixed(amount ?? "");
+  return fixed === "0.0000" ? "0" : fixed;
+}
+
+// Viewing address is imported as its plain nview… address; EC hybrid as its
+// nechvk… viewing key.
 const KEY_TYPE_OPTIONS = [
   { value: "ViewingAddress", label: "Viewing address" },
-  { value: "EcHybrid", label: "EC hybrid (coming soon)", disabled: true },
+  { value: "EcHybrid", label: "EC hybrid" },
 ];
 
 const KEY_TYPE_LABELS: Record<string, string> = {
@@ -149,7 +158,11 @@ export default function WatchOnlyPage() {
           minRows={3}
           value={addressInput}
           onChange={(event) => setAddressInput(event.currentTarget.value)}
-          placeholder="Paste the viewing address to monitor"
+          placeholder={
+            keyType === "EcHybrid"
+              ? "Paste the nechvk… viewing key to monitor"
+              : "Paste the nview… viewing address to monitor"
+          }
         />
         <TextInput
           label="Receiver preimage (optional)"
@@ -161,6 +174,10 @@ export default function WatchOnlyPage() {
           With the viewing key alone you see the total received. Add the receiver preimage (a hex
           digest) to also track spends and see a real balance. Watch-only funds can never be spent
           and never count toward this account's balance.
+        </Text>
+        <Text c="dimmed" size="xs">
+          A new entry only tracks payments from now on. To pick up earlier payments to this address,
+          resync the account from Settings → Resync account history.
         </Text>
         <Button
           variant="light"
@@ -196,6 +213,16 @@ export default function WatchOnlyPage() {
         <Center p="xl">
           <Loader color="blue" />
         </Center>
+      ) : isLoading && addresses.length === 0 ? (
+        // Switching accounts: hold a stable empty area (no message) until the
+        // new account's list arrives, so "No watch-only addresses yet" never
+        // flashes over an account that actually has entries.
+        <ScrollArea
+          style={{ flex: 1, minHeight: 0 }}
+          type="auto"
+          scrollbarSize={8}
+          offsetScrollbars
+        />
       ) : addresses.length === 0 ? (
         <Box p="md" ta="center" c="dimmed">
           No watch-only addresses yet.
@@ -243,7 +270,7 @@ export default function WatchOnlyPage() {
                 const amountTooltip = !item.tracks_balance
                   ? "Total received — spends not tracked (no preimage imported)"
                   : hasLocked
-                    ? `Available ${item.available}; ${item.locked} locked until ` +
+                    ? `Available ${formatNpt(item.available)}; ${formatNpt(item.locked)} locked until ` +
                       `${format(item.next_release_date, "yyyy-MM-dd HH:mm:ss")} ` +
                       `(${formatDistanceToNow(item.next_release_date, { addSuffix: true })})`
                     : "Balance — spends tracked via the receiver preimage";
@@ -262,11 +289,18 @@ export default function WatchOnlyPage() {
                         <Box>
                           <Group gap={4} justify="flex-end" wrap="nowrap">
                             {hasLocked && <IconLock size={12} />}
-                            <Text>{item.tracks_balance ? item.balance : item.total_received}</Text>
+                            <Text>
+                              <NumberFormatter
+                                value={formatNpt(
+                                  item.tracks_balance ? item.balance : item.total_received
+                                )}
+                                thousandSeparator
+                              />
+                            </Text>
                           </Group>
                           <Text c="dimmed" size="xs">
                             {hasLocked
-                              ? `${item.locked} locked`
+                              ? `${formatNpt(item.locked)} locked`
                               : item.tracks_balance
                                 ? "balance"
                                 : "received"}

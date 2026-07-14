@@ -43,6 +43,7 @@ use neptune_mutator_set::addition_record::AdditionRecord;
 use neptune_mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
 use neptune_primitives::network::Network;
 use neptune_primitives::timestamp::Timestamp;
+use neptune_wallet::address::elliptic_curve_hybrid::EcHybridViewingKey;
 use neptune_wallet::address::viewing_address::ViewingAddress;
 use neptune_wallet::address::ReceivingAddress;
 use neptune_wallet::twenty_first::math::b_field_element::BFieldElement;
@@ -98,26 +99,23 @@ struct WatchOnlyReceipt {
 
 /// The parsed viewing key backing a watch-only address.
 ///
-/// Only [`ViewingAddress`] is supported today. EC-hybrid support is gated on
-/// `EcHybridViewingKey` gaining a serializable (bech32m) form in
-/// `neptune-wallet`; when it does, add an `EcHybrid` arm here and to the match
-/// in [`WatchOnlyKey::parse`].
+/// `ViewingAddress` is imported as its plain `nview…` address (the address is
+/// itself the viewing key); EC hybrid is imported as the `nechvk…` viewing key.
 enum WatchOnlyKey {
     Viewing(ViewingAddress),
+    EcHybrid(EcHybridViewingKey),
 }
 
 impl WatchOnlyKey {
     /// Parse an imported viewing key of the given type for `network`. A parse
     /// failure means the text is not a valid key for this type/network.
     fn parse(key_type: &str, text: &str, network: Network) -> Result<Self> {
+        let text = text.trim();
         match key_type {
-            "ViewingAddress" => Ok(Self::Viewing(ViewingAddress::from_bech32m(
-                text.trim(),
-                network,
+            "ViewingAddress" => Ok(Self::Viewing(ViewingAddress::from_bech32m(text, network)?)),
+            "EcHybrid" => Ok(Self::EcHybrid(EcHybridViewingKey::from_bech32m(
+                text, network,
             )?)),
-            "EcHybrid" => {
-                bail!("EC hybrid watch-only addresses are not supported yet")
-            }
             other => bail!("Unsupported watch-only address type: {other}"),
         }
     }
@@ -125,12 +123,14 @@ impl WatchOnlyKey {
     fn key_type_str(&self) -> &'static str {
         match self {
             Self::Viewing(_) => "ViewingAddress",
+            Self::EcHybrid(_) => "EcHybrid",
         }
     }
 
     fn to_bech32m(&self, network: Network) -> String {
         match self {
             Self::Viewing(a) => a.to_bech32m(network),
+            Self::EcHybrid(vk) => vk.to_bech32m(network),
         }
     }
 
@@ -138,6 +138,7 @@ impl WatchOnlyKey {
     fn receiver_id(&self) -> BFieldElement {
         match self {
             Self::Viewing(a) => a.receiver_id(),
+            Self::EcHybrid(vk) => vk.to_address().receiver_id(),
         }
     }
 
@@ -146,12 +147,14 @@ impl WatchOnlyKey {
     fn receiver_digest(&self) -> Digest {
         match self {
             Self::Viewing(a) => a.receiver_postimage(),
+            Self::EcHybrid(vk) => vk.to_address().receiver_postimage(),
         }
     }
 
     fn decrypt(&self, ciphertext: &[BFieldElement]) -> Result<(Utxo, Digest)> {
         match self {
             Self::Viewing(a) => a.decrypt(ciphertext),
+            Self::EcHybrid(vk) => vk.decrypt(ciphertext),
         }
     }
 
@@ -162,6 +165,7 @@ impl WatchOnlyKey {
     fn guesser_receiver_data(&self) -> GuesserReceiverData {
         match self {
             Self::Viewing(a) => ReceivingAddress::from(*a).into(),
+            Self::EcHybrid(vk) => ReceivingAddress::from(vk.to_address()).into(),
         }
     }
 
@@ -687,10 +691,36 @@ mod tests {
         assert!(WatchOnlyKey::parse("ViewingAddress", &encoded, Network::Testnet(0)).is_err());
         // Garbage input.
         assert!(WatchOnlyKey::parse("ViewingAddress", "not-an-address", Network::Main).is_err());
-        // EC hybrid not supported yet.
+        // A viewing address string is not a valid EC-hybrid viewing key.
         assert!(WatchOnlyKey::parse("EcHybrid", &encoded, Network::Main).is_err());
         // Unknown type.
         assert!(WatchOnlyKey::parse("Nonsense", &encoded, Network::Main).is_err());
+    }
+
+    #[tokio::test]
+    async fn ec_hybrid_viewing_key_import_roundtrips() {
+        let wallet = test_devnet_wallet().await;
+        let viewing_key = WalletEntropy::devnet_wallet()
+            .nth_ec_hybrid_key(0)
+            .viewing_key();
+        let encoded = viewing_key.to_bech32m(wallet.network);
+
+        // Parses for the right network, rejected for a different one.
+        assert!(WatchOnlyKey::parse("EcHybrid", &encoded, wallet.network).is_ok());
+        assert!(WatchOnlyKey::parse("EcHybrid", &encoded, Network::Testnet(0)).is_err());
+
+        // Round-trips through add/list as an EcHybrid entry.
+        let record = wallet
+            .add_watch_only("EcHybrid", &encoded, None, Some("miner".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(record.key_type, "EcHybrid");
+        assert_eq!(record.address, encoded);
+
+        let listed = wallet.known_watch_only().await.unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].key_type, "EcHybrid");
+        assert_eq!(listed[0].address, encoded);
     }
 
     #[tokio::test]
