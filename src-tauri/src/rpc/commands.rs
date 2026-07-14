@@ -23,6 +23,7 @@ use crate::wallet::balance::WalletHistory;
 use crate::wallet::keys::AddressRecord;
 use crate::wallet::sync::SyncState;
 use crate::wallet::sync::SyncStatus;
+use crate::wallet::watch_only::WatchOnlyAddressRecord;
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
@@ -196,6 +197,32 @@ pub(crate) async fn known_addresses(key_type: KeyType) -> Result<Vec<AddressReco
 #[cfg_attr(feature = "gui", tauri::command)]
 pub(crate) async fn generate_new_address(key_type: KeyType) -> Result<AddressRecord> {
     WalletRpcImpl::generate_new_address(key_type)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn add_watch_only_address(
+    key_type: String,
+    address: String,
+    preimage: Option<String>,
+    label: Option<String>,
+) -> Result<WatchOnlyAddressRecord> {
+    WalletRpcImpl::add_watch_only_address(key_type, address, preimage, label)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn known_watch_only_addresses() -> Result<Vec<WatchOnlyAddressRecord>> {
+    WalletRpcImpl::known_watch_only_addresses()
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn remove_watch_only_address(id: i64) -> Result<()> {
+    WalletRpcImpl::remove_watch_only_address(id)
         .await
         .into_tauri_result()
 }

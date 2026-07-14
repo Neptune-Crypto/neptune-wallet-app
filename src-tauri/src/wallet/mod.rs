@@ -60,6 +60,7 @@ mod spend;
 pub(crate) mod sync;
 pub(crate) mod wallet_file;
 mod wallet_state_table;
+pub(crate) mod watch_only;
 
 pub(crate) struct WalletState {
     key: WalletEntropy,
@@ -463,6 +464,9 @@ impl WalletState {
         debug!("update utxos with expected utxos");
         self.update_utxos_with_expected_utxos(&mut tx, expected, height.try_into()?)
             .await?;
+
+        debug!("scan watch-only addresses");
+        self.scan_watch_only(&mut tx, block).await?;
 
         debug!(
             "set tip {} {:x}",

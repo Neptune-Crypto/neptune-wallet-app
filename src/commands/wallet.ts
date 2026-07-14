@@ -1,4 +1,9 @@
-import { AddressRecord, NeptuneKeyType } from "@/utils/api/types";
+import {
+  AddressRecord,
+  NeptuneKeyType,
+  WatchOnlyAddressRecord,
+  WatchOnlyKeyType,
+} from "@/utils/api/types";
 import { IncomingUtxoRecoveryData } from "@/utils/import-wallet-randomness";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -65,4 +70,26 @@ export async function knownAddresses(keyType: NeptuneKeyType): Promise<AddressRe
 
 export async function generateNewAddress(keyType: NeptuneKeyType): Promise<AddressRecord> {
   return await invoke<AddressRecord>("generate_new_address", { keyType });
+}
+
+export async function addWatchOnlyAddress(
+  keyType: WatchOnlyKeyType,
+  address: string,
+  preimage?: string,
+  label?: string
+): Promise<WatchOnlyAddressRecord> {
+  return await invoke<WatchOnlyAddressRecord>("add_watch_only_address", {
+    keyType,
+    address,
+    preimage: preimage && preimage.trim() !== "" ? preimage.trim() : null,
+    label: label && label.trim() !== "" ? label.trim() : null,
+  });
+}
+
+export async function knownWatchOnlyAddresses(): Promise<WatchOnlyAddressRecord[]> {
+  return await invoke<WatchOnlyAddressRecord[]>("known_watch_only_addresses", {});
+}
+
+export async function removeWatchOnlyAddress(id: number): Promise<void> {
+  await invoke("remove_watch_only_address", { id });
 }

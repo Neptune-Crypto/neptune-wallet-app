@@ -73,6 +73,90 @@ sqlx_migrator::sqlite_migration!(
     )]
 );
 
+struct CreateWatchOnlyAddressesMigration;
+sqlx_migrator::sqlite_migration!(
+    CreateWatchOnlyAddressesMigration,
+    "wallet_state",
+    "create_watch_only_addresses",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![(
+        // Externally-imported viewing keys, monitored for incoming UTXOs but
+        // never spendable. `viewing_key` is the canonical bech32m string.
+        "CREATE TABLE watch_only_addresses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        key_type TEXT NOT NULL,
+        viewing_key TEXT NOT NULL UNIQUE,
+        label TEXT DEFAULT NULL,
+        created_at INTEGER NOT NULL
+        )", //up
+        "DROP TABLE watch_only_addresses" //down
+    )]
+);
+
+struct CreateWatchOnlyUtxosMigration;
+sqlx_migrator::sqlite_migration!(
+    CreateWatchOnlyUtxosMigration,
+    "wallet_state",
+    "create_watch_only_utxos",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![(
+        // Confirmed incoming UTXOs for a watch-only address. Kept separate from
+        // `wallet_state_utxos` so watch-only funds never count toward the
+        // account balance nor become spendable. `amount` is nau as a string.
+        // (watch_only_id, aocl_index) is unique so re-scanning a block can't
+        // double-count, and `confirm_height` drives reorg rollback.
+        "CREATE TABLE watch_only_utxos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        watch_only_id INTEGER NOT NULL,
+        aocl_index INTEGER NOT NULL,
+        amount TEXT NOT NULL,
+        confirm_height INTEGER NOT NULL,
+        block_digest TEXT NOT NULL,
+        UNIQUE(watch_only_id, aocl_index)
+        )", //up
+        "DROP TABLE watch_only_utxos" //down
+    )]
+);
+
+struct AddWatchOnlyPreimageMigration;
+sqlx_migrator::sqlite_migration!(
+    AddWatchOnlyPreimageMigration,
+    "wallet_state",
+    "add_watch_only_preimage",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![(
+        // Optional receiver preimage (hex Digest). Present => the entry can also
+        // detect spends and show a real balance; absent => total-received only.
+        "ALTER TABLE watch_only_addresses ADD COLUMN receiver_preimage TEXT DEFAULT NULL", //up
+        "ALTER TABLE watch_only_addresses DROP COLUMN receiver_preimage"                   //down
+    )]
+);
+
+struct AddWatchOnlySpendTrackingMigration;
+sqlx_migrator::sqlite_migration!(
+    AddWatchOnlySpendTrackingMigration,
+    "wallet_state",
+    "add_watch_only_spend_tracking",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![
+        // `utxo` + `sender_randomness` let us recompute a receipt's absolute
+        // index set (with the address's preimage) to detect spends; non-null
+        // `spent_height` marks a receipt spent (and drives reorg rollback).
+        (
+            "ALTER TABLE watch_only_utxos ADD COLUMN utxo BLOB DEFAULT NULL",
+            "ALTER TABLE watch_only_utxos DROP COLUMN utxo"
+        ),
+        (
+            "ALTER TABLE watch_only_utxos ADD COLUMN sender_randomness TEXT DEFAULT NULL",
+            "ALTER TABLE watch_only_utxos DROP COLUMN sender_randomness"
+        ),
+        (
+            "ALTER TABLE watch_only_utxos ADD COLUMN spent_height INTEGER DEFAULT NULL",
+            "ALTER TABLE watch_only_utxos DROP COLUMN spent_height"
+        )
+    ]
+);
+
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct UtxoDbData {
     pub(crate) id: i64,
@@ -216,6 +300,10 @@ impl WalletState {
         migrator.add_migration(Box::new(CreateWalletStateNumKeysMigration))?;
         migrator.add_migration(Box::new(CreateWalletStateUtxosMigration))?;
         migrator.add_migration(Box::new(CreateWalletStateExpectedUtxoMigration))?;
+        migrator.add_migration(Box::new(CreateWatchOnlyAddressesMigration))?;
+        migrator.add_migration(Box::new(CreateWatchOnlyUtxosMigration))?;
+        migrator.add_migration(Box::new(AddWatchOnlyPreimageMigration))?;
+        migrator.add_migration(Box::new(AddWatchOnlySpendTrackingMigration))?;
 
         let mut conn = self.pool.acquire().await?;
         // use apply all to apply all pending migration
@@ -523,6 +611,18 @@ impl WalletState {
             .await?;
 
         sqlx::query("UPDATE wallet_state_utxos SET spent_height = NULL, spent_txid = NULL, spent_in_block = NULL WHERE spent_height > ?")
+            .bind(height_i64)
+            .execute(&mut *tx)
+            .await?;
+
+        // Drop watch-only receipts confirmed above the rollback height, and undo
+        // spends recorded above it. The watch-only addresses themselves are
+        // user-imported and kept intact.
+        sqlx::query("DELETE FROM watch_only_utxos WHERE confirm_height > ?")
+            .bind(height_i64)
+            .execute(&mut *tx)
+            .await?;
+        sqlx::query("UPDATE watch_only_utxos SET spent_height = NULL WHERE spent_height > ?")
             .bind(height_i64)
             .execute(&mut *tx)
             .await?;

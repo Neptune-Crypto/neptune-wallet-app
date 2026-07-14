@@ -48,6 +48,7 @@ use crate::wallet::balance::WalletHistory;
 use crate::wallet::keys::AddressRecord;
 use crate::wallet::sync::SyncState;
 use crate::wallet::sync::SyncStatus;
+use crate::wallet::watch_only::WatchOnlyAddressRecord;
 use crate::wallet::InputSelectionRule;
 // mod middleware;
 mod block;
@@ -212,6 +213,38 @@ pub(crate) trait WalletRpc {
         let address = wallet.generate_new_address(key_type).await?;
 
         Ok(address)
+    }
+
+    async fn add_watch_only_address(
+        key_type: String,
+        address: String,
+        preimage: Option<String>,
+        label: Option<String>,
+    ) -> Result<WatchOnlyAddressRecord, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        let record = wallet
+            .add_watch_only(&key_type, &address, preimage, label)
+            .await
+            .map_err(|e| RestError(e.to_string()))?;
+        Ok(record)
+    }
+
+    async fn known_watch_only_addresses() -> Result<Vec<WatchOnlyAddressRecord>, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        let records = wallet
+            .known_watch_only()
+            .await
+            .map_err(|e| RestError(e.to_string()))?;
+        Ok(records)
+    }
+
+    async fn remove_watch_only_address(id: i64) -> Result<(), RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        wallet
+            .remove_watch_only(id)
+            .await
+            .map_err(|e| RestError(e.to_string()))?;
+        Ok(())
     }
 
     async fn send_to_address(params: SendToAddressParams) -> Result<SendResponse, RestError> {
