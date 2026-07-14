@@ -37,9 +37,6 @@ export const TimeClock = (props: clockProps) => {
     setValue(formatElapsed(ts));
   }, [ts]);
 
-  // Two most significant units only: seconds are noise (and a per-second tick
-  // is a distraction) once the elapsed time is in hours — e.g. a pending
-  // transaction from this morning reads "5 h 12 m ago".
   function formatElapsed(elapsed: number) {
     const t = Math.max(0, elapsed);
     const days = Math.trunc(t / 86400);

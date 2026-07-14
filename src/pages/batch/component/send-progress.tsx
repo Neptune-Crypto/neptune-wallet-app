@@ -13,9 +13,6 @@ const PHASES = [
       "Your transaction is being proven privately on this device — this can take up to a minute or two.",
   },
   { label: "Broadcasting to the network" },
-  // Never shown active: the panel unmounts when broadcasting completes, handing
-  // off to the "Transactions awaiting network confirmation" section that
-  // auto-expands below — this step is the roadmap pointing at it.
   { label: "Awaiting confirmation" },
 ];
 
@@ -32,13 +29,7 @@ export default function SendProgress({ status }: { status: string }) {
   const current = phaseFromStatus(status);
 
   return (
-    // A plain Card, deliberately not an Alert: alert-tinted boxes with (i)
-    // icons read as tooltips/info notes, while this is live operation status.
-    // Card matches the pending-transactions panel beside it; the checklist
-    // rows carry their own spinner/check icons.
     <Card withBorder radius="md" padding="md">
-      {/* fz 16 matches the "Transactions awaiting network confirmation" section
-          header below and stays clearly above the 14px active-step labels. */}
       <Text fw={600} fz={16}>
         Sending transaction
       </Text>

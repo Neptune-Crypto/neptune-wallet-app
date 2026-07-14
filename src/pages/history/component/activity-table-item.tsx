@@ -19,8 +19,6 @@ export default function ActivityTableItem(props: Props) {
         </Text>
       </Table.Td>
       <Table.Td>
-        {/* Right-aligned like any numeric column: centered values float by their
-            own width, leaving a ragged edge. Tabular figures line the digits up. */}
         <Text
           fw={600}
           ta="right"

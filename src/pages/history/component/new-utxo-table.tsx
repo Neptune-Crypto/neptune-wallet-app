@@ -86,9 +86,6 @@ export default function NewUtxoTable() {
           </Text>
         </Table.Td>
         <Table.Td>
-          {/* Right-aligned like any numeric column: centered values float by
-              their own width, leaving a ragged edge. Tabular figures line the
-              digits up. */}
           <Text
             fw={600}
             ta="right"
@@ -249,7 +246,6 @@ export default function NewUtxoTable() {
                   <Center>ID</Center>
                 </Table.Th>
                 <Table.Th>Block height</Table.Th>
-                {/* Numeric column: right-aligned (see the row cells). */}
                 <Table.Th style={{ textAlign: "right" }}>Amount (NPT)</Table.Th>
                 <Table.Th>Hash</Table.Th>
                 {/* Rendered only when locked coins are shown (see the row cell).

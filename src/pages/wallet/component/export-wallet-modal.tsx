@@ -31,8 +31,6 @@ export default function ExportWalletModal(props: Props) {
   const [value, setValue] = useState("");
   const [mnemonic, setMnemonic] = useState("");
   const [copyed, setCopyed] = useState(false);
-  // Shared 60s auto-hide (see use-seed-hide-timer.ts): reveal restarts the
-  // full window, never stacks; manual hide retires the timer.
   const {
     visible: showMnemonic,
     reveal: clickShowMnemonic,
@@ -63,13 +61,6 @@ export default function ExportWalletModal(props: Props) {
   return (
     <Modal opened={opened} onClose={close} title="View seed phrase">
       <Flex direction={"column"} gap={16} w={"100%"}>
-        {/* Confidentiality/anti-phishing warning — the message the reveal cover
-            does NOT carry (the cover handles shoulder-surfing). This modal is
-            where scam victims get directed ("support" asking for the seed), so
-            the "nobody legitimate will ever ask" line lives here. Styling
-            matches the send confirm modal's warning (icon orange-6; text tone
-            is AA-checked there — no stock Mantine orange clears 4.5:1 at this
-            size on white). */}
         <Flex align="flex-start" gap={6}>
           <IconAlertTriangle
             size={14}
@@ -161,15 +152,11 @@ export default function ExportWalletModal(props: Props) {
           </Flex>
         ) : (
           <PasswordInput
-            // Single-purpose modal: focus the one input so typing can start
-            // immediately (lock screen / rename modal convention).
             data-autofocus
             label="Enter password to continue"
             value={value}
             onChange={(event) => setValue(event.currentTarget.value)}
             onKeyDown={(event) => {
-              // Enter submits — same gate as the Confirm button (the lock
-              // screen and rename modal already follow this convention).
               if (event.key === "Enter" && value) {
                 exportWallet();
               }

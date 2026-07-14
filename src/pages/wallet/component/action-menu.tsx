@@ -68,9 +68,6 @@ export default function ActionMenu({
           </Text>
         </Menu.Item>
         <Menu.Divider />
-        {/* Task language over mechanism language: nothing is exported (no
-            file/keystore) — the flow reveals the seed phrase for backup or
-            verification. */}
         <Menu.Item leftSection={<IconKey size={14} />} onClick={exportWallet}>
           <Text>View seed phrase</Text>
         </Menu.Item>

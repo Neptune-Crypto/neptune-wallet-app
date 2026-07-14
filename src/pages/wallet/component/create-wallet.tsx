@@ -33,16 +33,11 @@ export default function CreateWallet({
   const { serverUrl } = useSettingActionData();
   const [showCopyIcon, setShowCopyIcon] = useState(false);
   const [copyed, setCopyed] = useState(false);
-  // Backup attestation gating Create (same pattern as the delete-account
-  // modal's "I understand" checkbox): nothing says "this matters" like the
-  // app refusing to proceed until the user confirms they wrote it down.
   const [acknowledged, setAcknowledged] = useState(false);
   const latestBlock = useLatestBlock();
 
   const dispatch = useAppDispatch();
 
-  // Shared 60s auto-hide (see use-seed-hide-timer.ts): reveal restarts the
-  // full window, never stacks.
   const { visible: visibleMnemonic, reveal: showMnemonic } = useSeedHideTimer();
 
   useEffect(() => {
@@ -75,8 +70,6 @@ export default function CreateWallet({
           <Text>Seed phrase</Text>
           <Text c="var(--input-asterisk-color, var(--mantine-color-error))">*</Text>
         </Flex>
-        {/* Always-visible (not a tooltip): fund-loss consequences must not hide
-            behind a hover. Mirrors the onboarding flow's wording. */}
         <Text size="sm" c="dimmed" mb={6}>
           Write these 18 words down and store them safely. They are the only way to recover this
           account — and anyone who has them can spend its funds.
@@ -165,8 +158,6 @@ export default function CreateWallet({
             onClick={() => {
               refreshMnemonic();
               showMnemonic();
-              // The attestation referred to the OLD phrase; a new one must be
-              // written down and confirmed again.
               setAcknowledged(false);
             }}
           >

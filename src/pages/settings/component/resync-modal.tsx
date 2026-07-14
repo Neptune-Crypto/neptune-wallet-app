@@ -21,8 +21,6 @@ export default function ResyncModal({ opened, close }: { opened: boolean; close:
       notify.success(`Re-scanning the chain from block ${height}.`, "Resync started");
       close();
     } catch (error: any) {
-      // Sticky: a failed resync is an outcome the user must see, and they may
-      // have walked away expecting a long rebuild.
       notify.error(error, "Please try again.", "Couldn't resync account", { sticky: true });
     }
     setLoading(false);

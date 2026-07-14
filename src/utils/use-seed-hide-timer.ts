@@ -7,8 +7,6 @@ import { useEffect, useRef, useState } from "react";
 // the full window.
 export const SEED_HIDE_MS = 60_000;
 
-// Auto-hide for a revealed seed phrase. reveal() (re)starts the full window —
-// never stacks timers; hide() cancels; unmount cleans up.
 export function useSeedHideTimer() {
   const [visible, setVisible] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

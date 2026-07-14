@@ -19,8 +19,6 @@ export default function SecureWallet(props: Props) {
   const [copyed, setCopyed] = useState(false);
   const dispatch = useAppDispatch();
 
-  // Shared 60s auto-hide (see use-seed-hide-timer.ts): reveal restarts the
-  // full window, never stacks.
   const { visible: visibleMnemonic, reveal: showMnemonic } = useSeedHideTimer();
 
   return (
