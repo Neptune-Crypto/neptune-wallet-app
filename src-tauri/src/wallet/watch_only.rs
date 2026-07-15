@@ -201,7 +201,7 @@ impl WatchOnlyKey {
         &self,
         announcements: &[Announcement],
         addition_records: &[AdditionRecord],
-        num_prior: u64,
+        num_aocl_leafs_prior: u64,
         block_guesser_data: &GuesserReceiverData,
         guesser_fee_utxos: &[Utxo],
         block_hash: Digest,
@@ -271,8 +271,13 @@ impl WatchOnlyKey {
         // Only return those UTXOs that are actually present in the block, not
         // just announced.
         let mut receipts = vec![];
-        for (aocl_index, addition_record) in (num_prior..).zip(addition_records.iter()) {
+        for (aocl_index, addition_record) in (num_aocl_leafs_prior..).zip(addition_records.iter()) {
             if let Some((utxo, sender_randomness)) = found.get(addition_record) {
+                if !utxo.all_type_script_states_are_valid() {
+                    warn!("Received watch-only UTXO with unresolvable type script");
+                    continue;
+                }
+
                 receipts.push(WatchOnlyReceipt {
                     aocl_index,
                     amount: utxo.get_native_currency_amount(),
@@ -701,6 +706,7 @@ mod tests {
     use std::collections::HashSet;
 
     use neptune_consensus::block::guesser_receiver_data::GuesserReceiverData;
+    use neptune_consensus::transaction::utxo::Coin;
     use neptune_consensus::transaction::utxo::Utxo;
     use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
     use neptune_primitives::network::Network;
@@ -1031,6 +1037,69 @@ mod tests {
                 Digest::default(),
             )
             .is_empty());
+    }
+
+    #[test]
+    fn scan_block_rejects_utxo_with_unknown_type_script() {
+        let address = devnet_viewing_address(0);
+        let amount = NativeCurrencyAmount::from_nau(1234);
+        let sender_randomness = Digest::default();
+        let no_guesser = no_guesser_data();
+
+        let scan = |utxo: &Utxo| {
+            let payload = UtxoNotificationPayload::new(utxo.clone(), sender_randomness);
+            let announcement = address.generate_announcement(&payload);
+            let addition_record = UtxoTriple {
+                utxo: utxo.clone(),
+                sender_randomness,
+                receiver_digest: address.receiver_postimage(),
+            }
+            .addition_record();
+
+            WatchOnlyKey::Viewing(address).scan_block(
+                std::slice::from_ref(&announcement),
+                std::slice::from_ref(&addition_record),
+                7,
+                &no_guesser,
+                &[],
+                Digest::default(),
+                &[],
+                Digest::default(),
+            )
+        };
+
+        let good = Utxo::new(Digest::default(), vec![Coin::new_native_currency(amount)]);
+        assert!(good.all_type_script_states_are_valid());
+        let receipts = scan(&good);
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(receipts[0].amount, amount);
+
+        // Same UTXO plus a coin whose type script we cannot evaluate.
+        let bad = Utxo::new(
+            Digest::default(),
+            vec![
+                Coin::new_native_currency(amount),
+                Coin {
+                    // Neither NativeCurrency nor TimeLock => unknown type script.
+                    type_script_hash: Digest::default(),
+                    state: vec![],
+                },
+            ],
+        );
+        assert!(
+            !bad.all_type_script_states_are_valid(),
+            "test UTXO must actually have an unresolvable type script"
+        );
+        assert_eq!(
+            bad.get_native_currency_amount(),
+            amount,
+            "unknown coin must be invisible to the amount getter; that is the trap being guarded"
+        );
+
+        assert!(
+            scan(&bad).is_empty(),
+            "UTXO with an unresolvable type script must not be recorded"
+        );
     }
 
     #[test]
