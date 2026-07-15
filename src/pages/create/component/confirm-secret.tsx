@@ -125,8 +125,6 @@ export default function ConfirmSecret(props: Props) {
           caretColor: "transparent",
         }}
       >
-        {/* gutter 8 matches the seed grids in the previous step and the
-            Add-account modal. */}
         <Grid gutter={8}>
           {verifyWords &&
             verifyWords.length > 0 &&

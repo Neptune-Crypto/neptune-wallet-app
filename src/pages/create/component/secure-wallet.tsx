@@ -59,7 +59,6 @@ export default function SecureWallet(props: Props) {
             backgroundColor: "var(--mantine-color-gray-0)",
           }}
         >
-          {/* gutter 8 matches the Add-account modal's seed grid. */}
           <Grid gutter={8}>
             {mnemonic &&
               mnemonic.split(" ").map((word, index) => {

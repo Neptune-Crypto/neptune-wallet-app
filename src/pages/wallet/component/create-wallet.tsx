@@ -59,10 +59,6 @@ export default function CreateWallet({
   }
   return (
     <Flex direction={"column"} gap={8} style={{ marginTop: "8px" }}>
-      {/* The middle content scrolls only when the window is too short to show
-          it all; the attestation checkbox and Create button below stay pinned
-          and reachable at every window size. On normal heights the Autosize
-          area never engages and the layout is unchanged. */}
       <ScrollArea.Autosize mah="calc(96dvh - 250px)" type="auto" scrollbarSize={8} offsetScrollbars>
         <Flex direction={"column"} gap={8}>
           <TextInput
@@ -90,8 +86,6 @@ export default function CreateWallet({
                     <Center
                       style={{ cursor: "pointer" }}
                       onClick={() => {
-                        // Match the "Reveal seed phrase" button: revealing via the
-                        // cover must also flip to the revealed state (copy row + Create).
                         setShowCopyIcon(true);
                         showMnemonic();
                       }}
@@ -113,8 +107,6 @@ export default function CreateWallet({
                   backgroundColor: "var(--mantine-color-gray-0)",
                 }}
               >
-                {/* gutter 8: the default md gutter spends 80px of pure whitespace
-                across six rows; 8px keeps the airy look at half the cost. */}
                 <Grid gutter={8}>
                   {mnemonic &&
                     mnemonic.split(" ").map((word, index) => {

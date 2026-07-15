@@ -34,9 +34,6 @@ export default function AddWalletModal({
     }
   }, [section, opened]);
   return (
-    // Small yOffset: the create tab pins its checkbox + Create button below a
-    // scrollable body (see CreateWallet), so the modal should use as much of
-    // the window height as possible before that inner scroll engages.
     <Modal
       opened={opened}
       size={"lg"}
