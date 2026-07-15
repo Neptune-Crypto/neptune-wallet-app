@@ -36,10 +36,10 @@ const walletSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addCase(queryWallets.pending, (state, action) => {
+    builder.addCase(queryWallets.pending, (state) => {
       state.loadingWallets = true;
     });
-    builder.addCase(queryWallets.rejected, (state, action) => {
+    builder.addCase(queryWallets.rejected, (state) => {
       state.loadingWallets = false;
     });
     builder.addCase(queryWallets.fulfilled, (state, action) => {
@@ -55,10 +55,10 @@ const walletSlice = createSlice({
       state.currentAddress = action.payload.currentAddress;
     });
 
-    builder.addCase(queryWalletBalance.pending, (state, action) => {
+    builder.addCase(queryWalletBalance.pending, (state) => {
       state.loadingBalance = true;
     });
-    builder.addCase(queryWalletBalance.rejected, (state, action) => {
+    builder.addCase(queryWalletBalance.rejected, (state) => {
       state.loadingBalance = false;
     });
     builder.addCase(queryWalletBalance.fulfilled, (state, action) => {

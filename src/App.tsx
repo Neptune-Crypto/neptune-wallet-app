@@ -47,7 +47,7 @@ const InitApp = (): null => {
   const dispatch = useAppDispatch();
   const { hasAuth } = useAuth();
   const startedRpcServer = useStartRpcServer();
-  const { serverUrl, remoteUrl } = useSettingActionData();
+  const { serverUrl } = useSettingActionData();
   const currentWalletID = useCurrentWalledId();
   // The backend re-emits sync_finish every ~60s while idle at tip; only refetch
   // balances when the height actually advanced, or the Wallet page's loading

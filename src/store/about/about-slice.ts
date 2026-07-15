@@ -15,10 +15,10 @@ const aboutSlice = createSlice({
   initialState,
   reducers: {},
   extraReducers: (builder) => {
-    builder.addCase(queryAboutInfo.pending, (state, action) => {
+    builder.addCase(queryAboutInfo.pending, (state) => {
       state.loadingAbout = true;
     });
-    builder.addCase(queryAboutInfo.rejected, (state, action) => {
+    builder.addCase(queryAboutInfo.rejected, (state) => {
       state.loadingAbout = false;
     });
     builder.addCase(queryAboutInfo.fulfilled, (state, action) => {
