@@ -1,12 +1,11 @@
 import { ExportWallet } from "@/commands/wallet";
 import { notify } from "@/utils/notify";
+import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
 import {
-  Alert,
   Box,
   Button,
   Center,
   Flex,
-  FocusTrap,
   LoadingOverlay,
   Modal,
   PasswordInput,
@@ -14,11 +13,11 @@ import {
   Textarea,
 } from "@mantine/core";
 import {
+  IconAlertTriangle,
   IconCircleCheck,
   IconCopy,
   IconEye,
   IconEyeOff,
-  IconInfoCircle,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
@@ -31,8 +30,12 @@ export default function ExportWalletModal(props: Props) {
   const { opened, closeModal: close, id } = props;
   const [value, setValue] = useState("");
   const [mnemonic, setMnemonic] = useState("");
-  const [showMnemonic, setShowMnemonic] = useState(false);
   const [copyed, setCopyed] = useState(false);
+  const {
+    visible: showMnemonic,
+    reveal: clickShowMnemonic,
+    hide: hideMnemonic,
+  } = useSeedHideTimer();
 
   useEffect(() => {
     if (opened) {
@@ -43,7 +46,7 @@ export default function ExportWalletModal(props: Props) {
   function clearData() {
     setValue("");
     setMnemonic("");
-    setShowMnemonic(false);
+    hideMnemonic();
     setCopyed(false);
   }
 
@@ -52,23 +55,23 @@ export default function ExportWalletModal(props: Props) {
       let mnemonicWordList = await ExportWallet(value, id);
       setMnemonic(mnemonicWordList.join(" "));
     } catch (error: any) {
-      notify.error(error, "Please try again.", "Couldn't export account");
+      notify.error(error, "Please try again.", "Couldn't show seed phrase");
     }
   }
-  function clickShowMnemonic() {
-    setShowMnemonic(true);
-    setTimeout(() => {
-      setShowMnemonic(false);
-    }, 12000);
-  }
-
   return (
-    <Modal opened={opened} onClose={close} title="Export account">
-      <FocusTrap.InitialFocus />
+    <Modal opened={opened} onClose={close} title="View seed phrase">
       <Flex direction={"column"} gap={16} w={"100%"}>
-        <Alert variant="light" color="red" title="" icon={<IconInfoCircle />}>
-          Make sure no one is looking at your screen.
-        </Alert>
+        <Flex align="flex-start" gap={6}>
+          <IconAlertTriangle
+            size={14}
+            color="var(--mantine-color-orange-6)"
+            style={{ flexShrink: 0, marginTop: 2 }}
+          />
+          <Text size="xs" c="#c2410c" fw={500}>
+            Never share your seed phrase. Anyone who has it can spend this account's funds — and no
+            legitimate support will ever ask for it.
+          </Text>
+        </Flex>
         {mnemonic ? (
           <Flex direction={"column"} gap={16}>
             <Box pos="relative">
@@ -92,8 +95,8 @@ export default function ExportWalletModal(props: Props) {
                 }}
               />
               <Textarea
-                label="Recovery phrase"
-                placeholder="Recovery phrase"
+                label="Seed phrase"
+                placeholder="Seed phrase"
                 value={mnemonic}
                 readOnly
                 autosize
@@ -109,7 +112,7 @@ export default function ExportWalletModal(props: Props) {
                 style={{ cursor: "pointer", caretColor: "transparent" }}
                 onClick={() => {
                   if (showMnemonic) {
-                    setShowMnemonic(!showMnemonic);
+                    hideMnemonic();
                   } else {
                     clickShowMnemonic();
                   }
@@ -117,7 +120,7 @@ export default function ExportWalletModal(props: Props) {
               >
                 {showMnemonic ? <IconEyeOff size={14} /> : <IconEye size={14} />}
                 <Text fz={14} fw={500}>
-                  {showMnemonic ? "Hide recovery phrase" : "Reveal recovery phrase"}
+                  {showMnemonic ? "Hide seed phrase" : "Reveal seed phrase"}
                 </Text>
               </Flex>
               <Flex
@@ -149,9 +152,15 @@ export default function ExportWalletModal(props: Props) {
           </Flex>
         ) : (
           <PasswordInput
+            data-autofocus
             label="Enter password to continue"
             value={value}
             onChange={(event) => setValue(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && value) {
+                exportWallet();
+              }
+            }}
           />
         )}
         <Flex

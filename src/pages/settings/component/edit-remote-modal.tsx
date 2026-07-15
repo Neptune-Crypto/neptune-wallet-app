@@ -29,7 +29,7 @@ export default function EditRemoteModal({
         }
         await set_rest_url(newValue);
         dispatch(querySettingActionData());
-        notify.success("Update remote rest url successfully.");
+        notify.success("Remote node URL updated.");
         close();
       } catch (error: any) {
         notify.error(error, "Please try again.", "Couldn't update node URL");

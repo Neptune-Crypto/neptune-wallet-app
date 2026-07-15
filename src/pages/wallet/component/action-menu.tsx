@@ -1,9 +1,9 @@
 import { ActionIcon, Center, Menu, Text } from "@mantine/core";
 import {
   IconArrowBarToDown,
-  IconArrowBarToUp,
   IconDots,
   IconExchange,
+  IconKey,
   IconPencil,
   IconTrash,
 } from "@tabler/icons-react";
@@ -68,8 +68,8 @@ export default function ActionMenu({
           </Text>
         </Menu.Item>
         <Menu.Divider />
-        <Menu.Item leftSection={<IconArrowBarToUp size={14} />} onClick={exportWallet}>
-          <Text>Export account</Text>
+        <Menu.Item leftSection={<IconKey size={14} />} onClick={exportWallet}>
+          <Text>View seed phrase</Text>
         </Menu.Item>
       </Menu.Dropdown>
     </Menu>

@@ -69,7 +69,7 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
       // Install is a user action, so failing it does deserve a toast.
       setError(e?.message ?? String(e));
       setStatus("available");
-      notify.error(e, "Please try again.", "Couldn't install update");
+      notify.error(e, "Please try again.", "Couldn't install update", { sticky: true });
     }
   }, []);
 
