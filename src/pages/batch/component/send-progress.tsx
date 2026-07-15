@@ -1,6 +1,6 @@
 import { TimeClock } from "@/components/TimeClock";
-import { Alert, Flex, Loader, Text } from "@mantine/core";
-import { IconCircle, IconCircleCheck, IconInfoCircle } from "@tabler/icons-react";
+import { Card, Flex, Loader, Text } from "@mantine/core";
+import { IconCircle, IconCircleCheck } from "@tabler/icons-react";
 import { useState } from "react";
 
 // The backend emits six technical steps ("stmi: step N. ..." in spend.rs), but
@@ -13,7 +13,7 @@ const PHASES = [
       "Your transaction is being proven privately on this device — this can take up to a minute or two.",
   },
   { label: "Broadcasting to the network" },
-  { label: "Done" },
+  { label: "Awaiting confirmation" },
 ];
 
 function phaseFromStatus(status: string): number {
@@ -29,8 +29,11 @@ export default function SendProgress({ status }: { status: string }) {
   const current = phaseFromStatus(status);
 
   return (
-    <Alert variant="light" color="blue" title="Sending transaction" icon={<IconInfoCircle />}>
-      <Flex direction="column" gap={10} mt={4} mb={6}>
+    <Card withBorder radius="md" padding="md">
+      <Text fw={600} fz={16}>
+        Sending transaction
+      </Text>
+      <Flex direction="column" gap={10} mt={10} mb={6}>
         {PHASES.map((phase, index) => {
           const done = index < current;
           const active = index === current;
@@ -64,6 +67,6 @@ export default function SendProgress({ status }: { status: string }) {
           );
         })}
       </Flex>
-    </Alert>
+    </Card>
   );
 }

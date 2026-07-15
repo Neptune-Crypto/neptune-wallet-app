@@ -65,7 +65,7 @@ export default function CreatePage(props: Props) {
         <Stepper.Step label="Second step" description="Secure account">
           <SecureWallet nextStep={nextStep} />
         </Stepper.Step>
-        <Stepper.Step label="Final step" description="Confirm recovery phrase">
+        <Stepper.Step label="Final step" description="Confirm seed phrase">
           <ConfirmSecret nextStep={nextStep} />
         </Stepper.Step>
         <Stepper.Completed>

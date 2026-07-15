@@ -54,8 +54,8 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
         }
       />
       <Textarea
-        label="Recovery phrase"
-        placeholder="Enter your recovery phrase"
+        label="Seed phrase"
+        placeholder="Enter your seed phrase"
         autosize
         minRows={4}
         value={importData.mnemonic}

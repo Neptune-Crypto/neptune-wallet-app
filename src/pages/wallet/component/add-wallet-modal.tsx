@@ -34,7 +34,14 @@ export default function AddWalletModal({
     }
   }, [section, opened]);
   return (
-    <Modal opened={opened} size={"lg"} centered onClose={onClose} title="Add account">
+    <Modal
+      opened={opened}
+      size={"lg"}
+      centered
+      yOffset="2dvh"
+      onClose={onClose}
+      title="Add account"
+    >
       <Flex direction="column">
         <SegmentedControl
           value={section}

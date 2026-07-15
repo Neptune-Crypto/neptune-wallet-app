@@ -4,7 +4,19 @@ import { useSettingActionData } from "@/store/settings/hooks";
 import { useLatestBlock } from "@/store/sync/hooks";
 import { queryLatestBlock } from "@/store/sync/sync-slice";
 import { notify } from "@/utils/notify";
-import { Box, Button, Center, Flex, Grid, LoadingOverlay, Text, TextInput } from "@mantine/core";
+import { useSeedHideTimer } from "@/utils/use-seed-hide-timer";
+import {
+  Box,
+  Button,
+  Center,
+  Checkbox,
+  Flex,
+  Grid,
+  LoadingOverlay,
+  ScrollArea,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { IconCircleCheck, IconCopy, IconEye, IconReload } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 
@@ -21,18 +33,13 @@ export default function CreateWallet({
   const [loading, setLoading] = useState(false);
   const { serverUrl } = useSettingActionData();
   const [showCopyIcon, setShowCopyIcon] = useState(false);
-  const [visibleMnemonic, setVisibleMnemonic] = useState(false);
   const [copyed, setCopyed] = useState(false);
+  const [acknowledged, setAcknowledged] = useState(false);
   const latestBlock = useLatestBlock();
 
   const dispatch = useAppDispatch();
 
-  function showMnemonic() {
-    setVisibleMnemonic(true);
-    setTimeout(() => {
-      setVisibleMnemonic(false);
-    }, 50000);
-  }
+  const { visible: visibleMnemonic, reveal: showMnemonic } = useSeedHideTimer();
 
   useEffect(() => {
     dispatch(queryLatestBlock({ serverUrl }));
@@ -51,137 +58,155 @@ export default function CreateWallet({
     setLoading(false);
   }
   return (
-    <Flex direction={"column"} gap={8} style={{ minHeight: "200px", marginTop: "8px" }}>
-      <TextInput
-        data-autofocus
-        label="Account name"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="Enter a name for your account"
-      />
-      <Flex direction={"column"}>
-        <Flex direction={"row"} gap={4}>
-          <Text>Recovery phrase</Text>
-          <Text c="var(--input-asterisk-color, var(--mantine-color-error))">*</Text>
-        </Flex>
-        <Box pos="relative">
-          <LoadingOverlay
-            visible={!visibleMnemonic}
-            overlayProps={{ radius: "sm", blur: 4, color: "#eee", backgroundOpacity: 0.98 }}
-            loaderProps={{
-              children: (
-                <Center
-                  style={{ cursor: "pointer" }}
-                  onClick={() => {
-                    // Match the "Reveal recovery phrase" button: revealing via the
-                    // cover must also flip to the revealed state (copy row + Create).
-                    setShowCopyIcon(true);
-                    showMnemonic();
-                  }}
-                >
-                  <Flex direction={"column"} align={"center"}>
-                    <IconEye />
-                    <Text>Make sure nobody is looking</Text>
-                  </Flex>
-                </Center>
-              ),
-            }}
+    <Flex direction={"column"} gap={8} style={{ marginTop: "8px" }}>
+      <ScrollArea.Autosize mah="calc(96dvh - 250px)" type="auto" scrollbarSize={8} offsetScrollbars>
+        <Flex direction={"column"} gap={8}>
+          <TextInput
+            data-autofocus
+            label="Account name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Enter a name for your account"
           />
-          <Box
-            style={{
-              width: "100%",
-              border: "1px solid var(--mantine-color-gray-3)",
-              borderRadius: "8px",
-              padding: "16px",
-              backgroundColor: "var(--mantine-color-gray-0)",
-            }}
-          >
-            <Grid>
-              {mnemonic &&
-                mnemonic.split(" ").map((word, index) => {
-                  return (
-                    <Grid.Col span={4} key={index}>
-                      <Flex direction={"row"} justify={"center"} align={"center"} gap={8}>
-                        <Text
-                          style={{
-                            minWidth: "18px",
-                            textAlign: "center",
-                          }}
-                          size="sm"
-                          c="dimmed"
-                          fw={500}
-                        >{`${index + 1}.`}</Text>
-                        <Flex
-                          style={{
-                            border: "1px solid var(--mantine-color-gray-3)",
-                            borderRadius: "6px",
-                            padding: "4px 8px",
-                            minWidth: "120px",
-                            backgroundColor: "#ffffff",
-                          }}
-                          justify={"center"}
-                        >
-                          <Text>{word}</Text>
-                        </Flex>
+          <Flex direction={"column"}>
+            <Flex direction={"row"} gap={4}>
+              <Text>Seed phrase</Text>
+              <Text c="var(--input-asterisk-color, var(--mantine-color-error))">*</Text>
+            </Flex>
+            <Text size="sm" c="dimmed" mb={6}>
+              Write these 18 words down and store them safely. They are the only way to recover this
+              account — and anyone who has them can spend its funds.
+            </Text>
+            <Box pos="relative">
+              <LoadingOverlay
+                visible={!visibleMnemonic}
+                overlayProps={{ radius: "sm", blur: 4, color: "#eee", backgroundOpacity: 0.98 }}
+                loaderProps={{
+                  children: (
+                    <Center
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        setShowCopyIcon(true);
+                        showMnemonic();
+                      }}
+                    >
+                      <Flex direction={"column"} align={"center"}>
+                        <IconEye />
+                        <Text>Make sure nobody is looking</Text>
                       </Flex>
-                    </Grid.Col>
-                  );
-                })}
-            </Grid>
-          </Box>
-        </Box>
-      </Flex>
-      {showCopyIcon ? (
-        <Flex
-          direction={"row"}
-          px={"lg"}
-          justify={"space-between"}
-          align={"center"}
-          w={"100%"}
-          mt="sm"
-        >
-          <Flex
-            direction={"row"}
-            align={"center"}
-            gap={8}
-            style={{ cursor: "pointer", caretColor: "transparent" }}
-            onClick={() => {
-              refreshMnemonic();
-              showMnemonic();
-            }}
-          >
-            <IconReload size={16} />
-            <Text fz={14} fw={500}>
-              {"Change recovery phrase"}
-            </Text>
+                    </Center>
+                  ),
+                }}
+              />
+              <Box
+                style={{
+                  width: "100%",
+                  border: "1px solid var(--mantine-color-gray-3)",
+                  borderRadius: "8px",
+                  padding: "16px",
+                  backgroundColor: "var(--mantine-color-gray-0)",
+                }}
+              >
+                <Grid gutter={8}>
+                  {mnemonic &&
+                    mnemonic.split(" ").map((word, index) => {
+                      return (
+                        <Grid.Col span={4} key={index}>
+                          <Flex direction={"row"} justify={"center"} align={"center"} gap={8}>
+                            <Text
+                              style={{
+                                minWidth: "18px",
+                                textAlign: "center",
+                              }}
+                              size="sm"
+                              c="dimmed"
+                              fw={500}
+                            >{`${index + 1}.`}</Text>
+                            <Flex
+                              style={{
+                                border: "1px solid var(--mantine-color-gray-3)",
+                                borderRadius: "6px",
+                                padding: "4px 8px",
+                                minWidth: "120px",
+                                backgroundColor: "#ffffff",
+                              }}
+                              justify={"center"}
+                            >
+                              <Text>{word}</Text>
+                            </Flex>
+                          </Flex>
+                        </Grid.Col>
+                      );
+                    })}
+                </Grid>
+              </Box>
+            </Box>
           </Flex>
-          <Flex
-            direction={"row"}
-            align={"center"}
-            gap={8}
-            style={{ cursor: "pointer", caretColor: "transparent" }}
-            onClick={() => {
-              if (copyed) {
-                return;
-              }
-              navigator.clipboard.writeText(mnemonic);
-              setCopyed(true);
-              setTimeout(() => {
-                setCopyed(false);
-              }, 2000);
-            }}
-          >
-            {copyed ? (
-              <IconCircleCheck size={16} color="var(--color-positive)" />
-            ) : (
-              <IconCopy size={16} />
-            )}
-            <Text fz={14} fw={500}>
-              {copyed ? "Copied" : "Copy to clipboard"}
-            </Text>
-          </Flex>
+          {showCopyIcon ? (
+            <Flex
+              direction={"row"}
+              px={"lg"}
+              justify={"space-between"}
+              align={"center"}
+              w={"100%"}
+              mt="sm"
+            >
+              <Flex
+                direction={"row"}
+                align={"center"}
+                gap={8}
+                style={{ cursor: "pointer", caretColor: "transparent" }}
+                onClick={() => {
+                  refreshMnemonic();
+                  showMnemonic();
+                  setAcknowledged(false);
+                }}
+              >
+                <IconReload size={16} />
+                <Text fz={14} fw={500}>
+                  {"Change seed phrase"}
+                </Text>
+              </Flex>
+              <Flex
+                direction={"row"}
+                align={"center"}
+                gap={8}
+                style={{ cursor: "pointer", caretColor: "transparent" }}
+                onClick={() => {
+                  if (copyed) {
+                    return;
+                  }
+                  navigator.clipboard.writeText(mnemonic);
+                  setCopyed(true);
+                  setTimeout(() => {
+                    setCopyed(false);
+                  }, 2000);
+                }}
+              >
+                {copyed ? (
+                  <IconCircleCheck size={16} color="var(--color-positive)" />
+                ) : (
+                  <IconCopy size={16} />
+                )}
+                <Text fz={14} fw={500}>
+                  {copyed ? "Copied" : "Copy to clipboard"}
+                </Text>
+              </Flex>
+            </Flex>
+          ) : null}
         </Flex>
-      ) : null}
+      </ScrollArea.Autosize>
+
+      {showCopyIcon && (
+        <Checkbox
+          mt="sm"
+          px="lg"
+          size="sm"
+          label="I have written down my seed phrase"
+          checked={acknowledged}
+          onChange={(event) => setAcknowledged(event.currentTarget.checked)}
+        />
+      )}
 
       <Flex
         direction={"row"}
@@ -191,7 +216,7 @@ export default function CreateWallet({
         style={{
           cursor: "pointer",
           caretColor: "transparent",
-          marginTop: "16px",
+          marginTop: "8px",
         }}
         w={"100%"}
       >
@@ -199,7 +224,7 @@ export default function CreateWallet({
           <Button
             variant="light"
             fullWidth
-            disabled={!name || !mnemonic}
+            disabled={!name || !mnemonic || !acknowledged}
             loading={loading}
             onClick={handleCreate}
           >
@@ -214,7 +239,7 @@ export default function CreateWallet({
               showMnemonic();
             }}
           >
-            Reveal recovery phrase
+            Reveal seed phrase
           </Button>
         )}
       </Flex>
