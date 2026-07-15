@@ -128,10 +128,23 @@ impl WatchOnlyKey {
         }
     }
 
+    /// The canonical serialization of the viewing key itself — what we persist
+    /// and dedupe on. For a viewing address this is the `nview…` address; for EC
+    /// hybrid it is the `nechvk…` viewing key (which carries the decryption key).
     fn to_bech32m(&self, network: Network) -> String {
         match self {
             Self::Viewing(a) => a.to_bech32m(network),
             Self::EcHybrid(vk) => vk.to_bech32m(network),
+        }
+    }
+
+    /// The recipient's actual receiving address (bech32m), for display. For a
+    /// viewing address this equals the imported string; for EC hybrid it is the
+    /// `nechm…` address derived from the viewing key — not the viewing key.
+    fn address_bech32m(&self, network: Network) -> String {
+        match self {
+            Self::Viewing(a) => a.to_bech32m(network),
+            Self::EcHybrid(vk) => vk.to_address().to_bech32m(network),
         }
     }
 
@@ -296,7 +309,12 @@ impl super::WalletState {
         label: Option<String>,
     ) -> Result<WatchOnlyAddressRecord> {
         let key = WatchOnlyKey::parse(key_type, text, self.network)?;
+        // `canonical` is the viewing key we persist and dedupe on; `address` is
+        // the actual receiving address shown to the user (the are the same for
+        // viewing addresses where the address is also the viewing key. For all
+        // other types they differ).
         let canonical = key.to_bech32m(self.network);
+        let address = key.address_bech32m(self.network);
 
         // Validate the preimage (if any) and store it in canonical hex.
         let preimage_hex = preimage_hex
@@ -350,8 +368,8 @@ impl super::WalletState {
         Ok(WatchOnlyAddressRecord {
             id,
             key_type: key.key_type_str().to_string(),
-            address_short_form: abbreviate(&canonical),
-            address: canonical,
+            address_short_form: abbreviate(&address),
+            address,
             label,
             tracks_balance,
             total_received: zero.clone(),
@@ -374,7 +392,15 @@ impl super::WalletState {
         let mut records = Vec::with_capacity(rows.len());
         for row in rows {
             let id: i64 = row.get("id");
+            let key_type: String = row.get("key_type");
             let viewing_key: String = row.get("viewing_key");
+            // Show the actual receiving address, not the stored viewing key
+            // Fall back to the stored string if the key somehow no longer
+            // parses.
+            let address = match WatchOnlyKey::parse(&key_type, &viewing_key, self.network) {
+                Ok(key) => key.address_bech32m(self.network),
+                Err(_) => viewing_key,
+            };
             let tracks_balance = row.get::<Option<String>, _>("receiver_preimage").is_some();
             let total = self.watch_only_total(id).await?;
             let breakdown = if tracks_balance {
@@ -384,9 +410,9 @@ impl super::WalletState {
             };
             records.push(WatchOnlyAddressRecord {
                 id,
-                key_type: row.get("key_type"),
-                address_short_form: abbreviate(&viewing_key),
-                address: viewing_key,
+                key_type,
+                address_short_form: abbreviate(&address),
+                address,
                 label: row.get("label"),
                 tracks_balance,
                 total_received: total.display_lossless(),
@@ -737,23 +763,24 @@ mod tests {
             .nth_ec_hybrid_key(0)
             .viewing_key();
         let encoded = viewing_key.to_bech32m(wallet.network);
+        let address = viewing_key.to_address().to_bech32m(wallet.network);
+        assert_ne!(address, encoded);
 
         // Parses for the right network, rejected for a different one.
         assert!(WatchOnlyKey::parse("EcHybrid", &encoded, wallet.network).is_ok());
         assert!(WatchOnlyKey::parse("EcHybrid", &encoded, Network::Testnet(0)).is_err());
 
-        // Round-trips through add/list as an EcHybrid entry.
         let record = wallet
             .add_watch_only("EcHybrid", &encoded, None, Some("miner".to_string()))
             .await
             .unwrap();
         assert_eq!(record.key_type, "EcHybrid");
-        assert_eq!(record.address, encoded);
+        assert_eq!(record.address, address);
 
         let listed = wallet.known_watch_only().await.unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].key_type, "EcHybrid");
-        assert_eq!(listed[0].address, encoded);
+        assert_eq!(listed[0].address, address);
     }
 
     #[tokio::test]
