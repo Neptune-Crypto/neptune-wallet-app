@@ -35,6 +35,7 @@ use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
 use neptune_consensus::block::guesser_receiver_data::GuesserReceiverData;
+use neptune_consensus::block::Block;
 use neptune_consensus::transaction::announcement::Announcement;
 use neptune_consensus::transaction::utxo::Utxo;
 use neptune_consensus::transaction::utxo_triple::UtxoTriple;
@@ -170,19 +171,19 @@ impl WatchOnlyKey {
     }
 
     /// Find confirmed incoming UTXOs for this viewing key in a block, including
-    /// guesser (mining) rewards.
+    /// guesser (mining) rewards and genesis premine UTXOs.
     ///
     /// For announced UTXOs this mirrors `SpendingKey::scan_for_announced_utxos`:
     /// filter announcements by our receiver id, decrypt, and rebuild the
-    /// addition record from the public receiver digest. Guesser rewards are not
-    /// announced — they are committed in the block header and derived from the
-    /// block structure — so when this address is the block's guesser we take its
-    /// `guesser_fee_utxos` directly (sender randomness = block hash).
+    /// addition record from the public receiver digest. Guesser rewards and
+    /// premine UTXOs are not announced — they are derived from the block
+    /// structure — so we take the block's `guesser_fee_utxos` (when this address
+    /// guessed the block) and `premine_utxos` (genesis only) directly, with
+    /// their respective sender randomness.
     ///
-    /// Either way, candidates are keyed by addition record and kept only if that
-    /// record is actually an output of the block. `addition_records` /
-    /// `num_prior` (which already include guesser outputs) are passed in so the
-    /// mutator-set computation is done once per block.
+    /// In every case, candidates are keyed by addition record and kept only if
+    /// that record is actually an output of the block.
+    #[expect(clippy::too_many_arguments)]
     fn scan_block(
         &self,
         announcements: &[Announcement],
@@ -191,6 +192,8 @@ impl WatchOnlyKey {
         block_guesser_data: &GuesserReceiverData,
         guesser_fee_utxos: &[Utxo],
         block_hash: Digest,
+        premine_utxos: &[Utxo],
+        premine_sender_randomness: Digest,
     ) -> Vec<WatchOnlyReceipt> {
         let receiver_id = self.receiver_id();
         let receiver_digest = self.receiver_digest();
@@ -233,12 +236,27 @@ impl WatchOnlyKey {
             }
         }
 
+        // Premine: genesis premine UTXOs are not announced, so their addition
+        // records are calculated from input parameters. Loop body is only
+        // entered when scanning the genesis block.
+        for utxo in premine_utxos {
+            let triple = UtxoTriple {
+                utxo: utxo.clone(),
+                sender_randomness: premine_sender_randomness,
+                receiver_digest,
+            };
+            found.insert(
+                triple.addition_record(),
+                (utxo.clone(), premine_sender_randomness),
+            );
+        }
+
         if found.is_empty() {
             return vec![];
         }
 
-        // Confirm each decrypted UTXO is really an output of this block, and
-        // recover its AOCL index (same enumeration the main UTXO scan uses).
+        // Only return those UTXOs that are actually present in the block, not
+        // just announced.
         let mut receipts = vec![];
         for (aocl_index, addition_record) in (num_prior..).zip(addition_records.iter()) {
             if let Some((utxo, sender_randomness)) = found.get(addition_record) {
@@ -541,8 +559,21 @@ impl super::WalletState {
             vec![]
         };
 
+        // Premine UTXOs are baked into the genesis block (not announced). Like
+        // the derived-key wallet's `check_premine`, we only look at genesis.
+        let (premine_utxos, premine_sender_randomness) = if block.kernel.header.height.is_genesis()
+        {
+            (
+                Block::premine_utxos(),
+                Block::premine_sender_randomness(self.network),
+            )
+        } else {
+            (vec![], Digest::default())
+        };
+
         for (watch_only_id, key, preimage) in entries {
-            // Record new incoming receipts (announced UTXOs and guesser rewards).
+            // Record new incoming receipts: announced UTXOs, guesser rewards, and
+            // (at genesis) premine UTXOs.
             for receipt in key.scan_block(
                 announcements,
                 &addition_records,
@@ -550,6 +581,8 @@ impl super::WalletState {
                 &block_guesser_data,
                 &guesser_fee_utxos,
                 block.hash,
+                &premine_utxos,
+                premine_sender_randomness,
             ) {
                 let amount = receipt.amount.to_nau().to_string();
                 let utxo_blob = bincode::serialize(&receipt.utxo)?;
@@ -936,6 +969,8 @@ mod tests {
             &no_guesser,
             &[],
             Digest::default(),
+            &[],
+            Digest::default(),
         );
         assert_eq!(receipts.len(), 1);
         assert_eq!(receipts[0].amount, amount);
@@ -943,7 +978,16 @@ mod tests {
 
         // Announced but absent from the block => not counted.
         assert!(key
-            .scan_block(announcements, &[], 0, &no_guesser, &[], Digest::default())
+            .scan_block(
+                announcements,
+                &[],
+                0,
+                &no_guesser,
+                &[],
+                Digest::default(),
+                &[],
+                Digest::default(),
+            )
             .is_empty());
 
         // Announcement addressed to a different viewing key => ignored.
@@ -955,7 +999,9 @@ mod tests {
                 0,
                 &no_guesser,
                 &[],
-                Digest::default()
+                Digest::default(),
+                &[],
+                Digest::default(),
             )
             .is_empty());
     }
@@ -992,6 +1038,8 @@ mod tests {
             &key.guesser_receiver_data(),
             &guesser_utxos,
             block_hash,
+            &[],
+            Digest::default(),
         );
         assert_eq!(receipts.len(), 2);
         let total: i128 = receipts.iter().map(|r| r.amount.to_nau()).sum();
@@ -1006,7 +1054,57 @@ mod tests {
                 0,
                 &other,
                 &guesser_utxos,
-                block_hash
+                block_hash,
+                &[],
+                Digest::default(),
+            )
+            .is_empty());
+    }
+
+    #[test]
+    fn scan_block_catches_premine() {
+        let address = devnet_viewing_address(0);
+        let key = WatchOnlyKey::Viewing(address);
+        let premine_sr = Digest::default();
+        let receiver_digest = address.receiver_postimage();
+
+        // A premine UTXO allocated to this address (committed with the premine
+        // sender randomness and our receiver digest).
+        let amount = NativeCurrencyAmount::from_nau(9000);
+        let premine_utxo = Utxo::new_native_currency(Digest::default(), amount);
+        let premine_utxos = vec![premine_utxo.clone()];
+        let addition_record = UtxoTriple {
+            utxo: premine_utxo,
+            sender_randomness: premine_sr,
+            receiver_digest,
+        }
+        .addition_record();
+
+        // Present in the (genesis) block => caught.
+        let receipts = key.scan_block(
+            &[],
+            std::slice::from_ref(&addition_record),
+            0,
+            &no_guesser_data(),
+            &[],
+            Digest::default(),
+            &premine_utxos,
+            premine_sr,
+        );
+        assert_eq!(receipts.len(), 1);
+        assert_eq!(receipts[0].amount, amount);
+
+        // No premine list (i.e. any non-genesis block) => nothing caught.
+        assert!(key
+            .scan_block(
+                &[],
+                std::slice::from_ref(&addition_record),
+                0,
+                &no_guesser_data(),
+                &[],
+                Digest::default(),
+                &[],
+                Digest::default(),
             )
             .is_empty());
     }
