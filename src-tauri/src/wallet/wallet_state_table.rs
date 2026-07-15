@@ -105,12 +105,16 @@ sqlx_migrator::sqlite_migration!(
         // account balance nor become spendable. `amount` is nau as a string.
         // (watch_only_id, aocl_index) is unique so re-scanning a block can't
         // double-count, and `confirm_height` drives reorg rollback.
+        //
+        // `confirm_timestamp` is the confirming block header's timestamp, in
+        // milliseconds — i.e. when this UTXO was received.
         "CREATE TABLE watch_only_utxos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         watch_only_id INTEGER NOT NULL,
         aocl_index INTEGER NOT NULL,
         amount TEXT NOT NULL,
         confirm_height INTEGER NOT NULL,
+        confirm_timestamp INTEGER NOT NULL,
         block_digest TEXT NOT NULL,
         UNIQUE(watch_only_id, aocl_index)
         )", //up

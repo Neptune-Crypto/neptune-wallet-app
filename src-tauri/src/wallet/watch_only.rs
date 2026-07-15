@@ -606,6 +606,9 @@ impl super::WalletState {
         let num_prior = block.num_aocl_leafs_prior();
         let block_height: u64 = block.kernel.header.height.into();
         let height: i64 = i64::try_from(block_height)?;
+
+        // The receipt time of every UTXO in this block.
+        let confirm_timestamp: i64 = i64::try_from(block.kernel.header.timestamp.to_millis())?;
         let block_digest = block.hash.to_hex();
 
         // Absolute index sets removed (spent) by this block.
@@ -664,12 +667,13 @@ impl super::WalletState {
                 let sender_randomness = receipt.sender_randomness.to_hex();
                 // Unique (watch_only_id, aocl_index) makes re-scanning idempotent.
                 sqlx::query(
-                    "INSERT OR IGNORE INTO watch_only_utxos (watch_only_id, aocl_index, amount, confirm_height, block_digest, utxo, sender_randomness) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO watch_only_utxos (watch_only_id, aocl_index, amount, confirm_height, confirm_timestamp, block_digest, utxo, sender_randomness) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 )
                 .bind(watch_only_id)
                 .bind(i64::try_from(receipt.aocl_index)?)
                 .bind(&amount)
                 .bind(height)
+                .bind(confirm_timestamp)
                 .bind(&block_digest)
                 .bind(&utxo_blob)
                 .bind(&sender_randomness)
@@ -750,6 +754,7 @@ mod tests {
     use std::collections::HashSet;
 
     use neptune_consensus::block::guesser_receiver_data::GuesserReceiverData;
+    use neptune_consensus::transaction::transaction_kernel::TransactionKernelProxy;
     use neptune_consensus::transaction::utxo::Coin;
     use neptune_consensus::transaction::utxo::Utxo;
     use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
@@ -761,6 +766,7 @@ mod tests {
 
     use super::*;
     use crate::tests::test_devnet_wallet;
+    use crate::tests::wallet_block_from_test_data;
     use crate::wallet::UtxoRecoveryData;
 
     /// Insert a receipt for `watch_only_id` exactly as the scanner would.
@@ -771,12 +777,13 @@ mod tests {
         utxo: &Utxo,
     ) {
         sqlx::query(
-            "INSERT INTO watch_only_utxos (watch_only_id, aocl_index, amount, confirm_height, block_digest, utxo, sender_randomness) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO watch_only_utxos (watch_only_id, aocl_index, amount, confirm_height, confirm_timestamp, block_digest, utxo, sender_randomness) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(watch_only_id)
         .bind(aocl_index)
         .bind(utxo.get_native_currency_amount().to_nau().to_string())
         .bind(1i64)
+        .bind(Timestamp::now().to_millis() as i64)
         .bind(Digest::default().to_hex())
         .bind(bincode::serialize(utxo).unwrap())
         .bind(Digest::default().to_hex())
@@ -1133,6 +1140,61 @@ mod tests {
         assert_eq!(
             entry.total_received,
             NativeCurrencyAmount::from_nau(5000).display_lossless()
+        );
+    }
+
+    #[tokio::test]
+    async fn scan_records_the_blocks_timestamp_as_the_receipt_time() {
+        let wallet = test_devnet_wallet().await;
+        let address = devnet_viewing_address(0);
+        let record = wallet
+            .add_watch_only(
+                "ViewingAddress",
+                &address.to_bech32m(wallet.network),
+                None,
+                None,
+            )
+            .await
+            .unwrap();
+
+        // Rebuild a real block so it announces one UTXO to the watched address
+        // and carries that UTXO's addition record as its only output.
+        let sender_randomness = Digest::default();
+        let utxo = Utxo::new_native_currency(Digest::default(), NativeCurrencyAmount::coins(1));
+        let payload = UtxoNotificationPayload::new(utxo.clone(), sender_randomness);
+        let addition_record = UtxoTriple {
+            utxo: utxo.clone(),
+            sender_randomness,
+            receiver_digest: address.receiver_postimage(),
+        }
+        .addition_record();
+
+        let mut block = wallet_block_from_test_data(38260).unwrap();
+        let mut proxy =
+            TransactionKernelProxy::from(block.kernel.body.transaction_kernel().clone());
+        proxy.inputs = vec![];
+        proxy.outputs = vec![addition_record];
+        proxy.announcements = vec![address.generate_announcement(&payload)];
+        block.kernel.body.transaction_kernel = proxy.into_kernel();
+
+        wallet.update_new_tip(&block, false).await.unwrap();
+
+        let stored: i64 =
+            sqlx::query("SELECT confirm_timestamp FROM watch_only_utxos WHERE watch_only_id = ?")
+                .bind(record.id)
+                .fetch_one(&wallet.pool)
+                .await
+                .unwrap()
+                .get("confirm_timestamp");
+
+        assert_eq!(
+            u64::try_from(stored).unwrap(),
+            block.kernel.header.timestamp.to_millis(),
+            "receipt time must be the confirming block's header timestamp"
+        );
+        assert_ne!(
+            stored, 0,
+            "a zero receipt time would silently make every lock look 58 years long"
         );
     }
 
