@@ -84,6 +84,19 @@ fn payout_amount_nau(basis_nau: i128, multiplier: &str) -> i128 {
     }
 }
 
+/// The payout a policy would make for a given basis: `floor(basis × multiplier)`
+/// capped by the policy's daily maximum (if any). Shared by the run engine and
+/// the read-only preview so the shown and paid amounts can never diverge.
+fn capped_payout_nau(policy: &PayoutPolicy, basis_nau: i128) -> i128 {
+    let mut payout_nau = payout_amount_nau(basis_nau, &policy.multiplier);
+    if let Some(cap) = &policy.max_daily_payout {
+        if let Ok(cap_amt) = NativeCurrencyAmount::coins_from_str(cap) {
+            payout_nau = payout_nau.min(cap_amt.to_nau());
+        }
+    }
+    payout_nau
+}
+
 /// The most recent daily run slot at or before `now`, in epoch milliseconds,
 /// for a policy whose local-time run is `run_time_minutes` minutes past
 /// midnight. Returns `None` only on impossible calendar/DST inputs.
@@ -205,6 +218,34 @@ pub(crate) struct PayoutRun {
     pub status: String,
 }
 
+/// A read-only projection of what an armed policy would pay if it ran right
+/// now. Computed from the exact same eligibility rules as a real run, so the
+/// number shown can never drift from the number that would be paid. Amounts
+/// are NPT decimal strings.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub(crate) struct PayoutPreview {
+    /// Whether the policy exists and is armed. When false the amounts are zero
+    /// and the meter is not running.
+    pub armed: bool,
+    /// Sum of eligible receipts — confirmed after arming, matured to
+    /// `min_confirmations`, of the policy's basis, and not yet accounted.
+    pub basis_amount: String,
+    /// Projected payout: `floor(basis × multiplier)`, capped by the daily
+    /// maximum. This is what a run right now would send.
+    pub payout_amount: String,
+    /// How many receipts are counted into `basis_amount`.
+    pub eligible_count: i64,
+    /// Basis-eligible receipts still short of `min_confirmations`: they count
+    /// toward no payout yet but will once buried deep enough, so the real
+    /// figure can grow to include them.
+    pub pending_maturity_amount: String,
+    /// How many receipts are counted into `pending_maturity_amount`.
+    pub pending_count: i64,
+    /// Whether this account can currently cover the payout plus fee. When
+    /// false, a run would skip-and-drop instead of paying.
+    pub sufficient_funds: bool,
+}
+
 /// The form's working shape — every field as typed text — validated and
 /// converted on save. `run_time` is "HH:MM"; empty `min_lock_days` /
 /// `max_daily_payout` mean "unset".
@@ -219,6 +260,20 @@ pub(crate) struct PayoutPolicyDraft {
     pub min_confirmations: String,
     pub run_time: String,
     pub armed: bool,
+}
+
+/// The eligible/pending tally of a policy's receipts, as computed by
+/// [`WalletState::compute_payout_basis`]. Fields are raw nau.
+#[derive(Debug, Default)]
+struct PayoutBasisCalc {
+    /// aocl_index of each receipt counted into `basis_nau` (rescan-stable).
+    eligible_aocl: Vec<i64>,
+    /// Sum of matured, in-basis, unaccounted receipts.
+    basis_nau: i128,
+    /// Sum of receipts eligible by basis but not yet matured.
+    pending_maturity_nau: i128,
+    /// Count of the receipts summed into `pending_maturity_nau`.
+    pending_count: i64,
 }
 
 /// A draft that has passed validation and been normalised for storage.
@@ -524,6 +579,128 @@ impl super::WalletState {
         Ok(())
     }
 
+    /// Tally the metered address's eligible receipts against a policy, as of a
+    /// synced `tip_height`. Read-only: no accounting, no send.
+    ///
+    /// A receipt counts toward `basis_nau` when it is confirmed after
+    /// `meter_start`, not yet accounted, of the policy's basis (Liquid, or
+    /// TimeLocked within the lock-day bounds), and matured to
+    /// `min_confirmations`. A receipt that satisfies everything *except*
+    /// maturity is set aside in `pending_maturity_nau` — it earns nothing yet
+    /// but will once buried deep enough.
+    async fn compute_payout_basis(
+        &self,
+        policy: &PayoutPolicy,
+        meter_start: i64,
+        tip_height: i64,
+    ) -> Result<PayoutBasisCalc> {
+        // Exclude receipts already accounted by a prior run. The ledger is keyed
+        // by aocl_index (rescan-stable) and survives rollback, so a resync never
+        // re-pays.
+        let rows = sqlx::query(
+            "SELECT wu.amount, wu.utxo, wu.confirm_timestamp, wu.confirm_height, wu.aocl_index
+             FROM watch_only_utxos wu
+             WHERE wu.watch_only_id = ? AND wu.confirm_timestamp >= ?
+               AND NOT EXISTS (
+                   SELECT 1 FROM payout_accounted_receipts p
+                   WHERE p.watch_only_id = wu.watch_only_id AND p.aocl_index = wu.aocl_index
+               )",
+        )
+        .bind(policy.watch_only_id)
+        .bind(meter_start)
+        .fetch_all(&self.pool)
+        .await?;
+
+        let max_lock_ms = policy.max_lock_days as i128 * MS_PER_DAY;
+        let min_lock_ms = policy.min_lock_days.map(|d| d as i128 * MS_PER_DAY);
+
+        let mut calc = PayoutBasisCalc::default();
+        for row in &rows {
+            let confirm_ms: i64 = row.get("confirm_timestamp");
+            let Some(blob) = row.get::<Option<Vec<u8>>, _>("utxo") else {
+                continue;
+            };
+            let Ok(utxo) = bincode::deserialize::<Utxo>(&blob) else {
+                continue;
+            };
+            let receipt_time = Timestamp(BFieldElement::new(confirm_ms.max(0) as u64));
+            let pending = pending_release_date(&utxo, receipt_time);
+            let eligible = match policy.basis {
+                PayoutBasis::Liquid => pending.is_none(),
+                PayoutBasis::TimeLocked => match pending {
+                    Some(release) => {
+                        let lock_ms = release.to_millis() as i128 - confirm_ms as i128;
+                        lock_ms <= max_lock_ms && min_lock_ms.is_none_or(|m| lock_ms >= m)
+                    }
+                    None => false,
+                },
+            };
+            if !eligible {
+                continue;
+            }
+            let amount_nau: i128 = row.get::<String, _>("amount").parse().unwrap_or(0);
+            let confirm_height: i64 = row.get("confirm_height");
+            if tip_height - confirm_height < policy.min_confirmations {
+                // Basis-eligible but not matured yet; leave for a later run.
+                calc.pending_maturity_nau = calc.pending_maturity_nau.saturating_add(amount_nau);
+                calc.pending_count += 1;
+                continue;
+            }
+            calc.basis_nau = calc.basis_nau.saturating_add(amount_nau);
+            calc.eligible_aocl.push(row.get("aocl_index"));
+        }
+        Ok(calc)
+    }
+
+    /// Project what an armed policy would pay if it ran right now, without
+    /// sending or accounting anything. Returns zeros for a missing, disarmed, or
+    /// not-yet-synced policy. See [`PayoutPreview`].
+    pub(crate) async fn preview_payout(&self, watch_only_id: i64) -> Result<PayoutPreview> {
+        let to_npt = |nau: i128| NativeCurrencyAmount::from_nau(nau).display_lossless();
+        let disarmed = |armed: bool| PayoutPreview {
+            armed,
+            basis_amount: to_npt(0),
+            payout_amount: to_npt(0),
+            eligible_count: 0,
+            pending_maturity_amount: to_npt(0),
+            pending_count: 0,
+            sufficient_funds: true,
+        };
+
+        let Some(policy) = self.get_payout_policy(watch_only_id).await? else {
+            return Ok(disarmed(false));
+        };
+        let Some(meter_start) = policy.meter_start.filter(|_| policy.armed) else {
+            return Ok(disarmed(policy.armed));
+        };
+        // Maturity needs a synced tip; before that, report armed with no figure.
+        let Some((tip_height, _)) = self.get_tip().await? else {
+            return Ok(disarmed(true));
+        };
+
+        let calc = self
+            .compute_payout_basis(&policy, meter_start, tip_height as i64)
+            .await?;
+        let payout_nau = capped_payout_nau(&policy, calc.basis_nau);
+
+        // A run pays out + fee from this account; nothing to pay ⇒ trivially OK.
+        let fee = NativeCurrencyAmount::coins_from_str(DEFAULT_PAYOUT_FEE_NPT)
+            .expect("default payout fee must parse");
+        let (available, _total) = self.get_all_balance().await?;
+        let sufficient_funds =
+            payout_nau <= 0 || available.to_nau() >= payout_nau.saturating_add(fee.to_nau());
+
+        Ok(PayoutPreview {
+            armed: true,
+            basis_amount: to_npt(calc.basis_nau),
+            payout_amount: to_npt(payout_nau),
+            eligible_count: calc.eligible_aocl.len() as i64,
+            pending_maturity_amount: to_npt(calc.pending_maturity_nau),
+            pending_count: calc.pending_count,
+            sufficient_funds,
+        })
+    }
+
     /// Execute one payout run for an armed policy at `run_at` (ms since epoch).
     ///
     /// Counts the metered address's receipts that are: confirmed after
@@ -552,68 +729,16 @@ impl super::WalletState {
         };
         let tip_height = tip_height as i64;
 
-        // Exclude receipts already accounted by a prior run. The ledger is keyed
-        // by aocl_index (rescan-stable) and survives rollback, so a resync never
-        // re-pays.
-        let rows = sqlx::query(
-            "SELECT wu.amount, wu.utxo, wu.confirm_timestamp, wu.confirm_height, wu.aocl_index
-             FROM watch_only_utxos wu
-             WHERE wu.watch_only_id = ? AND wu.confirm_timestamp >= ?
-               AND NOT EXISTS (
-                   SELECT 1 FROM payout_accounted_receipts p
-                   WHERE p.watch_only_id = wu.watch_only_id AND p.aocl_index = wu.aocl_index
-               )",
-        )
-        .bind(policy.watch_only_id)
-        .bind(meter_start)
-        .fetch_all(&self.pool)
-        .await?;
-
-        let max_lock_ms = policy.max_lock_days as i128 * MS_PER_DAY;
-        let min_lock_ms = policy.min_lock_days.map(|d| d as i128 * MS_PER_DAY);
-
-        // Eligible receipts identified by their rescan-stable aocl_index.
-        let mut eligible_aocl: Vec<i64> = vec![];
-        let mut basis_nau: i128 = 0;
-        for row in &rows {
-            let confirm_height: i64 = row.get("confirm_height");
-            if tip_height - confirm_height < policy.min_confirmations {
-                continue; // not matured yet; leave for a later run
-            }
-            let Some(blob) = row.get::<Option<Vec<u8>>, _>("utxo") else {
-                continue;
-            };
-            let Ok(utxo) = bincode::deserialize::<Utxo>(&blob) else {
-                continue;
-            };
-            let confirm_ms: i64 = row.get("confirm_timestamp");
-            let receipt_time = Timestamp(BFieldElement::new(confirm_ms.max(0) as u64));
-            let pending = pending_release_date(&utxo, receipt_time);
-            let eligible = match policy.basis {
-                PayoutBasis::Liquid => pending.is_none(),
-                PayoutBasis::TimeLocked => match pending {
-                    Some(release) => {
-                        let lock_ms = release.to_millis() as i128 - confirm_ms as i128;
-                        lock_ms <= max_lock_ms && min_lock_ms.is_none_or(|m| lock_ms >= m)
-                    }
-                    None => false,
-                },
-            };
-            if !eligible {
-                continue;
-            }
-            let amount_nau: i128 = row.get::<String, _>("amount").parse().unwrap_or(0);
-            basis_nau = basis_nau.saturating_add(amount_nau);
-            eligible_aocl.push(row.get("aocl_index"));
-        }
+        // Eligible receipts (matured, in-basis, unaccounted), identified by
+        // their rescan-stable aocl_index. Same computation the preview uses.
+        let calc = self
+            .compute_payout_basis(policy, meter_start, tip_height)
+            .await?;
+        let eligible_aocl = calc.eligible_aocl;
+        let basis_nau = calc.basis_nau;
 
         // Compute the payout (before the funds check).
-        let mut payout_nau = payout_amount_nau(basis_nau, &policy.multiplier);
-        if let Some(cap) = &policy.max_daily_payout {
-            if let Ok(cap_amt) = NativeCurrencyAmount::coins_from_str(cap) {
-                payout_nau = payout_nau.min(cap_amt.to_nau());
-            }
-        }
+        let payout_nau = capped_payout_nau(policy, basis_nau);
 
         // Nothing to pay: record and advance without touching any receipt.
         if eligible_aocl.is_empty() || payout_nau <= 0 {
@@ -1213,5 +1338,65 @@ mod tests {
         let status = wallet.run_payout_policy(&p, RUN_AT + 1).await.unwrap();
         assert_eq!(PayoutRunStatus::SkippedNoReceipts, status);
         assert_eq!(0, last_run(&wallet, 1).await.0);
+    }
+
+    #[tokio::test]
+    async fn basis_computation_splits_matured_and_pending_receipts() {
+        let wallet = wallet_with_tip(100).await;
+        let id = add_address(&wallet).await;
+        // One receipt deep enough to count, one still too shallow.
+        insert_receipt(&wallet, id, 1, 1, 1, &liquid_utxo(1000)).await;
+        insert_receipt(&wallet, id, 2, 97, 1, &liquid_utxo(500)).await;
+        let mut p = policy(id, wallet.network);
+        p.min_confirmations = 6;
+        let calc = wallet.compute_payout_basis(&p, 0, 100).await.unwrap();
+        assert_eq!(vec![1], calc.eligible_aocl);
+        assert_eq!(1000, calc.basis_nau);
+        assert_eq!(500, calc.pending_maturity_nau);
+        assert_eq!(1, calc.pending_count);
+    }
+
+    #[tokio::test]
+    async fn preview_projects_payout_from_received_receipts() {
+        let wallet = wallet_with_tip(100).await;
+        let id = add_address(&wallet).await;
+        let mut d = draft(recipient(wallet.network)); // multiplier 0.5, min_conf 10
+        d.armed = true;
+        let ms = wallet
+            .save_payout_policy(id, d)
+            .await
+            .unwrap()
+            .meter_start
+            .unwrap();
+        insert_receipt(&wallet, id, 1, 1, ms, &liquid_utxo(1000)).await; // matured
+        insert_receipt(&wallet, id, 2, 95, ms, &liquid_utxo(400)).await; // maturing
+
+        let to_npt = |nau: i128| NativeCurrencyAmount::from_nau(nau).display_lossless();
+        let preview = wallet.preview_payout(id).await.unwrap();
+        assert!(preview.armed);
+        assert_eq!(to_npt(1000), preview.basis_amount);
+        assert_eq!(to_npt(500), preview.payout_amount); // 0.5 × 1000
+        assert_eq!(1, preview.eligible_count);
+        assert_eq!(to_npt(400), preview.pending_maturity_amount);
+        assert_eq!(1, preview.pending_count);
+        // The zero-balance test wallet can't cover the payout plus fee.
+        assert!(!preview.sufficient_funds);
+    }
+
+    #[tokio::test]
+    async fn preview_is_empty_when_absent_or_disarmed() {
+        let wallet = wallet_with_tip(100).await;
+        let id = add_address(&wallet).await;
+
+        let absent = wallet.preview_payout(id).await.unwrap();
+        assert!(!absent.armed);
+        assert_eq!(0, absent.eligible_count);
+
+        wallet
+            .save_payout_policy(id, draft(recipient(wallet.network)))
+            .await
+            .unwrap();
+        let disarmed = wallet.preview_payout(id).await.unwrap();
+        assert!(!disarmed.armed);
     }
 }

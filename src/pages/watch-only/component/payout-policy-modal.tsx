@@ -3,6 +3,7 @@ import {
   PayoutBasis,
   PayoutPolicy,
   PayoutPolicyDraft,
+  PayoutPreview,
   PayoutRun,
   WatchOnlyAddressRecord,
 } from "@/utils/api/types";
@@ -24,6 +25,17 @@ import {
 import { IconAlertTriangle, IconTrash } from "@tabler/icons-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
+
+// Full-precision amount shown with four decimals; an exact zero renders "0".
+function formatNpt(amount?: string): string {
+  const fixed = amount_to_positive_fixed(amount ?? "");
+  return fixed === "0.0000" ? "0" : fixed;
+}
+
+// "1 receipt" / "N receipts".
+function receiptCount(n: number): string {
+  return n === 1 ? "1 receipt" : `${n} receipts`;
+}
 
 const RUN_STATUS_LABELS: Record<string, string> = {
   paid: "Paid",
@@ -150,6 +162,8 @@ interface PayoutPolicyModalProps {
   address: WatchOnlyAddressRecord | null;
   /** The address's existing policy, if any — loaded into the form for editing. */
   existing: PayoutPolicy | null;
+  /** What the saved policy would pay right now; null while loading or unset. */
+  preview: PayoutPreview | null;
   /** Recorded runs for this policy, newest first (audit history). */
   runs: PayoutRun[];
   onClose: () => void;
@@ -160,6 +174,7 @@ interface PayoutPolicyModalProps {
 export default function PayoutPolicyModal({
   address,
   existing,
+  preview,
   runs,
   onClose,
   onSave,
@@ -241,6 +256,35 @@ export default function PayoutPolicyModal({
             <b>this account&apos;s own balance</b> — the watched address only decides how much.
           </Text>
         </Alert>
+
+        {preview?.armed && (
+          <Alert color={preview.sufficient_funds ? "teal" : "orange"} variant="light">
+            <Text size="sm" fw={600}>
+              Next payout ≈ {formatNpt(preview.payout_amount)} NPT
+            </Text>
+            <Text size="xs" c="dimmed">
+              From {formatNpt(preview.basis_amount)} NPT received (
+              {receiptCount(preview.eligible_count)}) since the meter started.
+            </Text>
+            {preview.pending_count > 0 && (
+              <Text size="xs" c="dimmed">
+                +{formatNpt(preview.pending_maturity_amount)} NPT still maturing (
+                {receiptCount(preview.pending_count)}) — included once they reach the required
+                confirmations.
+              </Text>
+            )}
+            {!preview.sufficient_funds && (
+              <Text size="xs" c="orange" mt={4}>
+                This account can&apos;t currently cover this payout plus fee, so a run would skip
+                and drop instead of paying.
+              </Text>
+            )}
+            <Text size="xs" c="dimmed" mt={4}>
+              Estimated from receipts so far; the figure at the run time may be higher as more
+              arrive.
+            </Text>
+          </Alert>
+        )}
 
         <TextInput
           label="Recipient"

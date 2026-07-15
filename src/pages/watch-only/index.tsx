@@ -3,6 +3,7 @@ import {
   getPayoutRuns,
   knownWatchOnlyAddresses,
   listPayoutPolicies,
+  previewPayout,
   removePayoutPolicy,
   removeWatchOnlyAddress,
   savePayoutPolicy,
@@ -17,6 +18,7 @@ import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import {
   PayoutPolicy,
   PayoutPolicyDraft,
+  PayoutPreview,
   PayoutRun,
   WatchOnlyAddressRecord,
   WatchOnlyKeyType,
@@ -85,6 +87,8 @@ export default function WatchOnlyPage() {
   const [policyTarget, setPolicyTarget] = useState<WatchOnlyAddressRecord | null>(null);
   // Saved policies keyed by watch_only_id, for status badges and edit-loading.
   const [policies, setPolicies] = useState<Record<number, PayoutPolicy>>({});
+  // Projected next payout per watch_only_id, refreshed alongside the policies.
+  const [previews, setPreviews] = useState<Record<number, PayoutPreview>>({});
   // Run history for the address whose modal is open.
   const [policyRuns, setPolicyRuns] = useState<PayoutRun[]>([]);
 
@@ -104,6 +108,18 @@ export default function WatchOnlyPage() {
       ]);
       setAddresses(data);
       setPolicies(Object.fromEntries(policyList.map((p) => [p.watch_only_id, p])));
+      // Project each policy's next payout from receipts so far (armed only —
+      // a disarmed policy has no running meter, so it has nothing to project).
+      const previewList = await Promise.all(
+        policyList
+          .filter((p) => p.armed)
+          .map((p) =>
+            previewPayout(p.watch_only_id)
+              .then((preview) => [p.watch_only_id, preview] as const)
+              .catch(() => null)
+          )
+      );
+      setPreviews(Object.fromEntries(previewList.filter((e) => e !== null)));
     } catch (error) {
       console.error("Failed to fetch watch-only addresses:", error);
     } finally {
@@ -265,6 +281,7 @@ export default function WatchOnlyPage() {
       <PayoutPolicyModal
         address={policyTarget}
         existing={policyTarget ? (policies[policyTarget.id] ?? null) : null}
+        preview={policyTarget ? (previews[policyTarget.id] ?? null) : null}
         runs={policyRuns}
         onClose={() => setPolicyTarget(null)}
         onSave={handleSavePolicy}
@@ -344,6 +361,7 @@ export default function WatchOnlyPage() {
             <Table.Tbody>
               {addresses.map((item) => {
                 const policy = policies[item.id];
+                const preview = previews[item.id];
                 // Some coins are still time-locked iff the backend returned an
                 // upcoming unlock date (locked coins always carry a future one).
                 // Independent of tracks_balance: a coin that is still locked
@@ -369,20 +387,37 @@ export default function WatchOnlyPage() {
                         {policy && (
                           <Tooltip
                             label={
-                              policy.armed
-                                ? "Payout policy armed — sends daily"
-                                : "Payout policy set but disarmed"
+                              policy.armed && preview?.armed ? (
+                                <div>
+                                  <Text size="xs" fw={600}>
+                                    Next payout ≈ {formatNpt(preview.payout_amount)} NPT
+                                  </Text>
+                                  <Text size="xs">
+                                    From {formatNpt(preview.basis_amount)} NPT received
+                                    {preview.pending_count > 0 &&
+                                      `; +${formatNpt(preview.pending_maturity_amount)} maturing`}
+                                  </Text>
+                                  {!preview.sufficient_funds && (
+                                    <Text size="xs">Funds short — a run would skip</Text>
+                                  )}
+                                </div>
+                              ) : policy.armed ? (
+                                "Payout policy armed — sends daily"
+                              ) : (
+                                "Payout policy set but disarmed"
+                              )
                             }
                             withArrow
                             position="top"
+                            multiline
                           >
                             <Badge
-                              size="xs"
+                              circle
                               variant="light"
                               color={policy.armed ? "teal" : "gray"}
-                              leftSection={<IconCoins size={10} />}
+                              style={{ cursor: "help" }}
                             >
-                              {policy.armed ? "Payout" : "Off"}
+                              <IconCoins size={12} />
                             </Badge>
                           </Tooltip>
                         )}

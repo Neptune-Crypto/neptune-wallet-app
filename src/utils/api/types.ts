@@ -162,6 +162,26 @@ export interface PayoutPolicyDraft {
   armed: boolean;
 }
 
+// A read-only projection of what an armed policy would pay if it ran right
+// now, from the already-received UTXOs. Computed from the same eligibility
+// rules as a real run. Amounts are NPT decimal strings.
+export interface PayoutPreview {
+  // Whether the policy exists and is armed; when false the amounts are zero.
+  armed: boolean;
+  // Sum of eligible receipts (matured, in-basis, not yet accounted).
+  basis_amount: string;
+  // Projected payout after multiplier and daily cap — what a run now would send.
+  payout_amount: string;
+  eligible_count: number;
+  // Basis-eligible receipts still short of min_confirmations: they add nothing
+  // yet but will once buried deep enough, so the real figure can grow.
+  pending_maturity_amount: string;
+  pending_count: number;
+  // Whether the account can currently cover payout + fee; if not, a run would
+  // skip-and-drop instead of paying.
+  sufficient_funds: boolean;
+}
+
 // One recorded daily payout run (audit history). Amounts are NPT decimal
 // strings. `status` is one of paid / skipped_no_receipts /
 // skipped_insufficient_funds / failed.

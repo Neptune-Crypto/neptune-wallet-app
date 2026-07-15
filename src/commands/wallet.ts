@@ -3,6 +3,7 @@ import {
   NeptuneKeyType,
   PayoutPolicy,
   PayoutPolicyDraft,
+  PayoutPreview,
   PayoutRun,
   WatchOnlyAddressRecord,
   WatchOnlyKeyType,
@@ -120,4 +121,8 @@ export async function removePayoutPolicy(watchOnlyId: number): Promise<void> {
 
 export async function getPayoutRuns(watchOnlyId: number): Promise<PayoutRun[]> {
   return await invoke<PayoutRun[]>("get_payout_runs", { watchOnlyId });
+}
+
+export async function previewPayout(watchOnlyId: number): Promise<PayoutPreview> {
+  return await invoke<PayoutPreview>("preview_payout", { watchOnlyId });
 }

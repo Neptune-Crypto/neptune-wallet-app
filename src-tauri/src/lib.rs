@@ -74,6 +74,7 @@ fn add_commands<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         rpc::commands::list_payout_policies,
         rpc::commands::remove_payout_policy,
         rpc::commands::get_payout_runs,
+        rpc::commands::preview_payout,
         os::is_win11,
         os::os_info,
         os::platform,

@@ -48,6 +48,7 @@ use crate::wallet::balance::WalletHistory;
 use crate::wallet::keys::AddressRecord;
 use crate::wallet::payout::PayoutPolicy;
 use crate::wallet::payout::PayoutPolicyDraft;
+use crate::wallet::payout::PayoutPreview;
 use crate::wallet::payout::PayoutRun;
 use crate::wallet::sync::SyncState;
 use crate::wallet::sync::SyncStatus;
@@ -289,6 +290,14 @@ pub(crate) trait WalletRpc {
         let wallet = &get_state::<Arc<SyncState>>().wallet;
         wallet
             .get_payout_runs(watch_only_id)
+            .await
+            .map_err(|e| RestError(e.to_string()))
+    }
+
+    async fn preview_payout(watch_only_id: i64) -> Result<PayoutPreview, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        wallet
+            .preview_payout(watch_only_id)
             .await
             .map_err(|e| RestError(e.to_string()))
     }
