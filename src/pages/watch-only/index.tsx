@@ -7,6 +7,7 @@ import AccountContextLabel from "@/components/account-context-label";
 import CopyedIcon from "@/components/copyed-icon";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import MonoText from "@/components/mono-text";
+import { useSyncedBlock } from "@/store/sync/hooks";
 import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import { WatchOnlyAddressRecord, WatchOnlyKeyType } from "@/utils/api/types";
 import { amount_to_positive_fixed } from "@/utils/math-util";
@@ -59,6 +60,9 @@ export default function WatchOnlyPage() {
   const currentWalletID = useCurrentWalledId();
   const wallets = useWallets();
   const activeAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
+  // Advances as the account syncs; used to refresh balances live while the page
+  // is open (otherwise they'd only update on remount / account switch).
+  const syncedBlock = useSyncedBlock();
 
   const [addresses, setAddresses] = useState<WatchOnlyAddressRecord[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -90,9 +94,11 @@ export default function WatchOnlyPage() {
     setAddresses([]);
   }, [currentWalletID]);
 
+  // Refetch on mount, on account switch (fetchAddresses identity), and whenever
+  // a new block is synced so balances update without leaving the page.
   useEffect(() => {
     fetchAddresses();
-  }, [fetchAddresses]);
+  }, [fetchAddresses, syncedBlock]);
 
   const resetForm = () => {
     setKeyType("ViewingAddress");
@@ -254,8 +260,11 @@ export default function WatchOnlyPage() {
                 <Table.Th w={140}>Label</Table.Th>
                 <Table.Th w={120}>Type</Table.Th>
                 <Table.Th>Address</Table.Th>
+                <Table.Th w={140} ta="right">
+                  Total received
+                </Table.Th>
                 <Table.Th w={150} ta="right">
-                  Amount
+                  Balance
                 </Table.Th>
                 <Table.Th w={60} ta="right">
                   Actions
@@ -267,13 +276,11 @@ export default function WatchOnlyPage() {
                 // Some balance is still time-locked iff the backend returned an
                 // upcoming unlock date (locked coins always carry a future one).
                 const hasLocked = item.tracks_balance && item.next_release_date != null;
-                const amountTooltip = !item.tracks_balance
-                  ? "Total received — spends not tracked (no preimage imported)"
-                  : hasLocked
-                    ? `Available ${formatNpt(item.available)}; ${formatNpt(item.locked)} locked until ` +
-                      `${format(item.next_release_date, "yyyy-MM-dd HH:mm:ss")} ` +
-                      `(${formatDistanceToNow(item.next_release_date, { addSuffix: true })})`
-                    : "Balance — spends tracked via the receiver preimage";
+                const balanceTooltip = hasLocked
+                  ? `Available ${formatNpt(item.available)}; ${formatNpt(item.locked)} locked until ` +
+                    `${format(item.next_release_date, "yyyy-MM-dd HH:mm:ss")} ` +
+                    `(${formatDistanceToNow(item.next_release_date, { addSuffix: true })})`
+                  : "Spends tracked via the receiver preimage";
                 return (
                   <Table.Tr key={item.id}>
                     <Table.Td>{item.label || <Text c="dimmed">—</Text>}</Table.Td>
@@ -285,28 +292,37 @@ export default function WatchOnlyPage() {
                       </Group>
                     </Table.Td>
                     <Table.Td ta="right">
-                      <Tooltip label={amountTooltip} withArrow position="top">
-                        <Box>
-                          <Group gap={4} justify="flex-end" wrap="nowrap">
-                            {hasLocked && <IconLock size={12} />}
-                            <Text>
-                              <NumberFormatter
-                                value={formatNpt(
-                                  item.tracks_balance ? item.balance : item.total_received
-                                )}
-                                thousandSeparator
-                              />
-                            </Text>
-                          </Group>
-                          <Text c="dimmed" size="xs">
-                            {hasLocked
-                              ? `${formatNpt(item.locked)} locked`
-                              : item.tracks_balance
-                                ? "balance"
-                                : "received"}
-                          </Text>
-                        </Box>
-                      </Tooltip>
+                      <NumberFormatter value={formatNpt(item.total_received)} thousandSeparator />
+                    </Table.Td>
+                    <Table.Td ta="right">
+                      {item.tracks_balance ? (
+                        <Tooltip label={balanceTooltip} withArrow position="top">
+                          <Box>
+                            <Group gap={4} justify="flex-end" wrap="nowrap">
+                              {hasLocked && <IconLock size={12} />}
+                              <Text>
+                                <NumberFormatter
+                                  value={formatNpt(item.balance)}
+                                  thousandSeparator
+                                />
+                              </Text>
+                            </Group>
+                            {hasLocked && (
+                              <Text c="dimmed" size="xs">
+                                {formatNpt(item.locked)} locked
+                              </Text>
+                            )}
+                          </Box>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip
+                          label="Import the receiver preimage to track spends and see a balance"
+                          withArrow
+                          position="top"
+                        >
+                          <Text c="dimmed">—</Text>
+                        </Tooltip>
+                      )}
                     </Table.Td>
                     <Table.Td>
                       <Group gap="xs" justify="flex-end" wrap="nowrap">
