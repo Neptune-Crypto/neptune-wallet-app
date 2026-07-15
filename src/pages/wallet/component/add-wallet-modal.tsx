@@ -34,7 +34,17 @@ export default function AddWalletModal({
     }
   }, [section, opened]);
   return (
-    <Modal opened={opened} size={"lg"} centered onClose={onClose} title="Add account">
+    // Small yOffset: the create tab pins its checkbox + Create button below a
+    // scrollable body (see CreateWallet), so the modal should use as much of
+    // the window height as possible before that inner scroll engages.
+    <Modal
+      opened={opened}
+      size={"lg"}
+      centered
+      yOffset="2dvh"
+      onClose={onClose}
+      title="Add account"
+    >
       <Flex direction="column">
         <SegmentedControl
           value={section}

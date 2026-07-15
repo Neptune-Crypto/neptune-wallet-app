@@ -125,7 +125,9 @@ export default function ConfirmSecret(props: Props) {
           caretColor: "transparent",
         }}
       >
-        <Grid>
+        {/* gutter 8 matches the seed grids in the previous step and the
+            Add-account modal. */}
+        <Grid gutter={8}>
           {verifyWords &&
             verifyWords.length > 0 &&
             verifyWords.map((word, index) => {
@@ -175,7 +177,7 @@ export default function ConfirmSecret(props: Props) {
           minHeight: "120px",
         }}
       >
-        <Grid>
+        <Grid gutter={8}>
           {inputWords &&
             inputWords.map((word, index) => {
               return (
