@@ -89,3 +89,90 @@ export interface WatchOnlyAddressRecord {
   locked: string;
   next_release_date?: number;
 }
+
+// Which incoming UTXOs count toward a payout policy's basis. Decided per
+// receipt, from whether it carried a pending time lock when it was received.
+export type PayoutBasis = "Liquid" | "TimeLocked";
+
+// A daily payout policy attached to a watch-only address.
+//
+// The watched address is only the meter: it can never be spent from, so the
+// payout is sent from this account's own balance. Each run pays
+// `multiplier × (eligible amount received since the last run)`, so a stretch
+// with no receipts pays nothing and a missed day is covered by the next run.
+export interface PayoutPolicy {
+  id: number;
+  watch_only_id: number;
+  // Destination of every payout. Validated backend-side against the network;
+  recipient: string;
+
+  basis: PayoutBasis;
+
+  // A multiplier on the meter. How much to pay out for each coin received.
+  multiplier: string;
+
+  // Whole days, measured from each UTXO's receipt; only consulted when `basis`
+  // is TimeLocked. A receipt whose lock runs longer than this is excluded from
+  // the basis entirely.
+  //
+  // Deliberately not optional: with no cap, a receipt locked for a million
+  // years would earn a payout, and those coins are burnt in all but name. The
+  // backend converts this to a Timestamp (millisecond resolution) on the way
+  // in; whole days are all the frontend needs to express.
+  //
+  // Mining rewards sit at 1095.72 days (Timestamp::years(3), i.e. 365.24 mean
+  // days each), so a cap must clear that to include them.
+  max_lock_days: number;
+
+  // Whole days; TimeLocked only. Lower bound on a receipt's lock — locks
+  // shorter than this are excluded. Optional (undefined = no lower bound).
+  min_lock_days?: number;
+
+  // NPT decimal string. Ceiling on a single run's payout; undefined = none.
+  max_daily_payout?: string;
+
+  // Receipts count only once buried this deep, so a reorg cannot undo a
+  // receipt that has already been paid out against.
+  min_confirmations: number;
+
+  // Daily run time as minutes-of-day in the user's local wall clock.
+  run_time: number;
+
+  // A saved policy starts disarmed and never sends until explicitly armed.
+  armed: boolean;
+
+  // Epoch ms when last armed (only receipts after this are ever paid against),
+  // and epoch ms of the most recent run. Backend-managed; shown as status.
+  meter_start?: number;
+  last_run_at?: number;
+}
+
+// The form's working shape: every field a string, as typed, validated and
+// converted on save.
+export interface PayoutPolicyDraft {
+  recipient: string;
+  basis: PayoutBasis;
+  multiplier: string;
+  min_lock_days: string;
+  max_lock_days: string;
+  max_daily_payout: string;
+  min_confirmations: string;
+  // 24-hour "HH:MM", local wall clock.
+  run_time: string;
+  armed: boolean;
+}
+
+// One recorded daily payout run (audit history). Amounts are NPT decimal
+// strings. `status` is one of paid / skipped_no_receipts /
+// skipped_insufficient_funds / failed.
+export interface PayoutRun {
+  id: number;
+  run_at: number;
+  basis_amount: string;
+  payout_amount: string;
+  fee: string;
+  // The broadcast transaction's output addition records (comma-separated hex),
+  // set only for paid runs. Transactions are tracked by outputs, not a txid.
+  output_commitments?: string;
+  status: string;
+}

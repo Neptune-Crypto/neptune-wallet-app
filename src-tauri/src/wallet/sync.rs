@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicI64;
 use std::sync::atomic::AtomicI8;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -6,6 +7,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
+use chrono::Local;
 use neptune_consensus::block::Block;
 use neptune_mempool::transaction_kernel_id::Txid;
 use neptune_primitives::network::Network;
@@ -43,7 +45,14 @@ pub(crate) struct SyncState {
     /// Used to notify the sync task to wake up and check for new blocks.
     waker: Notify,
     handler: Mutex<Option<JoinHandle<()>>>,
+
+    /// Epoch-ms of the last block processed (or rollback).
+    last_block_activity_ms: AtomicI64,
 }
+
+/// How long the wallet must be free of new blocks before a payout run may fire,
+/// so payouts never run while catching up or resyncing.
+const PAYOUT_QUIET_PERIOD_MS: i64 = 2 * 60 * 1000;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct SyncStatus {
@@ -90,7 +99,17 @@ impl SyncState {
             cancel: AtomicI8::new(0),
             waker: Notify::new(),
             handler: Mutex::new(None),
+
+            // Start "busy" so timers don't fire immediately
+            last_block_activity_ms: AtomicI64::new(Local::now().timestamp_millis()),
         })
+    }
+
+    /// Note that a block was just processed (or a rollback happened), resetting
+    /// the timer.
+    fn mark_block_activity(&self) {
+        self.last_block_activity_ms
+            .store(Local::now().timestamp_millis(), Ordering::Relaxed);
     }
 
     pub(crate) async fn status(&self) -> SyncStatus {
@@ -124,6 +143,9 @@ impl SyncState {
             tx.commit().await?;
             self.fake_archival_state.reset_to_height(height).await?;
             self.height.store(height + 1, Ordering::Relaxed);
+
+            // A resync just rolled back; update timer for last block update
+            self.mark_block_activity();
             Ok::<(), anyhow::Error>(())
         };
 
@@ -202,6 +224,16 @@ impl SyncState {
             match self.sync_height().await {
                 Ok(duration) => {
                     if let Some(duration) = duration {
+                        // Caught up / idle. Fire due payouts only once the wallet
+                        // has been quiet (no new block) for a while, so
+                        // they never run while catching up or resyncing.
+                        let quiet_ms = Local::now().timestamp_millis()
+                            - self.last_block_activity_ms.load(Ordering::Relaxed);
+                        if quiet_ms >= PAYOUT_QUIET_PERIOD_MS {
+                            if let Err(e) = self.wallet.run_due_payouts().await {
+                                error!("payout scheduler error: {e:?}");
+                            }
+                        }
                         self.syncing.store(SYNC_PAUSED, Ordering::Relaxed);
                         select! {
                             _ = tokio::time::sleep(duration) => {
@@ -217,6 +249,8 @@ impl SyncState {
                             }
                         }
                     } else {
+                        // A block was just processed (or a fork handled)
+                        self.mark_block_activity();
                         if self.cancel.load(Ordering::Relaxed) != 0 {
                             info!("scan canceled");
                             self.syncing.store(SYNC_STOPPED, Ordering::Relaxed);

@@ -322,7 +322,7 @@ impl WatchOnlyKey {
 /// `None` therefore covers both "no time lock" and "every time lock has
 /// elapsed"; it does not mean spendable. A UTXO can be unspendable for reasons
 /// that carry no date, e.g. an unknown type script.
-fn pending_release_date(utxo: &Utxo, now: Timestamp) -> Option<Timestamp> {
+pub(crate) fn pending_release_date(utxo: &Utxo, now: Timestamp) -> Option<Timestamp> {
     utxo.coins()
         .iter()
         .filter_map(Coin::release_date)

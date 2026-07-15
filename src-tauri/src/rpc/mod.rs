@@ -46,6 +46,9 @@ use crate::config::Config;
 use crate::service::get_state;
 use crate::wallet::balance::WalletHistory;
 use crate::wallet::keys::AddressRecord;
+use crate::wallet::payout::PayoutPolicy;
+use crate::wallet::payout::PayoutPolicyDraft;
+use crate::wallet::payout::PayoutRun;
 use crate::wallet::sync::SyncState;
 use crate::wallet::sync::SyncStatus;
 use crate::wallet::watch_only::WatchOnlyAddressRecord;
@@ -245,6 +248,49 @@ pub(crate) trait WalletRpc {
             .await
             .map_err(|e| RestError(e.to_string()))?;
         Ok(())
+    }
+
+    async fn save_payout_policy(
+        watch_only_id: i64,
+        draft: PayoutPolicyDraft,
+    ) -> Result<PayoutPolicy, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        wallet
+            .save_payout_policy(watch_only_id, draft)
+            .await
+            .map_err(|e| RestError(e.to_string()))
+    }
+
+    async fn get_payout_policy(watch_only_id: i64) -> Result<Option<PayoutPolicy>, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        wallet
+            .get_payout_policy(watch_only_id)
+            .await
+            .map_err(|e| RestError(e.to_string()))
+    }
+
+    async fn list_payout_policies() -> Result<Vec<PayoutPolicy>, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        wallet
+            .list_payout_policies()
+            .await
+            .map_err(|e| RestError(e.to_string()))
+    }
+
+    async fn remove_payout_policy(watch_only_id: i64) -> Result<(), RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        wallet
+            .remove_payout_policy(watch_only_id)
+            .await
+            .map_err(|e| RestError(e.to_string()))
+    }
+
+    async fn get_payout_runs(watch_only_id: i64) -> Result<Vec<PayoutRun>, RestError> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        wallet
+            .get_payout_runs(watch_only_id)
+            .await
+            .map_err(|e| RestError(e.to_string()))
     }
 
     async fn send_to_address(params: SendToAddressParams) -> Result<SendResponse, RestError> {

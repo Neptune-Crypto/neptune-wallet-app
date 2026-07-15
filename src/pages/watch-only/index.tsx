@@ -1,25 +1,38 @@
 import {
   addWatchOnlyAddress,
+  getPayoutRuns,
   knownWatchOnlyAddresses,
+  listPayoutPolicies,
+  removePayoutPolicy,
   removeWatchOnlyAddress,
+  savePayoutPolicy,
 } from "@/commands/wallet";
 import AccountContextLabel from "@/components/account-context-label";
 import CopyedIcon from "@/components/copyed-icon";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import MonoText from "@/components/mono-text";
+import PayoutPolicyModal from "@/pages/watch-only/component/payout-policy-modal";
 import { useSyncedBlock } from "@/store/sync/hooks";
 import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
-import { WatchOnlyAddressRecord, WatchOnlyKeyType } from "@/utils/api/types";
+import {
+  PayoutPolicy,
+  PayoutPolicyDraft,
+  PayoutRun,
+  WatchOnlyAddressRecord,
+  WatchOnlyKeyType,
+} from "@/utils/api/types";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
 import {
   ActionIcon,
+  Badge,
   Box,
   Button,
   Center,
   Flex,
   Group,
   Loader,
+  Menu,
   Modal,
   NumberFormatter,
   ScrollArea,
@@ -31,7 +44,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconLock, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconCoins, IconDots, IconLock, IconPlus, IconTrash } from "@tabler/icons-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -68,6 +81,13 @@ export default function WatchOnlyPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const hasLoadedOnce = useRef(false);
 
+  // The address whose payout policy is being edited; null keeps it closed.
+  const [policyTarget, setPolicyTarget] = useState<WatchOnlyAddressRecord | null>(null);
+  // Saved policies keyed by watch_only_id, for status badges and edit-loading.
+  const [policies, setPolicies] = useState<Record<number, PayoutPolicy>>({});
+  // Run history for the address whose modal is open.
+  const [policyRuns, setPolicyRuns] = useState<PayoutRun[]>([]);
+
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
   const [keyType, setKeyType] = useState<WatchOnlyKeyType>("ViewingAddress");
   const [addressInput, setAddressInput] = useState("");
@@ -78,8 +98,12 @@ export default function WatchOnlyPage() {
   const fetchAddresses = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await knownWatchOnlyAddresses();
+      const [data, policyList] = await Promise.all([
+        knownWatchOnlyAddresses(),
+        listPayoutPolicies(),
+      ]);
       setAddresses(data);
+      setPolicies(Object.fromEntries(policyList.map((p) => [p.watch_only_id, p])));
     } catch (error) {
       console.error("Failed to fetch watch-only addresses:", error);
     } finally {
@@ -87,6 +111,17 @@ export default function WatchOnlyPage() {
       hasLoadedOnce.current = true;
     }
   }, [currentWalletID]);
+
+  // Load the run history whenever the policy modal opens for an address.
+  useEffect(() => {
+    if (!policyTarget) {
+      setPolicyRuns([]);
+      return;
+    }
+    getPayoutRuns(policyTarget.id)
+      .then(setPolicyRuns)
+      .catch(() => setPolicyRuns([]));
+  }, [policyTarget?.id, policies]);
 
   // Clear the previous account's rows immediately on switch so stale entries
   // never linger while the refetch is in flight.
@@ -132,6 +167,31 @@ export default function WatchOnlyPage() {
       setAddresses((prev) => prev.filter((a) => a.id !== id));
     } catch (error) {
       notify.error(error, "Please try again.", "Couldn't remove address");
+    }
+  };
+
+  const handleSavePolicy = async (draft: PayoutPolicyDraft) => {
+    if (!policyTarget) return;
+    try {
+      await savePayoutPolicy(policyTarget.id, draft);
+      notify.success(draft.armed ? "Payout policy saved and armed" : "Payout policy saved");
+      setPolicyTarget(null);
+      await fetchAddresses();
+    } catch (error) {
+      // Backend validates recipient/network, multiplier, lock bounds, etc.
+      notify.error(error, "Please check the fields.", "Couldn't save policy");
+    }
+  };
+
+  const handleDeletePolicy = async () => {
+    if (!policyTarget) return;
+    try {
+      await removePayoutPolicy(policyTarget.id);
+      notify.success("Payout policy removed");
+      setPolicyTarget(null);
+      await fetchAddresses();
+    } catch (error) {
+      notify.error(error, "Please try again.", "Couldn't remove policy");
     }
   };
 
@@ -202,6 +262,14 @@ export default function WatchOnlyPage() {
   return (
     <WithTitlePageHeader title="Watch-only addresses">
       {addModal}
+      <PayoutPolicyModal
+        address={policyTarget}
+        existing={policyTarget ? (policies[policyTarget.id] ?? null) : null}
+        runs={policyRuns}
+        onClose={() => setPolicyTarget(null)}
+        onSave={handleSavePolicy}
+        onDelete={handleDeletePolicy}
+      />
 
       <Box mb="sm">
         <AccountContextLabel label="Monitoring in" name={activeAccountName} />
@@ -275,6 +343,7 @@ export default function WatchOnlyPage() {
             </Table.Thead>
             <Table.Tbody>
               {addresses.map((item) => {
+                const policy = policies[item.id];
                 // Some coins are still time-locked iff the backend returned an
                 // upcoming unlock date (locked coins always carry a future one).
                 // Independent of tracks_balance: a coin that is still locked
@@ -294,7 +363,31 @@ export default function WatchOnlyPage() {
                     : "Import the receiver preimage to track spends and see a balance";
                 return (
                   <Table.Tr key={item.id}>
-                    <Table.Td>{item.name || <Text c="dimmed">—</Text>}</Table.Td>
+                    <Table.Td>
+                      <Group gap={6} wrap="nowrap">
+                        {item.name || <Text c="dimmed">—</Text>}
+                        {policy && (
+                          <Tooltip
+                            label={
+                              policy.armed
+                                ? "Payout policy armed — sends daily"
+                                : "Payout policy set but disarmed"
+                            }
+                            withArrow
+                            position="top"
+                          >
+                            <Badge
+                              size="xs"
+                              variant="light"
+                              color={policy.armed ? "teal" : "gray"}
+                              leftSection={<IconCoins size={10} />}
+                            >
+                              {policy.armed ? "Payout" : "Off"}
+                            </Badge>
+                          </Tooltip>
+                        )}
+                      </Group>
+                    </Table.Td>
                     <Table.Td>{KEY_TYPE_LABELS[item.key_type] ?? item.key_type}</Table.Td>
                     <Table.Td>
                       <Group gap="xs" wrap="nowrap">
@@ -331,15 +424,29 @@ export default function WatchOnlyPage() {
                     </Table.Td>
                     <Table.Td>
                       <Group gap="xs" justify="flex-end" wrap="nowrap">
-                        <Tooltip label="Remove" withArrow position="top">
-                          <ActionIcon
-                            color="red"
-                            variant="subtle"
-                            onClick={() => handleRemove(item.id)}
-                          >
-                            <IconTrash size={14} />
-                          </ActionIcon>
-                        </Tooltip>
+                        <Menu shadow="md" position="bottom-end" withArrow>
+                          <Menu.Target>
+                            <ActionIcon color="gray" variant="subtle" aria-label="Address actions">
+                              <IconDots size={16} />
+                            </ActionIcon>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item
+                              leftSection={<IconCoins size={14} />}
+                              onClick={() => setPolicyTarget(item)}
+                            >
+                              {policy ? "Edit payout policy…" : "Set payout policy…"}
+                            </Menu.Item>
+                            <Menu.Divider />
+                            <Menu.Item
+                              color="red"
+                              leftSection={<IconTrash size={14} />}
+                              onClick={() => handleRemove(item.id)}
+                            >
+                              Remove
+                            </Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
                       </Group>
                     </Table.Td>
                   </Table.Tr>

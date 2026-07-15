@@ -55,6 +55,7 @@ pub(crate) use input::InputSelectionRule;
 pub(crate) mod block_cache;
 mod key_cache;
 pub(crate) mod keys;
+pub(crate) mod payout;
 mod pending;
 mod spend;
 pub(crate) mod sync;
