@@ -37,6 +37,7 @@ use anyhow::Result;
 use neptune_consensus::block::guesser_receiver_data::GuesserReceiverData;
 use neptune_consensus::block::Block;
 use neptune_consensus::transaction::announcement::Announcement;
+use neptune_consensus::transaction::utxo::Coin;
 use neptune_consensus::transaction::utxo::Utxo;
 use neptune_consensus::transaction::utxo_triple::UtxoTriple;
 use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
@@ -53,6 +54,7 @@ use serde::Serialize;
 use sqlx::Row;
 use sqlx::SqliteConnection;
 use tracing::debug;
+use tracing::error;
 use tracing::warn;
 
 use crate::wallet::wallet_block::WalletBlock;
@@ -68,21 +70,29 @@ pub(crate) struct WatchOnlyAddressRecord {
     pub address_short_form: String,
     pub label: Option<String>,
     /// True when a receiver preimage was imported, so spends are tracked and
-    /// the balance fields are meaningful.
+    /// `balance`/`available` are meaningful.
     pub tracks_balance: bool,
     /// Total received so far, formatted for display.
     pub total_received: String,
     /// Spend-adjusted balance (received − spent), only when `tracks_balance`.
     pub balance: Option<String>,
     /// Portion of `balance` that is spendable now (timelock, if any, elapsed).
+    /// Only when `tracks_balance`: without spend tracking a UTXO whose timelock
+    /// has elapsed may already have been spent.
     pub available: Option<String>,
-    /// Portion of `balance` still time-locked.
-    pub locked: Option<String>,
+    /// Amount still time-locked. Always populated: a time-locked UTXO cannot
+    /// have been spent yet, so this is exact even without knowing the preimage.
+    pub locked: String,
     /// Earliest upcoming unlock among the locked coins, if any are locked.
+    /// Like `locked`, needs no preimage.
     pub next_release_date: Option<Timestamp>,
 }
 
-/// Aggregate balance breakdown for one balance-tracking watch-only address.
+/// Aggregate balance breakdown for one watch-only address.
+///
+/// `locked` and `next_release_date` are two views of the same set of UTXOs:
+/// the date is `Some` exactly when that set is non-empty, and `locked` is the
+/// sum of its amounts.
 struct WatchOnlyBalance {
     balance: NativeCurrencyAmount,
     available: NativeCurrencyAmount,
@@ -290,6 +300,24 @@ impl WatchOnlyKey {
     }
 }
 
+/// When `utxo`'s time locks elapse, or `None` if it is not time-locked at
+/// `now`.
+///
+/// The effective unlock is the *latest* of the time-lock coins, matching
+/// [`Utxo::can_spend_at`], which blocks while any one of them is pending —
+/// unlike [`Utxo::release_date`], which reports whichever comes first.
+///
+/// `None` therefore covers both "no time lock" and "every time lock has
+/// elapsed"; it does not mean spendable. A UTXO can be unspendable for reasons
+/// that carry no date, e.g. an unknown type script.
+fn pending_release_date(utxo: &Utxo, now: Timestamp) -> Option<Timestamp> {
+    utxo.coins()
+        .iter()
+        .filter_map(Coin::release_date)
+        .max()
+        .filter(|release| *release > now)
+}
+
 /// Short display form for a viewing-key string.
 fn abbreviate(address: &str) -> String {
     const HEAD: usize = 12;
@@ -380,7 +408,7 @@ impl super::WalletState {
             total_received: zero.clone(),
             balance: tracks_balance.then(|| zero.clone()),
             available: tracks_balance.then(|| zero.clone()),
-            locked: tracks_balance.then_some(zero),
+            locked: zero,
             next_release_date: None,
         })
     }
@@ -408,11 +436,8 @@ impl super::WalletState {
             };
             let tracks_balance = row.get::<Option<String>, _>("receiver_preimage").is_some();
             let total = self.watch_only_total(id).await?;
-            let breakdown = if tracks_balance {
-                Some(self.watch_only_balance_breakdown(id).await?)
-            } else {
-                None
-            };
+
+            let breakdown = self.watch_only_balance_breakdown(id).await?;
             records.push(WatchOnlyAddressRecord {
                 id,
                 key_type,
@@ -421,10 +446,10 @@ impl super::WalletState {
                 label: row.get("label"),
                 tracks_balance,
                 total_received: total.display_lossless(),
-                balance: breakdown.as_ref().map(|b| b.balance.display_lossless()),
-                available: breakdown.as_ref().map(|b| b.available.display_lossless()),
-                locked: breakdown.as_ref().map(|b| b.locked.display_lossless()),
-                next_release_date: breakdown.and_then(|b| b.next_release_date),
+                balance: tracks_balance.then(|| breakdown.balance.display_lossless()),
+                available: tracks_balance.then(|| breakdown.available.display_lossless()),
+                locked: breakdown.locked.display_lossless(),
+                next_release_date: breakdown.next_release_date,
             });
         }
         Ok(records)
@@ -460,12 +485,18 @@ impl super::WalletState {
         Ok(NativeCurrencyAmount::from_nau(sum))
     }
 
-    /// Balance breakdown for one address: unspent total split into spendable-now
-    /// (`available`) and still-time-locked (`locked`), plus the earliest upcoming
-    /// unlock. Only meaningful for entries whose preimage is known (spends are
-    /// tracked). Mirrors the main wallet's available/locked split in
+    /// Balance breakdown for one address: the unspent total (`balance`), the
+    /// part spendable now (`available`), the part still time-locked (`locked`),
+    /// and the earliest upcoming unlock. Mirrors the main wallet's
+    /// available/locked split in
     /// [`get_all_balance`](super::WalletState::get_all_balance) via
     /// `Utxo::can_spend_at`.
+    ///
+    /// `locked` and `next_release_date` hold for any address: a UTXO whose
+    /// release date is still in the future cannot have been spent, so no spend
+    /// tracking is needed to count it. `balance` and `available` are only
+    /// meaningful when the preimage is known — without it no row is ever marked
+    /// spent, so both degrade to "everything ever received that is unlocked".
     async fn watch_only_balance_breakdown(&self, watch_only_id: i64) -> Result<WatchOnlyBalance> {
         let rows = sqlx::query(
             "SELECT amount, utxo FROM watch_only_utxos WHERE watch_only_id = ? AND spent_height IS NULL",
@@ -477,6 +508,7 @@ impl super::WalletState {
         let now = Timestamp::now();
         let mut total: i128 = 0;
         let mut available: i128 = 0;
+        let mut locked: i128 = 0;
         let mut next_release_date: Option<Timestamp> = None;
 
         for row in rows {
@@ -485,29 +517,41 @@ impl super::WalletState {
 
             // A receipt without a stored utxo (only possible for rows predating
             // the spend-tracking columns) is treated as spendable.
-            let (spendable, release) = match row.get::<Option<Vec<u8>>, _>("utxo") {
-                Some(blob) => match bincode::deserialize::<Utxo>(&blob) {
-                    Ok(utxo) => (utxo.can_spend_at(now), utxo.release_date()),
-                    Err(_) => (true, None),
-                },
-                None => (true, None),
+            let utxo = row
+                .get::<Option<Vec<u8>>, _>("utxo")
+                .and_then(|blob| bincode::deserialize::<Utxo>(&blob).ok());
+            let Some(utxo) = utxo else {
+                available += amount;
+                continue;
             };
 
-            if spendable {
+            if utxo.can_spend_at(now) {
                 available += amount;
-            } else if let Some(release) = release {
-                // Track the soonest upcoming unlock.
-                next_release_date = Some(match next_release_date {
-                    Some(current) if current <= release => current,
-                    _ => release,
-                });
+                continue;
             }
+
+            let Some(release) = pending_release_date(&utxo, now) else {
+                // Unspendable for a reason we cannot put a date on — an unknown
+                // type script, or an undecodable time-lock state. Counting it
+                // as `locked` would promise an unlock that may never come, so
+                // it lands in `balance` only. These UTXOs should never have
+                // been recorded.
+                error!("Watch-only UTXO {watch_only_id} is unspendable but has no release date");
+                continue;
+            };
+
+            locked += amount;
+            // Track the first upcoming unlock
+            next_release_date = Some(match next_release_date {
+                Some(current) if current <= release => current,
+                _ => release,
+            });
         }
 
         Ok(WatchOnlyBalance {
             balance: NativeCurrencyAmount::from_nau(total),
             available: NativeCurrencyAmount::from_nau(available),
-            locked: NativeCurrencyAmount::from_nau(total - available),
+            locked: NativeCurrencyAmount::from_nau(locked),
             next_release_date,
         })
     }
@@ -962,13 +1006,133 @@ mod tests {
             entry.available.as_deref(),
             Some(unlocked_amount.display_lossless().as_str())
         );
-        assert_eq!(
-            entry.locked.as_deref(),
-            Some(locked_amount.display_lossless().as_str())
-        );
+        assert_eq!(entry.locked, locked_amount.display_lossless());
         assert_eq!(
             entry.next_release_date.map(|t| t.to_millis()),
             Some(release.to_millis())
+        );
+    }
+
+    #[tokio::test]
+    async fn elapsed_time_lock_counts_as_available() {
+        let wallet = test_devnet_wallet().await;
+        let vkey = WalletEntropy::devnet_wallet().nth_viewing_address_key(0);
+        let encoded = vkey.to_address().to_bech32m(wallet.network);
+        let record = wallet
+            .add_watch_only(
+                "ViewingAddress",
+                &encoded,
+                Some(vkey.receiver_preimage().to_hex()),
+                None,
+            )
+            .await
+            .unwrap();
+
+        let amount = NativeCurrencyAmount::from_nau(2000);
+        let expired = Timestamp::now() - Timestamp::days(30);
+        let utxo = Utxo::new_native_currency(Digest::default(), amount).with_time_lock(expired);
+        insert_receipt(&wallet, record.id, 0, &utxo).await;
+
+        let listed = wallet.known_watch_only().await.unwrap();
+        let entry = &listed[0];
+        assert_eq!(
+            entry.available.as_deref(),
+            Some(amount.display_lossless().as_str())
+        );
+        assert_eq!(
+            entry.locked,
+            NativeCurrencyAmount::from_nau(0).display_lossless()
+        );
+        assert!(
+            entry.next_release_date.is_none(),
+            "an elapsed lock must not be reported as an upcoming unlock"
+        );
+    }
+
+    #[tokio::test]
+    async fn undatable_unspendable_utxo_is_not_counted_as_locked() {
+        let wallet = test_devnet_wallet().await;
+        let vkey = WalletEntropy::devnet_wallet().nth_viewing_address_key(0);
+        let encoded = vkey.to_address().to_bech32m(wallet.network);
+        let record = wallet
+            .add_watch_only(
+                "ViewingAddress",
+                &encoded,
+                Some(vkey.receiver_preimage().to_hex()),
+                None,
+            )
+            .await
+            .unwrap();
+
+        let amount = NativeCurrencyAmount::from_nau(2000);
+        let unknown = Utxo::new(
+            Digest::default(),
+            vec![
+                Coin::new_native_currency(amount),
+                // Neither NativeCurrency nor TimeLock => unknown type script.
+                Coin {
+                    type_script_hash: Digest::default(),
+                    state: vec![],
+                },
+            ],
+        );
+        assert!(!unknown.can_spend_at(Timestamp::now()));
+        insert_receipt(&wallet, record.id, 0, &unknown).await;
+
+        let listed = wallet.known_watch_only().await.unwrap();
+        let entry = &listed[0];
+        let zero = NativeCurrencyAmount::from_nau(0).display_lossless();
+        // Counted in balance, but neither spendable nor locked.
+        assert_eq!(
+            entry.balance.as_deref(),
+            Some(amount.display_lossless().as_str())
+        );
+        assert_eq!(entry.available.as_deref(), Some(zero.as_str()));
+        assert_eq!(entry.locked, zero);
+        assert!(entry.next_release_date.is_none());
+    }
+
+    /// The timelock split needs only the stored UTXOs and the clock, so it is
+    /// reported even for an address with no preimage — a coin that is still
+    /// locked cannot have been spent, so spend tracking cannot change it.
+    #[tokio::test]
+    async fn locked_amount_is_reported_without_preimage() {
+        let wallet = test_devnet_wallet().await;
+        let vkey = WalletEntropy::devnet_wallet().nth_viewing_address_key(0);
+        let encoded = vkey.to_address().to_bech32m(wallet.network);
+        // No preimage => no balance tracking.
+        let record = wallet
+            .add_watch_only("ViewingAddress", &encoded, None, None)
+            .await
+            .unwrap();
+        assert!(!record.tracks_balance);
+
+        let unlocked_amount = NativeCurrencyAmount::from_nau(3000);
+        let locked_amount = NativeCurrencyAmount::from_nau(2000);
+        let release = Timestamp::now() + Timestamp::days(30);
+
+        let unlocked = Utxo::new_native_currency(Digest::default(), unlocked_amount);
+        let locked =
+            Utxo::new_native_currency(Digest::default(), locked_amount).with_time_lock(release);
+        insert_receipt(&wallet, record.id, 0, &unlocked).await;
+        insert_receipt(&wallet, record.id, 1, &locked).await;
+
+        let listed = wallet.known_watch_only().await.unwrap();
+        let entry = &listed[0];
+        // Spend-adjusted figures stay hidden: without the preimage they cannot
+        // be trusted.
+        assert!(!entry.tracks_balance);
+        assert!(entry.balance.is_none());
+        assert!(entry.available.is_none());
+        // The timelock, however, is exact.
+        assert_eq!(entry.locked, locked_amount.display_lossless());
+        assert_eq!(
+            entry.next_release_date.map(|t| t.to_millis()),
+            Some(release.to_millis())
+        );
+        assert_eq!(
+            entry.total_received,
+            NativeCurrencyAmount::from_nau(5000).display_lossless()
         );
     }
 

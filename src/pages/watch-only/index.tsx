@@ -273,14 +273,23 @@ export default function WatchOnlyPage() {
             </Table.Thead>
             <Table.Tbody>
               {addresses.map((item) => {
-                // Some balance is still time-locked iff the backend returned an
+                // Some coins are still time-locked iff the backend returned an
                 // upcoming unlock date (locked coins always carry a future one).
-                const hasLocked = item.tracks_balance && item.next_release_date != null;
-                const balanceTooltip = hasLocked
-                  ? `Available ${formatNpt(item.available)}; ${formatNpt(item.locked)} locked until ` +
-                    `${format(item.next_release_date, "yyyy-MM-dd HH:mm:ss")} ` +
-                    `(${formatDistanceToNow(item.next_release_date, { addSuffix: true })})`
-                  : "Spends tracked via the receiver preimage";
+                // Independent of tracks_balance: a coin that is still locked
+                // cannot have been spent, so the lock shows.
+                const hasLocked = item.next_release_date != null;
+                const lockedUntil = hasLocked
+                  ? `${formatNpt(item.locked)} locked until ` +
+                    `${format(item.next_release_date!, "yyyy-MM-dd HH:mm:ss")} ` +
+                    `(${formatDistanceToNow(item.next_release_date!, { addSuffix: true })})`
+                  : "";
+                const balanceTooltip = item.tracks_balance
+                  ? hasLocked
+                    ? `Available ${formatNpt(item.available)}; ${lockedUntil}`
+                    : "Spends tracked via the receiver preimage"
+                  : hasLocked
+                    ? `${lockedUntil}. Import the receiver preimage to track spends and see a balance`
+                    : "Import the receiver preimage to track spends and see a balance";
                 return (
                   <Table.Tr key={item.id}>
                     <Table.Td>{item.label || <Text c="dimmed">—</Text>}</Table.Td>
@@ -295,34 +304,28 @@ export default function WatchOnlyPage() {
                       <NumberFormatter value={formatNpt(item.total_received)} thousandSeparator />
                     </Table.Td>
                     <Table.Td ta="right">
-                      {item.tracks_balance ? (
-                        <Tooltip label={balanceTooltip} withArrow position="top">
-                          <Box>
-                            <Group gap={4} justify="flex-end" wrap="nowrap">
-                              {hasLocked && <IconLock size={12} />}
+                      <Tooltip label={balanceTooltip} withArrow position="top">
+                        <Box>
+                          <Group gap={4} justify="flex-end" wrap="nowrap">
+                            {hasLocked && <IconLock size={12} />}
+                            {item.tracks_balance ? (
                               <Text>
                                 <NumberFormatter
                                   value={formatNpt(item.balance)}
                                   thousandSeparator
                                 />
                               </Text>
-                            </Group>
-                            {hasLocked && (
-                              <Text c="dimmed" size="xs">
-                                {formatNpt(item.locked)} locked
-                              </Text>
+                            ) : (
+                              <Text c="dimmed">—</Text>
                             )}
-                          </Box>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip
-                          label="Import the receiver preimage to track spends and see a balance"
-                          withArrow
-                          position="top"
-                        >
-                          <Text c="dimmed">—</Text>
-                        </Tooltip>
-                      )}
+                          </Group>
+                          {hasLocked && (
+                            <Text c="dimmed" size="xs">
+                              {formatNpt(item.locked)} locked
+                            </Text>
+                          )}
+                        </Box>
+                      </Tooltip>
                     </Table.Td>
                     <Table.Td>
                       <Group gap="xs" justify="flex-end" wrap="nowrap">

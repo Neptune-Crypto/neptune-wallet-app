@@ -64,13 +64,15 @@ export interface WatchOnlyAddressRecord {
   address: string;
   address_short_form: string;
   label?: string;
-  // True when a receiver preimage was imported, so the balance fields are meaningful.
+  // True when a receiver preimage was imported, so balance/available are meaningful.
   tracks_balance: boolean;
   total_received: string;
   // Present only when tracks_balance is true.
   balance?: string;
   available?: string;
-  locked?: string;
-  // Earliest upcoming unlock among locked coins (Timestamp), if any are locked.
-  next_release_date?: any;
+  // Amount still time-locked, and the earliest upcoming unlock among those
+  // coins. A time-locked UTXO cannot have been spent yet, so these need no
+  // receiver preimage to populate. Timestamp serializes as epoch millis.
+  locked: string;
+  next_release_date?: number;
 }
