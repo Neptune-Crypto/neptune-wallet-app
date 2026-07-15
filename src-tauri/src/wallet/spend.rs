@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use itertools::Itertools;
 use neptune_consensus::block::block_header::BlockHeader;
 use neptune_consensus::proof_abstractions::tx_proving_capability::TxProvingCapability;
@@ -26,6 +28,7 @@ use thiserror::Error;
 use tracing::*;
 
 use super::input::InputSelectionRule;
+use crate::config::Config;
 use crate::prover::ProofBuilder;
 use crate::rpc_client;
 use crate::rpc_client::BroadcastError;
@@ -162,6 +165,24 @@ impl super::WalletState {
         self.updater
             .add_transaction(txid.clone(), transaction_details, db_ids)
             .await?;
+
+        // Refresh the accounts list's cached total (otherwise only rewritten on
+        // block sync): the send just moved coins into pending, so the cached
+        // figure would overstate this account's balance until the next block.
+        // Best-effort — the transaction is already broadcast, so a cache miss
+        // must not fail the send.
+        match self.get_all_balance().await {
+            Ok((_available, _pending, total)) => {
+                let config = crate::service::get_state::<Arc<Config>>();
+                if let Err(e) = config
+                    .update_wallet_balance(self.id, total.display_lossless())
+                    .await
+                {
+                    warn!("Could not update cached account balance after send: {}", e);
+                }
+            }
+            Err(e) => warn!("Could not compute balance after send: {}", e),
+        }
 
         Ok(transaction)
     }

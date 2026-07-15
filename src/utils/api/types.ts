@@ -16,7 +16,8 @@ export interface Output {
 }
 
 export interface WalletBalanceData {
-  available_balance: string;
+  spendable_balance: string;
+  pending_change: string;
   total_balance: string;
 }
 

@@ -94,9 +94,22 @@ impl RpcHandler {
     }
 }
 
+/// Balances returned by `GET /rpc/wallet/balance`.
+///
+/// All amounts are full-precision decimal strings, never JSON numbers, so
+/// 34-decimal amounts survive the trip to the frontend.
+///
+/// The time-locked balance is not returned directly; it is derivable as:
+/// `locked = total_balance - spendable_balance - pending_change`.
 #[derive(Debug, Serialize)]
 pub(crate) struct WalletBalance {
-    pub(crate) available_balance: String,
+    /// Balance right now excluding locked coins and coins tied up
+    /// in outgoing pending transactions.
+    pub(crate) spendable_balance: String,
+    /// Change receivable from pending outgoing transactions
+    pub(crate) pending_change: String,
+    /// Total balance including locked coins, as it will stand once all
+    /// outgoing pending transactions are confirmed.
     pub(crate) total_balance: String,
 }
 
@@ -111,9 +124,10 @@ pub(crate) trait WalletRpc {
 
     async fn wallet_balance() -> Result<WalletBalance, RestError> {
         let wallet = &get_state::<Arc<SyncState>>().wallet;
-        let (available_balance, total_balance) = wallet.get_all_balance().await?;
+        let (spendable_balance, pending_change, total_balance) = wallet.get_all_balance().await?;
         Ok(WalletBalance {
-            available_balance: available_balance.display_lossless(),
+            spendable_balance: spendable_balance.display_lossless(),
+            pending_change: pending_change.display_lossless(),
             total_balance: total_balance.display_lossless(),
         })
     }

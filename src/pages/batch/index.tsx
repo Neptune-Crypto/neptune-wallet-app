@@ -42,7 +42,11 @@ import { modals } from "@mantine/modals";
 import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { Fragment, useEffect, useState } from "react";
 
-import { queryCurrentWalletID, queryWalletBalance } from "@/store/wallet/wallet-slice.ts";
+import {
+  queryCurrentWalletID,
+  queryWalletBalance,
+  queryWallets,
+} from "@/store/wallet/wallet-slice.ts";
 import { bigNumberMinus, bigNumberPlusToString } from "@/utils/common";
 import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
@@ -113,9 +117,21 @@ export default function BatchTranferPage() {
     dispatch(queryExecutionHistorys({ addressId: currentWalletID, serverUrl }));
   }, [dispatch, currentWalletID, serverUrl]);
 
+  // Refetch the pending list when a block lands (same gate the History page
+  // uses), so a confirmed transaction leaves "Pending transactions" on its
+  // own. The balance refresh for this case is wired app-wide via SYNC_FINISH;
+  // this list is Send-page-local state.
+  useEffect(() => {
+    if (latestBlock && syncedBlock && latestBlock <= syncedBlock) {
+      dispatch(queryExecutionHistorys({ addressId: currentWalletID, serverUrl }));
+    }
+  }, [latestBlock, syncedBlock, currentWalletID, serverUrl]);
+
   // --- Composing-time validation (feedback before the confirm modal) ---
-  const availableBalance =
-    (balanceData?.available_balance ?? "0").toString().replace(/\.$/, "") || "0";
+  const spendableBalance =
+    (balanceData?.spendable_balance ?? "0").toString().replace(/\.$/, "") || "0";
+  const pendingChange = (balanceData?.pending_change ?? "0").toString().replace(/\.$/, "") || "0";
+  const hasPendingChange = Number(pendingChange) > 0;
   const feeInvalid = fee.toString().trim() === "" || Number.isNaN(Number(fee));
   const totalOut = sendInputs.reduce(
     (sum, item) => bigNumberPlusToString(sum, item.amount || "0"),
@@ -131,7 +147,7 @@ export default function BatchTranferPage() {
   // hasn't loaded on this page), so the form is never wrongly disabled.
   const hasSelection = selectedInputs && selectedInputs.length > 0;
   const selectionKnown = hasSelection && Number(selectedAmount) > 0;
-  const spendCeiling = selectionKnown ? selectedAmount : availableBalance;
+  const spendCeiling = selectionKnown ? selectedAmount : spendableBalance;
   const overBalance = hasAnyAmount && bigNumberMinus(spendCeiling, totalWithFee) < 0;
   // Rows repeating an address already used by an earlier row.
   const duplicateIndexes = new Set<number>();
@@ -150,7 +166,7 @@ export default function BatchTranferPage() {
       .filter((i) => i >= 0)
   );
 
-  // Max an individual recipient can receive: available minus fee and the other rows.
+  // Max an individual recipient can receive: spendable minus fee and the other rows.
   function maxAmountFor(index: number) {
     let others = "0";
     sendInputs.forEach((item, i) => {
@@ -402,6 +418,13 @@ export default function BatchTranferPage() {
   function handleRequesTransactionResponse() {
     if (requesTransactionResponse && requesTransactionResponse.transaction) {
       clearDatas();
+      // The broadcast moved coins into the pending bucket; refetch so the
+      // available figure and the "awaiting confirmation" hint update without
+      // requiring a page switch. The wallets list carries the accounts table's
+      // cached per-account total (rewritten by the backend after the send), so
+      // refetch it too — otherwise the table would disagree with the cards.
+      dispatch(queryWalletBalance({ serverUrl }));
+      dispatch(queryWallets());
     }
   }
   function clearDatas() {
@@ -485,15 +508,23 @@ export default function BatchTranferPage() {
                 making these ~1px taller than the account label — which then gets
                 center-shifted down relative to its position on other pages. */}
             <Flex direction={"row"} gap={8}>
+              {/* This figure is the send ceiling: unlike the Wallet page's
+                  ownership figure, it must exclude change awaiting
+                  confirmation. */}
               <Text size="sm" c="dimmed">
-                Available balance:
+                Spendable now:
               </Text>
               <Text size="sm" fw={600} c="var(--color-positive)">
-                {balanceData.available_balance}{" "}
+                {balanceData.spendable_balance}{" "}
                 <Text span size="sm" c="dimmed" fw={400}>
                   NPT
                 </Text>
               </Text>
+              {hasPendingChange && (
+                <Text size="sm" c="dimmed">
+                  · {pendingChange} NPT awaiting confirmation
+                </Text>
+              )}
             </Flex>
           </Flex>
 
@@ -615,7 +646,10 @@ export default function BatchTranferPage() {
             <Text c="red" size="sm">
               {selectionKnown
                 ? `Amounts plus fee exceed the selected UTXOs' value (${spendCeiling} NPT).`
-                : `Amounts plus fee exceed your available balance (${availableBalance} NPT).`}
+                : `Amounts plus fee exceed what's spendable right now (${spendableBalance} NPT).` +
+                  (hasPendingChange
+                    ? ` ${pendingChange} NPT is awaiting confirmation and becomes spendable once your pending transaction is confirmed.`
+                    : "")}
             </Text>
           )}
           <Flex mt="md">

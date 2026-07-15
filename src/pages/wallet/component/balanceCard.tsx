@@ -5,19 +5,27 @@ import {
   useLoadingBalance,
   useWallets,
 } from "@/store/wallet/hooks";
-import { bigNumberMinus } from "@/utils/common";
-import {
-  Box,
-  Card,
-  Flex,
-  Grid,
-  LoadingOverlay,
-  NumberFormatter,
-  Text,
-  Tooltip,
-} from "@mantine/core";
+import { bigNumberMinus, bigNumberPlusToString } from "@/utils/common";
+import { Box, Card, Flex, Grid, LoadingOverlay, Text, Tooltip } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
+
+// Headline balance figure with de-emphasized decimals: the integer part is what
+// users scan for, and with the app-wide fixed 4 decimals a round balance would
+// otherwise read "29.0000" at full size — half the headline being zeros. Smaller
+// decimals extend the existing hierarchy (the NPT suffix is already smaller and
+// dimmer). Cards only: tables keep uniform digits for column alignment.
+function BalanceFigure({ value }: { value: string | number }) {
+  const [intRaw, fracRaw] = value.toString().split(".");
+  const intFormatted = intRaw.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const frac = (fracRaw ?? "").padEnd(4, "0").slice(0, 4);
+  return (
+    <>
+      {intFormatted}
+      <span style={{ fontSize: "0.6em", opacity: 0.75 }}>.{frac}</span>
+    </>
+  );
+}
 
 export default function BalanceCard() {
   const [options, setOptions] = useState([] as any[]);
@@ -32,23 +40,38 @@ export default function BalanceCard() {
     handleOverviewData();
   }, [balanceData]);
   function handleOverviewData() {
-    let available_balance =
-      balanceData && balanceData.available_balance ? balanceData.available_balance : 0;
+    let spendable_balance =
+      balanceData && balanceData.spendable_balance ? balanceData.spendable_balance : 0;
+    let pending_change = balanceData && balanceData.pending_change ? balanceData.pending_change : 0;
     let total_balance = balanceData && balanceData.total_balance ? balanceData.total_balance : 0;
+    // total = spendable + time-locked + pending (expected incoming change), so
+    // locked here is strictly the time-locked bucket.
     let lock_balance =
-      bigNumberMinus(total_balance, available_balance) > 0
-        ? bigNumberMinus(total_balance, available_balance)
+      bigNumberMinus(bigNumberMinus(total_balance, spendable_balance), pending_change) > 0
+        ? bigNumberMinus(bigNumberMinus(total_balance, spendable_balance), pending_change)
         : "0.0000";
+    // The Wallet page is the OWNERSHIP view: the card includes change awaiting
+    // confirmation (it's still the user's money), so the figure doesn't crash to
+    // 0 mid-send and agrees with the accounts table below. The SEND page is the
+    // action view and shows what's spendable right now — lifecycle detail lives
+    // there, where it constrains something. Here it's a tooltip, on demand.
+    const withPending = bigNumberPlusToString(
+      spendable_balance.toString(),
+      pending_change.toString()
+    );
     const options = [
       {
         title: "Available balance",
-        value: <NumberFormatter value={available_balance} thousandSeparator />,
+        // Ownership view: the figure includes change awaiting confirmation —
+        // still the user's money. The spendability story (and the awaiting-
+        // confirmation breakdown) lives on the Send page, where it constrains
+        // something; this card intentionally carries no pending-state affordance.
+        value: <BalanceFigure value={withPending} />,
       },
       {
         title: "Locked balance",
-        tooltip:
-          "Funds you own that aren't spendable yet — e.g. time-locked outputs or coins still awaiting confirmation.",
-        value: <NumberFormatter value={lock_balance} thousandSeparator />,
+        tooltip: "Time-locked coins — funds you own that become spendable at a set date.",
+        value: <BalanceFigure value={lock_balance} />,
       },
     ];
     setOptions(options);
@@ -73,6 +96,9 @@ export default function BalanceCard() {
         radius="lg"
         p="lg"
         w={"100%"}
+        // Fill the grid column so the pair always renders at equal height even
+        // if one card's content grows a line taller than the other's.
+        h={"100%"}
         className={hideButton ? "balance-card-locked" : "balance-card-available"}
       >
         <Flex direction={"column"} w={"100%"} gap={8}>

@@ -12,7 +12,8 @@ const initialState: WalletState = {
 
   loadingBalance: false,
   balanceData: {
-    available_balance: "0",
+    spendable_balance: "0",
+    pending_change: "0",
     total_balance: "0",
   },
   mnemonic: "",
@@ -99,7 +100,8 @@ export const queryWalletBalance = createAsyncThunk<
   let balanceData = req.data;
   return {
     data: {
-      available_balance: amount_to_fixed(balanceData.available_balance),
+      spendable_balance: amount_to_fixed(balanceData.spendable_balance),
+      pending_change: amount_to_fixed(balanceData.pending_change),
       total_balance: amount_to_fixed(balanceData.total_balance),
     },
   };
