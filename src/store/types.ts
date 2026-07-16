@@ -1,6 +1,11 @@
 import { Contact } from "@/database/types/contact";
 import { ExecutionHistory } from "@/database/types/localhistory";
-import { SendInputItem, SendTransactionResponse, WalletBalanceData } from "@/utils/api/types";
+import {
+  OutputInfo,
+  SendInputItem,
+  SendTransactionResponse,
+  WalletBalanceData,
+} from "@/utils/api/types";
 
 export interface WalletState {
   mnemonic: string;
@@ -96,7 +101,7 @@ export interface MerageHistory {
   index: number;
   height: number;
   release_date: any;
-  outputs: string[];
+  outputs: (OutputInfo | string)[];
   batchOutput?: SendInputItem[];
   utxos: HistoryUtxo[];
 }

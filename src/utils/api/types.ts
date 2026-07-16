@@ -5,9 +5,22 @@ export interface SendTransactionParam {
   accept_lustrations: boolean;
 }
 
+// One on-chain output of a sent transaction. `is_change` marks outputs that
+// return funds to this wallet (change / self-send), so the UI can tell them
+// apart from the recipient output(s). Fields beyond `commitment` are optional
+// because records written before this existed stored only the commitment hex.
+export interface OutputInfo {
+  commitment: string;
+  amount?: string;
+  is_change?: boolean;
+  // Recipient address (bech32m) this output pays; absent for change outputs
+  // and for legacy records that stored only the commitment.
+  address?: string;
+}
+
 export interface SendTransactionResponse {
   txid: string;
-  outputs: string[];
+  outputs: OutputInfo[];
 }
 
 export interface Output {
