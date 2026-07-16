@@ -686,7 +686,7 @@ impl super::WalletState {
         // A run pays out + fee from this account; nothing to pay ⇒ trivially OK.
         let fee = NativeCurrencyAmount::coins_from_str(DEFAULT_PAYOUT_FEE_NPT)
             .expect("default payout fee must parse");
-        let (available, _total) = self.get_all_balance().await?;
+        let (available, _, _) = self.get_all_balance().await?;
         let sufficient_funds =
             payout_nau <= 0 || available.to_nau() >= payout_nau.saturating_add(fee.to_nau());
 
@@ -757,7 +757,7 @@ impl super::WalletState {
 
         let fee = NativeCurrencyAmount::coins_from_str(DEFAULT_PAYOUT_FEE_NPT)
             .expect("default payout fee must parse");
-        let (available, _total) = self.get_all_balance().await?;
+        let (available, _, _) = self.get_all_balance().await?;
         let needed = payout_nau.saturating_add(fee.to_nau());
 
         // Insufficient funds: skip & drop (account so it is not retried).
