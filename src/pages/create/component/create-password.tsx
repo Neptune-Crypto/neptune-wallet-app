@@ -1,4 +1,5 @@
 import { useAppDispatch } from "@/store/hooks";
+import { useMnemonic } from "@/store/wallet/hooks";
 import { setMnemonic, setOneTimePassword, setOneTimeWalletName } from "@/store/wallet/wallet-slice";
 import { notify } from "@/utils/notify";
 import { Button, Flex, PasswordInput, Stack, Text } from "@mantine/core";
@@ -17,12 +18,16 @@ export default function CreatePassword(props: Props) {
   const [visible, { toggle }] = useDisclosure(false);
   const [confirmPassword, setConfirmPassword] = useState("");
   const dispatch = useAppDispatch();
+  const mnemonic = useMnemonic();
 
   const handleKeyPress = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        if (password) {
+        // Same gate as the submit button: Enter must not sneak past a missing
+        // or mismatched confirmation — the password would silently be the
+        // first field's value, which the user can't necessarily reproduce.
+        if (password && confirmPassword && password === confirmPassword) {
           createPassword();
         }
       }
@@ -35,7 +40,14 @@ export default function CreatePassword(props: Props) {
       let name = "Account 1";
       dispatch(setOneTimePassword(password));
       dispatch(setOneTimeWalletName(name));
-      dispatch(setMnemonic(bip39.generateMnemonic(wordlist, 192)));
+      // Only generate when no seed exists yet: "Go Back" returns through this
+      // step, and regenerating here would silently invalidate a seed the user
+      // already revealed and wrote down at the next step. Fresh seeds come only
+      // from the explicit "Change seed phrase" button (which announces itself),
+      // or after the previous seed was consumed by a completed creation.
+      if (!mnemonic) {
+        dispatch(setMnemonic(bip39.generateMnemonic(wordlist, 192)));
+      }
       nextStep();
     } catch (error: any) {
       notify.error(error, "Please try again.", "Couldn't create password");
@@ -71,7 +83,7 @@ export default function CreatePassword(props: Props) {
           disabled={!password || !confirmPassword || password !== confirmPassword}
           onClick={createPassword}
         >
-          Create a new account
+          Continue
         </Button>
       </Flex>
     </Flex>

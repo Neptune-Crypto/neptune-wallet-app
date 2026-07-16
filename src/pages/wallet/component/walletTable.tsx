@@ -27,22 +27,51 @@ import {
   useModalsStack,
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
-import { IconPlus } from "@tabler/icons-react";
+import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
 import { useState } from "react";
 import ActionMenu from "./action-menu";
 import AddWalletModal from "./add-wallet-modal";
 import ExportWalletModal from "./export-wallet-modal";
 
+// The cached balance is neptune's display_lossless() string: "<int>.<34 decimals>"
+// (empty until the first sync completes). Show 4 decimals, truncated — truncation
+// (vs rounding) can only ever UNDERSTATE a balance, never overstate it.
+// Always pad to 4 decimals so a brand-new account (cached balance "") reads the
+// same "0.0000" as a synced zero balance, not a bare "0".
+function amount_to_fixed(amount: string) {
+  const [int = "0", frac = ""] = (amount || "0").split(".");
+  return `${int}.${frac.substring(0, 4).padEnd(4, "0")}`;
+}
+
 // Body of the delete-account confirmation. Stateful (acknowledgement checkbox
 // gates the Delete button), which modals.openConfirmModal cannot express.
 function DeleteAccountConfirm({ wallet, onConfirm }: { wallet: Wallet; onConfirm: () => void }) {
   const [acknowledged, setAcknowledged] = useState(false);
+  // Funds detection on the RAW balance string: the 4-decimal display truncates,
+  // so dust below 0.0001 must still trigger the warning, not read as zero.
+  const hasFunds = /[1-9]/.test(wallet.balance || "");
+  const shown = amount_to_fixed(wallet.balance || "0");
+  const shownAmount = hasFunds && shown === "0.0000" ? "less than 0.0001" : shown;
   return (
     <Flex direction={"column"} gap={16}>
       <Text size="sm">
-        Are you sure you want to delete "{wallet.name}"? Its keys will be erased from this device —
-        without its seed phrase you will permanently lose access to its funds.
+        Are you sure you want to delete "{wallet.name}"? Its secret key will be erased from this
+        device — without your seed phrase backup, you will permanently lose access to its funds.
       </Text>
+      {hasFunds ? (
+        // Confront the user with what this delete costs, in the same warning
+        // treatment (icon + AA-safe deep orange) as the send confirm modal.
+        <Flex align="center" gap={6}>
+          <IconAlertTriangle size={14} color="var(--mantine-color-orange-6)" />
+          <Text size="sm" c="#c2410c" fw={600}>
+            This account holds {shownAmount} NPT.
+          </Text>
+        </Flex>
+      ) : (
+        <Text size="sm" c="dimmed">
+          This account's balance is 0.0000 NPT.
+        </Text>
+      )}
       <Checkbox
         size="sm"
         label="I understand this cannot be undone"
@@ -82,16 +111,6 @@ export default function WalletTable() {
 
   const [renameWalletData, setRenameWalletData] = useState({} as Wallet);
   const [renameValue, setRenameValue] = useState("");
-
-  // The cached balance is neptune's display_lossless() string: "<int>.<34 decimals>"
-  // (empty until the first sync completes). Show 4 decimals, truncated — truncation
-  // (vs rounding) can only ever UNDERSTATE a balance, never overstate it.
-  // Always pad to 4 decimals so a brand-new account (cached balance "") reads the
-  // same "0.0000" as a synced zero balance, not a bare "0".
-  function amount_to_fixed(amount: string) {
-    const [int = "0", frac = ""] = (amount || "0").split(".");
-    return `${int}.${frac.substring(0, 4).padEnd(4, "0")}`;
-  }
 
   // Portfolio total across all accounts. Sum the already-formatted per-account
   // values (what the column shows) rather than the raw balances, so the result
@@ -265,7 +284,7 @@ export default function WalletTable() {
           <TextInput
             data-autofocus
             label="Account name"
-            placeholder="Enter a name for your wallet"
+            placeholder="Enter a name for your account"
             value={renameValue}
             onChange={(event) => setRenameValue(event.currentTarget.value)}
             onKeyDown={(event) => {

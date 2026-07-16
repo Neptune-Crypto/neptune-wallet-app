@@ -53,6 +53,13 @@ export default function ActionMenu({
           onClick={removeWallet}
         >
           <Text>Delete account</Text>
+          {/* A bare disabled item reads as broken — give the reason inline,
+              the same pattern as Import randomness below. */}
+          {isCurrentWallet && (
+            <Text size="xs" c="dimmed">
+              The active account can't be deleted — set another account as active first
+            </Text>
+          )}
         </Menu.Item>
         <Menu.Divider />
         <Menu.Item
