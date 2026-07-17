@@ -219,11 +219,11 @@ pub(crate) trait WalletRpc {
         key_type: String,
         address: String,
         preimage: Option<String>,
-        label: Option<String>,
+        name: String,
     ) -> Result<WatchOnlyAddressRecord, RestError> {
         let wallet = &get_state::<Arc<SyncState>>().wallet;
         let record = wallet
-            .add_watch_only(&key_type, &address, preimage, label)
+            .add_watch_only(&key_type, &address, preimage, name)
             .await
             .map_err(|e| RestError(e.to_string()))?;
         Ok(record)

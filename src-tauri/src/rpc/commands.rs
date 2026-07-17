@@ -206,9 +206,9 @@ pub(crate) async fn add_watch_only_address(
     key_type: String,
     address: String,
     preimage: Option<String>,
-    label: Option<String>,
+    name: String,
 ) -> Result<WatchOnlyAddressRecord> {
-    WalletRpcImpl::add_watch_only_address(key_type, address, preimage, label)
+    WalletRpcImpl::add_watch_only_address(key_type, address, preimage, name)
         .await
         .into_tauri_result()
 }

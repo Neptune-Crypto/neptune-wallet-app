@@ -72,7 +72,7 @@ export default function WatchOnlyPage() {
   const [keyType, setKeyType] = useState<WatchOnlyKeyType>("ViewingAddress");
   const [addressInput, setAddressInput] = useState("");
   const [preimageInput, setPreimageInput] = useState("");
-  const [labelInput, setLabelInput] = useState("");
+  const [nameInput, setNameInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchAddresses = useCallback(async () => {
@@ -104,15 +104,16 @@ export default function WatchOnlyPage() {
     setKeyType("ViewingAddress");
     setAddressInput("");
     setPreimageInput("");
-    setLabelInput("");
+    setNameInput("");
   };
 
   const handleAdd = async () => {
     const trimmed = addressInput.trim();
-    if (!trimmed) return;
+    const trimmedName = nameInput.trim();
+    if (!trimmed || !trimmedName) return;
     setIsSaving(true);
     try {
-      const record = await addWatchOnlyAddress(keyType, trimmed, preimageInput, labelInput);
+      const record = await addWatchOnlyAddress(keyType, trimmed, trimmedName, preimageInput);
       setAddresses((prev) => [...prev, record]);
       notify.success("Watch-only address added");
       resetForm();
@@ -151,9 +152,10 @@ export default function WatchOnlyPage() {
           allowDeselect={false}
         />
         <TextInput
-          label="Label (optional)"
-          value={labelInput}
-          onChange={(event) => setLabelInput(event.currentTarget.value)}
+          label="Name"
+          required
+          value={nameInput}
+          onChange={(event) => setNameInput(event.currentTarget.value)}
           placeholder="A name to recognise this address"
         />
         <Textarea
@@ -188,7 +190,7 @@ export default function WatchOnlyPage() {
         <Button
           variant="light"
           loading={isSaving}
-          disabled={!addressInput.trim()}
+          disabled={!addressInput.trim() || !nameInput.trim()}
           onClick={handleAdd}
         >
           Add
@@ -257,7 +259,7 @@ export default function WatchOnlyPage() {
               }}
             >
               <Table.Tr>
-                <Table.Th w={140}>Label</Table.Th>
+                <Table.Th w={140}>Name</Table.Th>
                 <Table.Th w={120}>Type</Table.Th>
                 <Table.Th>Address</Table.Th>
                 <Table.Th w={140} ta="right">
@@ -292,7 +294,7 @@ export default function WatchOnlyPage() {
                     : "Import the receiver preimage to track spends and see a balance";
                 return (
                   <Table.Tr key={item.id}>
-                    <Table.Td>{item.label || <Text c="dimmed">—</Text>}</Table.Td>
+                    <Table.Td>{item.name || <Text c="dimmed">—</Text>}</Table.Td>
                     <Table.Td>{KEY_TYPE_LABELS[item.key_type] ?? item.key_type}</Table.Td>
                     <Table.Td>
                       <Group gap="xs" wrap="nowrap">

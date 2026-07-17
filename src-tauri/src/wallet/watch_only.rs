@@ -68,7 +68,10 @@ pub(crate) struct WatchOnlyAddressRecord {
     pub key_type: String,
     pub address: String,
     pub address_short_form: String,
-    pub label: Option<String>,
+
+    /// User-supplied name for this address.
+    pub name: String,
+
     /// True when a receiver preimage was imported, so spends are tracked and
     /// `balance`/`available` are meaningful.
     pub tracks_balance: bool,
@@ -331,6 +334,9 @@ fn abbreviate(address: &str) -> String {
 impl super::WalletState {
     /// Register a new watch-only address for the current account.
     ///
+    /// `name` is required: a non-empty (after trimming) display name for the
+    /// address.
+    ///
     /// `preimage_hex` is optional: when supplied it must be the hex-encoded
     /// receiver preimage of this address (checked via `preimage.hash() ==
     /// receiver_digest`), and it upgrades the entry to balance tracking.
@@ -339,8 +345,11 @@ impl super::WalletState {
         key_type: &str,
         text: &str,
         preimage_hex: Option<String>,
-        label: Option<String>,
+        name: String,
     ) -> Result<WatchOnlyAddressRecord> {
+        let name = name.trim().to_string();
+        ensure!(!name.is_empty(), "A watch-only address must have a name");
+
         let key = WatchOnlyKey::parse(key_type, text, self.network)?;
         // `canonical` is the viewing key we persist and dedupe on; `address` is
         // the actual receiving address shown to the user (the are the same for
@@ -376,15 +385,16 @@ impl super::WalletState {
             bail!("This watch-only address has already been added");
         }
 
-        let label = label.filter(|l| !l.trim().is_empty());
         let created_at = Timestamp::now().to_millis() as i64;
         let id = sqlx::query(
+            // NB: the column is named `label` in the schema; the code-level
+            // field is `name`. Kept as-is to avoid a table-recreate migration.
             "INSERT INTO watch_only_addresses (key_type, viewing_key, receiver_preimage, label, created_at) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(key.key_type_str())
         .bind(&canonical)
         .bind(&preimage_stored)
-        .bind(&label)
+        .bind(&name)
         .bind(created_at)
         .execute(&self.pool)
         .await?
@@ -403,7 +413,7 @@ impl super::WalletState {
             key_type: key.key_type_str().to_string(),
             address_short_form: abbreviate(&address),
             address,
-            label,
+            name,
             tracks_balance,
             total_received: zero.clone(),
             balance: tracks_balance.then(|| zero.clone()),
@@ -417,7 +427,9 @@ impl super::WalletState {
     /// total received and (when the preimage is known) its balance.
     pub(crate) async fn known_watch_only(&self) -> Result<Vec<WatchOnlyAddressRecord>> {
         let rows = sqlx::query(
-            "SELECT id, key_type, viewing_key, label, receiver_preimage FROM watch_only_addresses ORDER BY created_at ASC",
+            // `label` is the (nullable) schema column; expose it as `name`, and
+            // coalesce the legacy NULLs of pre-existing rows to an empty string.
+            "SELECT id, key_type, viewing_key, COALESCE(label, '') AS name, receiver_preimage FROM watch_only_addresses ORDER BY created_at ASC",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -443,7 +455,7 @@ impl super::WalletState {
                 key_type,
                 address_short_form: abbreviate(&address),
                 address,
-                label: row.get("label"),
+                name: row.get("name"),
                 tracks_balance,
                 total_received: total.display_lossless(),
                 balance: tracks_balance.then(|| breakdown.balance.display_lossless()),
@@ -828,7 +840,7 @@ mod tests {
         assert!(WatchOnlyKey::parse("EcHybrid", &encoded, Network::Testnet(0)).is_err());
 
         let record = wallet
-            .add_watch_only("EcHybrid", &encoded, None, Some("miner".to_string()))
+            .add_watch_only("EcHybrid", &encoded, None, "miner".to_string())
             .await
             .unwrap();
         assert_eq!(record.key_type, "EcHybrid");
@@ -846,16 +858,11 @@ mod tests {
         let encoded = devnet_viewing_address(0).to_bech32m(wallet.network);
 
         let record = wallet
-            .add_watch_only(
-                "ViewingAddress",
-                &encoded,
-                None,
-                Some("savings".to_string()),
-            )
+            .add_watch_only("ViewingAddress", &encoded, None, "savings".to_string())
             .await
             .unwrap();
         assert_eq!(record.key_type, "ViewingAddress");
-        assert_eq!(record.label.as_deref(), Some("savings"));
+        assert_eq!(record.name, "savings");
         assert_eq!(record.address, encoded);
         // No preimage => total-received only, no balance.
         assert!(!record.tracks_balance);
@@ -868,7 +875,7 @@ mod tests {
 
         // Adding the same viewing key again is rejected.
         assert!(wallet
-            .add_watch_only("ViewingAddress", &encoded, None, None)
+            .add_watch_only("ViewingAddress", &encoded, None, "test".to_string())
             .await
             .is_err());
 
@@ -888,12 +895,17 @@ mod tests {
             .receiver_preimage()
             .to_hex();
         assert!(wallet
-            .add_watch_only("ViewingAddress", &encoded, Some(wrong), None)
+            .add_watch_only("ViewingAddress", &encoded, Some(wrong), "test".to_string())
             .await
             .is_err());
         // Non-hex preimage is rejected.
         assert!(wallet
-            .add_watch_only("ViewingAddress", &encoded, Some("nothex".to_string()), None)
+            .add_watch_only(
+                "ViewingAddress",
+                &encoded,
+                Some("nothex".to_string()),
+                "test".to_string(),
+            )
             .await
             .is_err());
 
@@ -903,7 +915,7 @@ mod tests {
                 "ViewingAddress",
                 &encoded,
                 Some(vkey.receiver_preimage().to_hex()),
-                None,
+                "test".to_string(),
             )
             .await
             .unwrap();
@@ -926,7 +938,12 @@ mod tests {
         let encoded = vkey.to_address().to_bech32m(wallet.network);
 
         let record = wallet
-            .add_watch_only("ViewingAddress", &encoded, Some(preimage.to_hex()), None)
+            .add_watch_only(
+                "ViewingAddress",
+                &encoded,
+                Some(preimage.to_hex()),
+                "test".to_string(),
+            )
             .await
             .unwrap();
 
@@ -983,7 +1000,7 @@ mod tests {
                 "ViewingAddress",
                 &encoded,
                 Some(vkey.receiver_preimage().to_hex()),
-                None,
+                "test".to_string(),
             )
             .await
             .unwrap();
@@ -1030,7 +1047,7 @@ mod tests {
                 "ViewingAddress",
                 &encoded,
                 Some(vkey.receiver_preimage().to_hex()),
-                None,
+                "test".to_string(),
             )
             .await
             .unwrap();
@@ -1066,7 +1083,7 @@ mod tests {
                 "ViewingAddress",
                 &encoded,
                 Some(vkey.receiver_preimage().to_hex()),
-                None,
+                "test".to_string(),
             )
             .await
             .unwrap();
@@ -1109,7 +1126,7 @@ mod tests {
         let encoded = vkey.to_address().to_bech32m(wallet.network);
         // No preimage => no balance tracking.
         let record = wallet
-            .add_watch_only("ViewingAddress", &encoded, None, None)
+            .add_watch_only("ViewingAddress", &encoded, None, "test".to_string())
             .await
             .unwrap();
         assert!(!record.tracks_balance);
@@ -1152,7 +1169,7 @@ mod tests {
                 "ViewingAddress",
                 &address.to_bech32m(wallet.network),
                 None,
-                None,
+                "test".to_string(),
             )
             .await
             .unwrap();

@@ -63,7 +63,7 @@ export interface WatchOnlyAddressRecord {
   key_type: string;
   address: string;
   address_short_form: string;
-  label?: string;
+  name: string;
   // True when a receiver preimage was imported, so balance/available are meaningful.
   tracks_balance: boolean;
   total_received: string;

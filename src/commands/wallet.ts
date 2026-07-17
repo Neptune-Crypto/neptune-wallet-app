@@ -75,14 +75,14 @@ export async function generateNewAddress(keyType: NeptuneKeyType): Promise<Addre
 export async function addWatchOnlyAddress(
   keyType: WatchOnlyKeyType,
   address: string,
-  preimage?: string,
-  label?: string
+  name: string,
+  preimage?: string
 ): Promise<WatchOnlyAddressRecord> {
   return await invoke<WatchOnlyAddressRecord>("add_watch_only_address", {
     keyType,
     address,
     preimage: preimage && preimage.trim() !== "" ? preimage.trim() : null,
-    label: label && label.trim() !== "" ? label.trim() : null,
+    name: name.trim(),
   });
 }
 
