@@ -252,6 +252,7 @@ sqlx_migrator::sqlite_migration!(
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct UtxoDbData {
+    /// Database ID of a UTXO. Autoincremented/managed by the database.
     pub(crate) id: i64,
     pub(crate) hash: String,
     pub(crate) recovery_data: UtxoRecoveryData,

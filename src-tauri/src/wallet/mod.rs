@@ -55,13 +55,13 @@ pub(crate) use input::InputSelectionRule;
 pub(crate) mod block_cache;
 mod key_cache;
 pub(crate) mod keys;
-pub(crate) mod payout;
 mod pending;
 mod spend;
 pub(crate) mod sync;
 pub(crate) mod wallet_file;
 mod wallet_state_table;
 pub(crate) mod watch_only;
+pub(crate) mod watch_only_payout_policy;
 
 pub(crate) struct WalletState {
     key: WalletEntropy,
@@ -302,6 +302,7 @@ impl WalletState {
 
             total_recovered += recovery_data.utxo.get_native_currency_amount();
             let new_utxo = UtxoDbData {
+                // ID gets set by the database
                 id: 0,
                 hash: Tip5::hash(&recovery_data.utxo).to_hex(),
                 recovery_data,

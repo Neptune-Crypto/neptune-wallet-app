@@ -21,13 +21,13 @@ use crate::rpc::WalletRpc;
 use crate::rpc::WalletRpcImpl;
 use crate::wallet::balance::WalletHistory;
 use crate::wallet::keys::AddressRecord;
-use crate::wallet::payout::PayoutPolicy;
-use crate::wallet::payout::PayoutPolicyDraft;
-use crate::wallet::payout::PayoutPreview;
-use crate::wallet::payout::PayoutRun;
 use crate::wallet::sync::SyncState;
 use crate::wallet::sync::SyncStatus;
 use crate::wallet::watch_only::WatchOnlyAddressRecord;
+use crate::wallet::watch_only_payout_policy::PayoutPolicy;
+use crate::wallet::watch_only_payout_policy::PayoutPolicyDraft;
+use crate::wallet::watch_only_payout_policy::PayoutPreview;
+use crate::wallet::watch_only_payout_policy::PayoutRun;
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]

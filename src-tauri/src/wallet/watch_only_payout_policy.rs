@@ -10,6 +10,8 @@
 //! arming stamps `meter_start` (and re-arming resets it), so only receipts
 //! confirmed after the latest arming are ever paid against.
 //!
+//! Rescanning a block does not re-initiate payouts.
+//!
 //! This module owns the policy record and its CRUD. The eligibility/accounting
 //! run engine and the scheduler live alongside it (added separately).
 
@@ -21,6 +23,7 @@ use chrono::Local;
 use chrono::TimeZone;
 use neptune_consensus::transaction::utxo::Utxo;
 use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
+use neptune_mempool::transaction_kernel_id::Txid;
 use neptune_primitives::timestamp::Timestamp;
 use neptune_wallet::address::ReceivingAddress;
 use neptune_wallet::twenty_first::math::b_field_element::BFieldElement;
@@ -30,6 +33,7 @@ use serde::Serialize;
 use sqlx::Row;
 use tracing::error;
 use tracing::info;
+use tracing::warn;
 
 use crate::wallet::watch_only::pending_release_date;
 use crate::wallet::InputSelectionRule;
@@ -263,7 +267,7 @@ pub(crate) struct PayoutPolicyDraft {
 }
 
 /// The eligible/pending tally of a policy's receipts, as computed by
-/// [`WalletState::compute_payout_basis`]. Fields are raw nau.
+/// [`super::WalletState::compute_payout_basis`]. Fields are raw nau.
 #[derive(Debug, Default)]
 struct PayoutBasisCalc {
     /// aocl_index of each receipt counted into `basis_nau` (rescan-stable).
@@ -803,22 +807,43 @@ impl super::WalletState {
             )
             .await
         {
-            Ok(tx) => {
-                // Track the initiated transaction by its output addition records
-                // (canonical commitments), not a transaction id.
-                let commitments = tx
+            Ok((tx, _output_infos)) => {
+                // Track the initiated transaction by its output addition
+                // records
+                let addition_records = tx
                     .kernel
                     .outputs
                     .iter()
                     .map(|output| output.canonical_commitment.to_hex())
-                    .collect::<Vec<_>>()
-                    .join(",");
+                    .collect::<Vec<_>>();
+                let commitments = addition_records.join(",");
                 info!(
                     "Payout policy {} paid {payout_nau} nau; outputs {commitments}",
                     policy.id
                 );
                 self.update_run_result(run_id, Some(commitments), PayoutRunStatus::Paid)
                     .await?;
+
+                // An automated payout has no front-end in the loop, so unlike a
+                // manual send nothing records it in the local transaction
+                // history the "Activity" view reads from. Write that row here so
+                // the payout shows up with its recipient and amount. Best-effort:
+                // the transaction is already broadcast and the run already
+                // accounted, so a history-write failure must not fail the run.
+                self.record_payout_in_history(
+                    // The wallet's own pre-merge transaction id, which differs
+                    // from the canonical on-chain id once the tx is merged into
+                    // a block.
+                    &tx.txid().to_string(),
+                    run_at,
+                    tip_height,
+                    &policy.recipient,
+                    payout_nau,
+                    fee,
+                    &addition_records,
+                )
+                .await;
+
                 Ok(PayoutRunStatus::Paid)
             }
             Err(e) => {
@@ -828,6 +853,87 @@ impl super::WalletState {
                 Ok(PayoutRunStatus::Failed)
             }
         }
+    }
+
+    /// Best-effort: record a completed payout in the local `execution_history`
+    /// table (the session store), the same one the front-end writes to after a
+    /// manual send. Records more detailed transaction information than what is
+    /// observed on-chain.
+    #[expect(clippy::too_many_arguments)]
+    async fn record_payout_in_history(
+        &self,
+        txid: &str,
+        timestamp_ms: i64,
+        height: i64,
+        recipient: &str,
+        payout_nau: i128,
+        fee: NativeCurrencyAmount,
+        output_commitments: &[String],
+    ) {
+        use crate::session_store::persist::PersisStore;
+
+        let Some(store) = crate::service::try_get_state::<PersisStore>() else {
+            return;
+        };
+
+        // `INSERT OR IGNORE`: `txid` is the primary key, so a re-broadcast that
+        // somehow reused an id is a no-op rather than an error.
+        const SQL: &str = "INSERT OR IGNORE INTO execution_history (
+            txid, timestamp, height, addressId, address, fee, priorityFee, status, batchOutput
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        let params = Self::payout_history_params(
+            txid,
+            timestamp_ms,
+            height,
+            self.id,
+            recipient,
+            payout_nau,
+            fee,
+            output_commitments,
+        );
+
+        if let Err(e) = store.execute(SQL, params, false).await {
+            warn!("Failed to record payout {txid} in transaction history: {e}");
+        }
+    }
+
+    /// Build the bound parameters for the `execution_history` insert, in column
+    /// order. Pure (no I/O) so the front-end column contract can be unit-tested
+    /// without a live session store.
+    #[expect(clippy::too_many_arguments)]
+    fn payout_history_params(
+        txid: &str,
+        timestamp_ms: i64,
+        height: i64,
+        address_id: i64,
+        recipient: &str,
+        payout_nau: i128,
+        fee: NativeCurrencyAmount,
+        output_commitments: &[String],
+    ) -> Vec<serde_json::Value> {
+        // The `status` column holds the serialized output commitments (a legacy
+        // name: the live status is joined in from the mempool at read time), and
+        // `batchOutput` holds the recipient list the detail view renders as "To:".
+        let outputs_json =
+            serde_json::to_string(output_commitments).unwrap_or_else(|_| "[]".to_string());
+        let batch_output_json = serde_json::json!([{
+            "index": 0,
+            "toAddress": recipient,
+            "amount": NativeCurrencyAmount::from_nau(payout_nau).display_lossless(),
+        }])
+        .to_string();
+
+        vec![
+            serde_json::json!(txid),
+            serde_json::json!(timestamp_ms),
+            serde_json::json!(height),
+            serde_json::json!(address_id),
+            serde_json::json!(recipient),
+            serde_json::json!(fee.display_lossless()),
+            serde_json::json!(""),
+            serde_json::json!(outputs_json),
+            serde_json::json!(batch_output_json),
+        ]
     }
 
     /// Record the run, mark the eligible receipts accounted (by rescan-stable
@@ -952,7 +1058,7 @@ mod tests {
             .to_address()
             .to_bech32m(wallet.network);
         wallet
-            .add_watch_only("ViewingAddress", &key, None, None)
+            .add_watch_only("ViewingAddress", &key, None, "metered".to_string())
             .await
             .unwrap()
             .id
@@ -1069,6 +1175,55 @@ mod tests {
         assert_eq!(
             NativeCurrencyAmount::MAX_NAU,
             payout_amount_nau(NativeCurrencyAmount::MAX_NAU, "2")
+        );
+    }
+
+    #[test]
+    fn payout_history_params_match_frontend() {
+        let outputs = vec!["aa11".to_string(), "bb22".to_string()];
+        let fee = NativeCurrencyAmount::coins_from_str("0.1").unwrap();
+        let payout_nau = NativeCurrencyAmount::coins_from_str("1.5")
+            .unwrap()
+            .to_nau();
+
+        let params = WalletState::payout_history_params(
+            "deadbeef",
+            1_752_600_000_000,
+            42,
+            7,
+            "nolgabc",
+            payout_nau,
+            fee,
+            &outputs,
+        );
+
+        // Column order: txid, timestamp, height, addressId, address, fee,
+        // priorityFee, status, batchOutput.
+        assert_eq!(params.len(), 9);
+        assert_eq!(params[0], serde_json::json!("deadbeef"));
+        assert_eq!(params[1], serde_json::json!(1_752_600_000_000i64));
+        assert_eq!(params[2], serde_json::json!(42));
+        assert_eq!(params[3], serde_json::json!(7)); // addressId = account id
+        assert_eq!(params[4], serde_json::json!("nolgabc"));
+        // Fee is a lossless NPT string (renders identically once the UI
+        // truncates to 4 dp); compare against the same formatting the code uses.
+        assert_eq!(params[5], serde_json::json!(fee.display_lossless()));
+        assert_eq!(params[6], serde_json::json!("")); // priorityFee
+
+        // `status` column is the JSON-serialized output commitments.
+        let status = params[7].as_str().unwrap();
+        assert_eq!(
+            serde_json::from_str::<Vec<String>>(status).unwrap(),
+            outputs
+        );
+
+        // `batchOutput` is the recipient list the detail view renders as "To:".
+        let batch: serde_json::Value = serde_json::from_str(params[8].as_str().unwrap()).unwrap();
+        assert_eq!(batch[0]["index"], serde_json::json!(0));
+        assert_eq!(batch[0]["toAddress"], serde_json::json!("nolgabc"));
+        assert_eq!(
+            batch[0]["amount"],
+            serde_json::json!(NativeCurrencyAmount::from_nau(payout_nau).display_lossless())
         );
     }
 
