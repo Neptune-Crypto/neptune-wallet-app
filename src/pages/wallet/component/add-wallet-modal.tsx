@@ -28,9 +28,13 @@ export default function AddWalletModal({
     onClose();
   }
   useEffect(() => {
-    if (section === "create") {
-      let mnemonic = bip39.generateMnemonic(wordlist, 192);
-      setMnemonic(mnemonic);
+    // Only generate when no seed exists yet: the user may have revealed and
+    // written down the current one, and regenerating on a tab toggle or on
+    // reopen (e.g. after an accidental click outside the modal) would silently
+    // invalidate that backup. Fresh seeds come only from the explicit "Change
+    // seed phrase" button below, or once this seed is consumed by a creation.
+    if (opened && section === "create" && !mnemonic) {
+      setMnemonic(bip39.generateMnemonic(wordlist, 192));
     }
   }, [section, opened]);
   return (
@@ -56,7 +60,12 @@ export default function AddWalletModal({
         {section === "create" && (
           <CreateWallet
             mnemonic={mnemonic}
-            onCreated={onCreated}
+            onCreated={() => {
+              // This seed now belongs to the created account; clear it so the
+              // next "Add account" starts from a fresh one.
+              setMnemonic("");
+              onCreated();
+            }}
             refreshMnemonic={() => {
               let mnemonic = bip39.generateMnemonic(wordlist, 192);
               setMnemonic(mnemonic);

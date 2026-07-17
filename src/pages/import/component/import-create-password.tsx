@@ -14,7 +14,10 @@ export default function ImportCreatePassword({ nextStep }: { nextStep: () => voi
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (event.key === "Enter") {
         event.preventDefault();
-        if (password) {
+        // Same gate as the submit button: Enter must not sneak past a missing
+        // or mismatched confirmation — the password would silently be the
+        // first field's value, which the user can't necessarily reproduce.
+        if (password && confirmPassword && password === confirmPassword) {
           createPassword();
         }
       }
@@ -62,7 +65,7 @@ export default function ImportCreatePassword({ nextStep }: { nextStep: () => voi
           disabled={!password || !confirmPassword || password !== confirmPassword}
           onClick={createPassword}
         >
-          Import account
+          Continue
         </Button>
       </Flex>
     </Flex>

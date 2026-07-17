@@ -46,7 +46,7 @@ export default function HomeScreen() {
               radius={"md"}
               onClick={() => setActivePage("create")}
             >
-              Create a new wallet
+              Create a new account
             </Button>
             <Button
               variant="default"
@@ -56,7 +56,7 @@ export default function HomeScreen() {
               radius={"md"}
               onClick={() => setActivePage("import")}
             >
-              Import an existing wallet
+              Import an existing account
             </Button>
           </Flex>
         </Card>

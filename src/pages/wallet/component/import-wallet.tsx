@@ -1,4 +1,5 @@
 import { addWallet, setCurrentWallet } from "@/commands/wallet";
+import { normalizeMnemonic } from "@/utils/mnemonic";
 import { notify } from "@/utils/notify";
 import { Button, Flex, NumberInput, Textarea, TextInput, Tooltip } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
@@ -18,7 +19,7 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
       setLoading(true);
       let walletID = await addWallet(
         importData.name,
-        importData.mnemonic,
+        normalizeMnemonic(importData.mnemonic),
         importData.numKeys || 25,
         importData.startHeight || 0,
         false
@@ -60,21 +61,20 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
         minRows={4}
         value={importData.mnemonic}
         onChange={(event) => {
-          if (event && event.target.value) {
-            let newValue = event.target.value
-              .split("\n")
-              .map((line) => line.replace(/^\d+\.\s*/, "").trim())
-              .join(" ");
-            setImportData({
-              ...importData,
-              mnemonic: newValue,
-            });
-          } else {
-            setImportData({
-              ...importData,
-              mnemonic: "",
-            });
-          }
+          setImportData({ ...importData, mnemonic: event.target.value });
+        }}
+        onPaste={(event) => {
+          // Pasted backups arrive numbered and multi-line; clean them visibly
+          // at paste time so the field shows the words as imported.
+          event.preventDefault();
+          const el = event.currentTarget;
+          const start = el.selectionStart ?? el.value.length;
+          const end = el.selectionEnd ?? el.value.length;
+          const pasted = event.clipboardData.getData("text");
+          const next = normalizeMnemonic(
+            `${el.value.slice(0, start)} ${pasted} ${el.value.slice(end)}`
+          );
+          setImportData({ ...importData, mnemonic: next });
         }}
       />
       <Flex direction={"row"} gap={16}>

@@ -3,6 +3,7 @@ import { addWallet } from "@/commands/wallet";
 import { useAppDispatch } from "@/store/hooks";
 import { useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
 import { setOneTimePassword } from "@/store/wallet/wallet-slice";
+import { normalizeMnemonic } from "@/utils/mnemonic";
 import { notify } from "@/utils/notify";
 import { Button, Flex, NumberInput, Stack, Text, Textarea, Tooltip } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
@@ -26,7 +27,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
       await set_password("", oneTimePassword);
       await addWallet(
         walletName,
-        importData.mnemonic,
+        normalizeMnemonic(importData.mnemonic),
         importData.numKeys || 25,
         importData.startHeight || 0,
         false
@@ -49,18 +50,20 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
           label="Seed phrase"
           value={importData.mnemonic}
           onChange={(event) => {
-            if (event && event.target.value) {
-              let newValue = event.target.value
-                .split("\n")
-                .map((line) => line.replace(/^\d+\.\s*/, "").trim())
-                .join(" ");
-              setImportData({ ...importData, mnemonic: newValue });
-            } else {
-              setImportData({
-                ...importData,
-                mnemonic: "",
-              });
-            }
+            setImportData({ ...importData, mnemonic: event.target.value });
+          }}
+          onPaste={(event) => {
+            // Pasted backups arrive numbered and multi-line; clean them
+            // visibly at paste time so the field shows the words as imported.
+            event.preventDefault();
+            const el = event.currentTarget;
+            const start = el.selectionStart ?? el.value.length;
+            const end = el.selectionEnd ?? el.value.length;
+            const pasted = event.clipboardData.getData("text");
+            const next = normalizeMnemonic(
+              `${el.value.slice(0, start)} ${pasted} ${el.value.slice(end)}`
+            );
+            setImportData({ ...importData, mnemonic: next });
           }}
           placeholder="Enter your seed phrase"
           rows={4}
@@ -138,7 +141,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
           loading={loading}
           onClick={handleImport}
         >
-          Create a new wallet
+          Import account
         </Button>
       </Flex>
     </Flex>
