@@ -8,24 +8,15 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import CopyedIcon from "./copyed-icon";
 import MonoText from "./mono-text";
 
-// Backend amounts are lossless (34 decimals); show them at the app's usual
-// 4-decimal precision.
 function OutputAmount({ amount }: { amount?: string }) {
   if (!amount) return null;
   return (
-    // nowrap + no shrink: the value keeps its "NPT" unit and never gets squeezed
-    // into splitting across lines; when the row is too narrow it wraps as a whole.
     <Text size="xs" c="dimmed" style={{ whiteSpace: "nowrap", flexShrink: 0 }}>
       <NumberFormatter value={amount_to_positive_fixed(amount)} thousandSeparator suffix=" NPT" />
     </Text>
   );
 }
 
-// A single output on one line: its amount (when known), a middot divider, the
-// abbreviated commitment, then the actions. Order puts the explorer link before
-// copy so copy stays the rightmost action (consistent across the app). wrap so a
-// narrow cell drops the commitment to the next line intact instead of splitting
-// the amount.
 function OutputCommitment({ commitment, amount }: { commitment: string; amount?: string }) {
   return (
     <Flex gap={8} align="center" justify="flex-end" wrap="wrap">
@@ -75,10 +66,6 @@ export default function TxOutputs({
             {group.isChange ? (
               <Flex gap={6} align="center">
                 <IconArrowBackUp size={14} color="var(--mantine-color-gray-6)" />
-                {/* "Change" carries the same weight/color as the recipient "To"
-                    label (they're parallel destination labels); the qualifier
-                    stays dimmed as secondary detail. The dot keeps "Change" from
-                    reading as the verb phrase "change back". */}
                 <Text size="sm" fw={600}>
                   Change{" "}
                   <Text span size="sm" fw={400} c="dimmed">

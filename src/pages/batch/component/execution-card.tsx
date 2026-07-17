@@ -279,8 +279,6 @@ export default function ExecutionCard() {
                         </Flex>
                       </Table.Td>
                     </Table.Tr>
-                    {/* Outputs last: the money summary above is what a user checks
-                        first; the per-output commitments are verbose and secondary. */}
                     <Table.Tr>
                       <Table.Th w={100}>Outputs:</Table.Th>
                       <Table.Td

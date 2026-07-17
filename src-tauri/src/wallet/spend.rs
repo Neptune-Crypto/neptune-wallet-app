@@ -187,9 +187,7 @@ impl super::WalletState {
         // Per-output summary for the UI. tx_outputs is what the kernel's outputs
         // are derived from (TransactionDetails::transaction_kernel), so these
         // commitments match the on-chain outputs exactly. The change output is
-        // identified by its commitment (see change_commitment above); every other
-        // output is labeled with the recipient address it pays so the front-end
-        // can group outputs by recipient.
+        // identified by its commitment (see change_commitment above).
         let output_infos = transaction_details
             .tx_outputs
             .iter()
