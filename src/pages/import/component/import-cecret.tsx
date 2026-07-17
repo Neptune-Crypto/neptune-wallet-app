@@ -49,8 +49,6 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
         <Textarea
           label="Seed phrase"
           value={importData.mnemonic}
-          // Keystrokes are stored untouched; cleaning happens on paste and at
-          // submit (normalizeMnemonic explains why it must not run per change).
           onChange={(event) => {
             setImportData({ ...importData, mnemonic: event.target.value });
           }}

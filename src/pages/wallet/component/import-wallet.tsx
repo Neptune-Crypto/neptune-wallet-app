@@ -60,8 +60,6 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
         autosize
         minRows={4}
         value={importData.mnemonic}
-        // Keystrokes are stored untouched; cleaning happens on paste and at
-        // submit (normalizeMnemonic explains why it must not run per change).
         onChange={(event) => {
           setImportData({ ...importData, mnemonic: event.target.value });
         }}
