@@ -43,12 +43,6 @@ function OutputCommitment({ commitment, amount }: { commitment: string; amount?:
   );
 }
 
-// Renders a sent transaction's outputs grouped by destination: one block per
-// recipient address, then the change output. Directional labels ("To …" vs
-// "Change · back to your account") make it unambiguous which output leaves the
-// account (share this one with the payee) and which returns as change. Legacy
-// records (no per-output address/change data) fall back to the recipients we
-// recorded plus the raw commitments, matching the previous flat display.
 export default function TxOutputs({
   outputs,
   batchOutput,

@@ -184,7 +184,7 @@ impl super::WalletState {
             })
             .collect();
 
-        // Per-output summary for the UI. tx_outputs is what the kernel's outputs
+        // Per-output summary. tx_outputs is what the kernel's outputs
         // are derived from (TransactionDetails::transaction_kernel), so these
         // commitments match the on-chain outputs exactly. The change output is
         // identified by its commitment (see change_commitment above).
