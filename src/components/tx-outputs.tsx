@@ -75,8 +75,15 @@ export default function TxOutputs({
             {group.isChange ? (
               <Flex gap={6} align="center">
                 <IconArrowBackUp size={14} color="var(--mantine-color-gray-6)" />
-                <Text size="sm" fw={600} c="dimmed">
-                  Change · back to your account
+                {/* "Change" carries the same weight/color as the recipient "To"
+                    label (they're parallel destination labels); the qualifier
+                    stays dimmed as secondary detail. The dot keeps "Change" from
+                    reading as the verb phrase "change back". */}
+                <Text size="sm" fw={600}>
+                  Change{" "}
+                  <Text span size="sm" fw={400} c="dimmed">
+                    · back to your account
+                  </Text>
                 </Text>
               </Flex>
             ) : (
