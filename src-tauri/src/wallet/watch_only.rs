@@ -45,6 +45,7 @@ use neptune_mutator_set::addition_record::AdditionRecord;
 use neptune_mutator_set::removal_record::absolute_index_set::AbsoluteIndexSet;
 use neptune_primitives::network::Network;
 use neptune_primitives::timestamp::Timestamp;
+use neptune_wallet::address::elliptic_curve_hybrid::EcHybridAddress;
 use neptune_wallet::address::elliptic_curve_hybrid::EcHybridViewingKey;
 use neptune_wallet::address::viewing_address::ViewingAddress;
 use neptune_wallet::address::ReceivingAddress;
@@ -127,9 +128,17 @@ impl WatchOnlyKey {
         let text = text.trim();
         match key_type {
             "ViewingAddress" => Ok(Self::Viewing(ViewingAddress::from_bech32m(text, network)?)),
-            "EcHybrid" => Ok(Self::EcHybrid(EcHybridViewingKey::from_bech32m(
-                text, network,
-            )?)),
+            "EcHybrid" => match EcHybridViewingKey::from_bech32m(text, network) {
+                Ok(vk) => Ok(Self::EcHybrid(vk)),
+                Err(e) => {
+                    // An EC hybrid address (nech…) and its viewing key (nechvk…)
+                    // are easy to confuse.
+                    if EcHybridAddress::from_bech32m(text, network).is_ok() {
+                        bail!("This is an EC hybrid address, not its viewing key.");
+                    }
+                    Err(e)
+                }
+            },
             other => bail!("Unsupported watch-only address type: {other}"),
         }
     }
