@@ -1,5 +1,5 @@
-import MonoText from "@/components/mono-text";
 import { TimeClock } from "@/components/TimeClock";
+import TxOutputs from "@/components/tx-outputs";
 import { ExecutionHistory } from "@/database/types/localhistory";
 import { removeExecutionTransactionHistory } from "@/store/execution/execution-slice";
 import {
@@ -221,57 +221,6 @@ export default function ExecutionCard() {
                 >
                   <Table.Tbody>
                     <Table.Tr>
-                      <Table.Th w={100}>ID:</Table.Th>
-                      <Table.Td
-                        style={{
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                        }}
-                      >
-                        <Flex key={index} align={"end"} direction={"column"} gap={8}>
-                          <MonoText value={item.txid} copyLabel="Copy transaction ID" />
-                        </Flex>
-                      </Table.Td>
-                    </Table.Tr>
-                    <Table.Tr>
-                      <Table.Th w={100}>Outputs:</Table.Th>
-                      <Table.Td
-                        style={{
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                        }}
-                      >
-                        <Flex direction={"column"} gap={8}>
-                          {item.outputs?.map((output, index) => {
-                            return (
-                              <Flex key={index} align={"end"} direction={"column"} gap={8}>
-                                <MonoText value={output} copyLabel="Copy output commitment" />
-                              </Flex>
-                            );
-                          })}
-                        </Flex>
-                      </Table.Td>
-                    </Table.Tr>
-                    <Table.Tr>
-                      <Table.Th w={100}>To address:</Table.Th>
-                      <Table.Td
-                        style={{
-                          wordWrap: "break-word",
-                          overflowWrap: "break-word",
-                        }}
-                      >
-                        <Flex direction={"column"} gap={8}>
-                          {item.batchOutput?.map((output, index) => {
-                            return (
-                              <Flex key={index} align={"end"} direction={"column"} gap={8}>
-                                <MonoText value={output.toAddress} />
-                              </Flex>
-                            );
-                          })}
-                        </Flex>
-                      </Table.Td>
-                    </Table.Tr>
-                    <Table.Tr>
                       <Table.Th>Amount:</Table.Th>
                       <Table.Td>
                         <Flex w={"100%"} justify={"end"}>
@@ -328,6 +277,17 @@ export default function ExecutionCard() {
                             />
                           </Text>
                         </Flex>
+                      </Table.Td>
+                    </Table.Tr>
+                    <Table.Tr>
+                      <Table.Th w={100}>Outputs:</Table.Th>
+                      <Table.Td
+                        style={{
+                          wordWrap: "break-word",
+                          overflowWrap: "break-word",
+                        }}
+                      >
+                        <TxOutputs outputs={item.outputs} batchOutput={item.batchOutput} />
                       </Table.Td>
                     </Table.Tr>
                   </Table.Tbody>

@@ -30,6 +30,7 @@ use tracing::*;
 use super::input::InputSelectionRule;
 use crate::config::Config;
 use crate::prover::ProofBuilder;
+use crate::rpc::OutputInfo;
 use crate::rpc_client;
 use crate::rpc_client::BroadcastError;
 use crate::wallet::wallet_state_table::ExpectedUtxoData;
@@ -43,7 +44,7 @@ impl super::WalletState {
         rule: InputSelectionRule,
         must_include_utxos: Vec<i64>,
         accept_lustration: bool,
-    ) -> anyhow::Result<Transaction, SendError> {
+    ) -> anyhow::Result<(Transaction, Vec<OutputInfo>), SendError> {
         let _spend_guard = self.spend_lock.lock().await;
         let now = Timestamp::now();
         let tx_proving_capability = TxProvingCapability::ProofCollection;
@@ -128,6 +129,15 @@ impl super::WalletState {
             "stmi: step 4. extract expected utxos.",
         );
 
+        // The change output (funds returning to us) is created explicitly. Capture
+        // its commitment now, before maybe_change_output is consumed below, so the
+        // per-output summary can flag it. Note create_change_output builds it with
+        // onchain/offchain_native_currency (NOT the *_as_change variant), so
+        // TxOutput::is_change() is always false here and cannot be relied on.
+        let change_commitment = maybe_change_output
+            .as_ref()
+            .map(|txo| txo.addition_record().canonical_commitment.to_hex());
+
         let mut full_outputs = tx_outputs;
         if let Some(change_output) = maybe_change_output {
             full_outputs.push(change_output);
@@ -162,6 +172,45 @@ impl super::WalletState {
             .collect();
         self.add_expected_utxo(expected_utxo_data).await?;
 
+        // Each recipient address keyed by its privacy digest, so an output can be
+        // matched back to the address it pays. Robust regardless of output order,
+        // since the digest uniquely identifies a receiving address.
+        let recipient_addresses: Vec<(Digest, String)> = outputs
+            .iter()
+            .filter_map(|(addr, _)| {
+                addr.to_bech32m(self.network)
+                    .ok()
+                    .map(|bech32m| (addr.privacy_digest(), bech32m))
+            })
+            .collect();
+
+        // Per-output summary. tx_outputs is what the kernel's outputs
+        // are derived from (TransactionDetails::transaction_kernel), so these
+        // commitments match the on-chain outputs exactly. The change output is
+        // identified by its commitment (see change_commitment above).
+        let output_infos = transaction_details
+            .tx_outputs
+            .iter()
+            .map(|txo| {
+                let commitment = txo.addition_record().canonical_commitment.to_hex();
+                let is_change = change_commitment.as_deref() == Some(commitment.as_str());
+                let address = if is_change {
+                    None
+                } else {
+                    recipient_addresses
+                        .iter()
+                        .find(|(digest, _)| *digest == txo.receiver_digest())
+                        .map(|(_, bech32m)| bech32m.clone())
+                };
+                OutputInfo {
+                    commitment,
+                    amount: txo.native_currency_amount().display_lossless(),
+                    is_change,
+                    address,
+                }
+            })
+            .collect();
+
         self.updater
             .add_transaction(txid.clone(), transaction_details, db_ids)
             .await?;
@@ -184,7 +233,7 @@ impl super::WalletState {
             Err(e) => warn!("Could not compute balance after send: {}", e),
         }
 
-        Ok(transaction)
+        Ok((transaction, output_infos))
     }
 
     /// Cheap pre-check: would a transaction built from these parameters require

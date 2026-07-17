@@ -1,4 +1,4 @@
-import { SendInputItem } from "@/utils/api/types.ts";
+import { OutputInfo, SendInputItem } from "@/utils/api/types.ts";
 
 export interface ExecutionHistory {
   txid: string;
@@ -9,7 +9,9 @@ export interface ExecutionHistory {
   fee: string;
   priorityFee: string;
   status?: string;
-  outputs: string[];
+  // New records store OutputInfo objects; records predating that stored bare
+  // commitment strings — normalizeOutput() reconciles the two at render time.
+  outputs: (OutputInfo | string)[];
   batchOutput: SendInputItem[];
 }
 

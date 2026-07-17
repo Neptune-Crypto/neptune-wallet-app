@@ -42,3 +42,8 @@ export const NETWORKS = [{ value: "main", label: "Mainnet" }];
 // Manual-download fallback for installs the one-click updater can't service
 // (e.g. Linux .deb/.rpm, which Tauri's updater cannot replace in place).
 export const RELEASES_URL = "https://github.com/Neptune-Crypto/neptune-wallet-app/releases/latest";
+
+// Block-explorer page for a single transaction output, keyed by its canonical
+// commitment. Append the commitment hex. The explorer domain is allow-listed
+// for opening via opener:allow-open-url in src-tauri/capabilities/default.json.
+export const EXPLORER_OUTPUT_URL = "https://neptunefundamentals.org/output/";

@@ -1,4 +1,4 @@
-import MonoText from "@/components/mono-text";
+import TxOutputs from "@/components/tx-outputs";
 import { MerageHistory } from "@/store/types";
 import { bigNumberPlusToString } from "@/utils/common";
 import { amount_to_positive_fixed } from "@/utils/math-util";
@@ -70,21 +70,6 @@ export default function DetailModal(props: Props) {
         }}
       >
         <Table.Tbody>
-          {history && history.txid ? (
-            <Table.Tr>
-              <Table.Th>Tx:</Table.Th>
-              <Table.Td
-                style={{
-                  wordWrap: "break-word",
-                  overflowWrap: "break-word",
-                }}
-              >
-                <Flex align={"end"} direction={"column"} gap={8}>
-                  <MonoText value={history.txid} copyLabel="Copy transaction ID" />
-                </Flex>
-              </Table.Td>
-            </Table.Tr>
-          ) : null}
           {history && history.height ? (
             <Table.Tr>
               <Table.Th>Block height:</Table.Th>
@@ -93,41 +78,6 @@ export default function DetailModal(props: Props) {
                   <Text>
                     <NumberFormatter value={history.height} thousandSeparator />
                   </Text>
-                </Flex>
-              </Table.Td>
-            </Table.Tr>
-          ) : null}
-          {history.batchOutput && history.batchOutput.length > 0 ? (
-            <Table.Tr>
-              <Table.Th>To:</Table.Th>
-              <Table.Td
-                style={{
-                  wordWrap: "break-word",
-                  overflowWrap: "break-word",
-                }}
-              >
-                <Flex direction={"column"} gap={8}>
-                  {history.batchOutput?.map((output, index) => {
-                    return (
-                      <Flex align={"end"} direction={"column"} gap={8} key={index}>
-                        <Flex direction={"row"} gap={8} align={"center"}>
-                          <MonoText value={output.toAddress} />
-                          <Flex direction={"row"} gap={3}>
-                            {/* c="dimmed" (not a hardcoded hex) — the app's one
-                                secondary-text gray, same as labels/timestamps. */}
-                            <Text c="dimmed">{`(Sent: `}</Text>
-                            <Text fw={600} c={"var(--color-negative)"}>
-                              <NumberFormatter
-                                value={amount_to_positive_fixed(output.amount)}
-                                thousandSeparator
-                              />
-                            </Text>
-                            <Text c="dimmed">{`)`}</Text>
-                          </Flex>
-                        </Flex>
-                      </Flex>
-                    );
-                  })}
                 </Flex>
               </Table.Td>
             </Table.Tr>
@@ -144,7 +94,8 @@ export default function DetailModal(props: Props) {
               </Table.Td>
             </Table.Tr>
           ) : null}
-          {history.outputs && history.outputs.length > 0 ? (
+          {(history.outputs && history.outputs.length > 0) ||
+          (history.batchOutput && history.batchOutput.length > 0) ? (
             <Table.Tr>
               <Table.Th>Outputs:</Table.Th>
               <Table.Td
@@ -153,15 +104,7 @@ export default function DetailModal(props: Props) {
                   overflowWrap: "break-word",
                 }}
               >
-                <Flex direction={"column"} gap={8}>
-                  {history.outputs?.map((output, index) => {
-                    return (
-                      <Flex align={"end"} direction={"column"} gap={8} key={index}>
-                        <MonoText value={output} copyLabel="Copy output commitment" />
-                      </Flex>
-                    );
-                  })}
-                </Flex>
+                <TxOutputs outputs={history.outputs ?? []} batchOutput={history.batchOutput} />
               </Table.Td>
             </Table.Tr>
           ) : null}

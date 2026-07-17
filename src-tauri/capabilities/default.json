@@ -58,6 +58,14 @@
       ]
     },
     {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://neptunefundamentals.org/*"
+        }
+      ]
+    },
+    {
       "identifier": "opener:allow-reveal-item-in-dir",
       "scope": ["$APP_CONFIG/**", "$APP_DATA/**"]
     },

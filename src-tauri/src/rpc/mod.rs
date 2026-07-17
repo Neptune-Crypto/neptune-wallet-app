@@ -244,7 +244,7 @@ pub(crate) trait WalletRpc {
             InputSelectionRule::default()
         };
 
-        let tx = wallet
+        let (tx, outputs) = wallet
             .send_to_address(
                 outputs,
                 utxo_notification_media,
@@ -260,12 +260,7 @@ pub(crate) trait WalletRpc {
 
         Ok(SendResponse {
             txid: tx.txid().to_string(),
-            outputs: tx
-                .kernel
-                .outputs
-                .iter()
-                .map(|v| v.canonical_commitment.to_hex())
-                .collect::<Vec<_>>(),
+            outputs,
         })
     }
 
@@ -474,9 +469,24 @@ pub(crate) struct Output {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct OutputInfo {
+    // Canonical commitment (hex) — the output's on-chain identifier.
+    pub(crate) commitment: String,
+    pub(crate) amount: String,
+    // True when this output returns funds to this wallet (change / self-send),
+    // so the UI can distinguish it from the recipient output(s).
+    pub(crate) is_change: bool,
+    // Recipient address (bech32m) for non-change outputs, so the UI can group
+    // outputs under the address they pay. None for change and for any output
+    // whose address can't be resolved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) address: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct SendResponse {
     txid: String,
-    outputs: Vec<String>,
+    outputs: Vec<OutputInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
