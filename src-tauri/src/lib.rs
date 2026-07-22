@@ -32,6 +32,7 @@ fn add_commands<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         command::commands::export_wallet,
         command::commands::generate_snapshot_file,
         command::commands::get_disk_cache,
+        command::commands::get_block_interval,
         command::commands::get_network,
         command::commands::get_remote_rest,
         command::commands::get_wallet_id,

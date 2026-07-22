@@ -29,6 +29,8 @@ export interface Wallet {
   num_symmetric_addresses: number;
   num_ec_hybrid_addresses: number;
   num_viewing_addresses: number;
+  /** Height of the last block this account scanned; null if never synced. */
+  sync_height: number | null;
 }
 
 export interface AboutState {

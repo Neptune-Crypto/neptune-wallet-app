@@ -1,7 +1,9 @@
+import { get_block_interval_ms } from "@/commands/config";
 import { removeWallet, renameWallet, setCurrentWallet } from "@/commands/wallet";
 import MonoText from "@/components/mono-text";
 import { useAppDispatch } from "@/store/hooks";
 import { useSettingActionData } from "@/store/settings/hooks";
+import { useLatestBlock, useSyncedBlock } from "@/store/sync/hooks";
 import { querySyncBlockStatus } from "@/store/sync/sync-slice";
 import { Wallet } from "@/store/types";
 import { useCurrentWalledId, useLoadingWallets, useWallets } from "@/store/wallet/hooks";
@@ -28,7 +30,7 @@ import {
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ActionMenu from "./action-menu";
 import AddWalletModal from "./add-wallet-modal";
 import ExportWalletModal from "./export-wallet-modal";
@@ -36,6 +38,113 @@ import ExportWalletModal from "./export-wallet-modal";
 function amount_to_fixed(amount: string) {
   const [int = "0", frac = ""] = (amount || "0").split(".");
   return `${int}.${frac.substring(0, 4).padEnd(4, "0")}`;
+}
+
+/**
+ * Converts "blocks behind" into the human time the account is lagging by,
+ * using the network's target block interval (fetched from the backend — it is
+ * per-network, so no constant belongs here).
+ */
+function formatLag(blocksBehind: number, blockIntervalMs: number) {
+  const mins = (blocksBehind * blockIntervalMs) / 60_000;
+  if (mins < 90) return `${Math.round(mins)} min`;
+  if (mins < 48 * 60) return `${Math.round(mins / 60)} h`;
+  return `${Math.round(mins / (24 * 60))} d`;
+}
+
+/** Per-account sync status, judged against the latest known chain block. */
+function SyncStatusCell({
+  wallet,
+  latestBlock,
+  isActive,
+  liveSyncedBlock,
+  blockIntervalMs,
+}: {
+  wallet: Wallet;
+  latestBlock: number;
+  isActive: boolean;
+  liveSyncedBlock: number;
+  /** Network's target block interval; null until fetched — lag then shows as blocks. */
+  blockIntervalMs: number | null;
+}) {
+  // Human-time lag when the interval is known, plain block count until then
+  // (also the graceful fallback if the interval query failed).
+  const lag = (behind: number) =>
+    blockIntervalMs != null
+      ? formatLag(behind, blockIntervalMs)
+      : `${behind.toLocaleString()} ${behind === 1 ? "block" : "blocks"}`;
+  // The wallet-list snapshot only refreshes on refetches; for the active
+  // account the sync events carry the processed height live.
+  const syncHeight =
+    isActive && liveSyncedBlock > 0
+      ? Math.max(liveSyncedBlock, wallet.sync_height ?? 0)
+      : wallet.sync_height;
+
+  let color: string;
+  let label: string;
+  let detail: string;
+
+  if (syncHeight == null) {
+    color = "gray";
+    label = "Not synced";
+    detail = "This account has not synced yet";
+  } else {
+    const height = `block ${syncHeight.toLocaleString()}`;
+    const behind = latestBlock - syncHeight;
+    if (latestBlock <= 0) {
+      // Latest chain height unknown (e.g. right after startup): state the
+      // height without judging freshness.
+      color = "gray";
+      label = `At ${height}`;
+      detail = `Synced to ${height}`;
+    } else if (behind <= 0) {
+      color = "green";
+      label = "Synced";
+      detail = `Synced to ${height}`;
+    } else if (isActive) {
+      // The sync loop follows the active account, so its lag is being fixed:
+      // 1-2 blocks is the normal rhythm between polls, more is a catch-up.
+      if (behind <= 2) {
+        color = "green";
+        label = "Syncing";
+        detail = `Synced to ${height} of ${latestBlock.toLocaleString()} — catching up automatically`;
+      } else {
+        // Same label as an inactive account's lag: the countdown itself, the
+        // Active badge, and the bottom left indicator already mark this row
+        // as being worked on, and a "Syncing" prefix would set the column's
+        // worst case width. The tooltip keeps the distinction.
+        color = "yellow";
+        label = `${lag(behind)} behind`;
+        detail = `${behind.toLocaleString()} blocks behind — synced to ${height} of ${latestBlock.toLocaleString()} — catching up automatically`;
+      }
+    } else {
+      // Nothing syncs an inactive account; its lag only grows until the user
+      // switches to it. Time-first: "how old is this balance" is the question
+      // the cell answers; exact block counts live in the tooltip.
+      color = "yellow";
+      label = `${lag(behind)} behind`;
+      detail = `${behind.toLocaleString()} blocks behind — synced to ${height} of ${latestBlock.toLocaleString()}`;
+    }
+  }
+
+  return (
+    <Flex align="center" gap={6} title={detail}>
+      <Box
+        component="span"
+        aria-hidden
+        w={8}
+        h={8}
+        style={{
+          borderRadius: "50%",
+          backgroundColor: `var(--mantine-color-${color}-6)`,
+          flexShrink: 0,
+        }}
+      />
+      <Text size="sm" style={{ whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+        {label}
+      </Text>
+    </Flex>
+  );
 }
 
 // Body of the delete-account confirmation. Stateful (acknowledgement checkbox
@@ -93,6 +202,17 @@ export default function WalletTable() {
   const loading = useLoadingWallets();
   const wallets = useWallets();
   const currentWalletID = useCurrentWalledId();
+  const latestBlock = useLatestBlock();
+  const liveSyncedBlock = useSyncedBlock();
+  // Network's target block interval, fetched because it differs per network —
+  // hardcoding any value here would misstate lag on every other network.
+  // Until it arrives, lag is shown in blocks rather than time.
+  const [blockIntervalMs, setBlockIntervalMs] = useState<number | null>(null);
+  useEffect(() => {
+    get_block_interval_ms()
+      .then(setBlockIntervalMs)
+      .catch(() => {});
+  }, []);
   const { serverUrl } = useSettingActionData();
   const dispatch = useAppDispatch();
   const [showAddWalletModal, setShowAddWalletModal] = useState(false);
@@ -238,6 +358,15 @@ export default function WalletTable() {
           </Flex>
         }
       </Table.Td>
+      <Table.Td style={{ paddingLeft: 32 }}>
+        <SyncStatusCell
+          wallet={element}
+          latestBlock={latestBlock}
+          isActive={currentWalletID === element.id}
+          liveSyncedBlock={liveSyncedBlock}
+          blockIntervalMs={blockIntervalMs}
+        />
+      </Table.Td>
       <Table.Td onClick={(e) => e.stopPropagation()}>
         <ActionMenu
           isCurrentWallet={currentWalletID == element.id}
@@ -347,6 +476,7 @@ export default function WalletTable() {
                 <Table.Th>Account name</Table.Th>
                 <Table.Th>Address</Table.Th>
                 <Table.Th style={{ textAlign: "right" }}>Total balance</Table.Th>
+                <Table.Th style={{ paddingLeft: 32 }}>Sync status</Table.Th>
                 <Table.Th>Actions</Table.Th>
               </Table.Tr>
             </Table.Thead>

@@ -285,8 +285,19 @@ impl WalletState {
     }
 
     pub(crate) async fn get_tip(&self) -> Result<Option<(u64, Digest)>> {
+        Self::persisted_tip_from_pool(&self.pool).await
+    }
+
+    /// Read a wallet's persisted sync tip without constructing a full
+    /// [`WalletState`].
+    ///
+    /// Used by the accounts list, which opens each wallet database briefly to
+    /// report how far that account has synced.
+    pub(crate) async fn persisted_tip_from_pool(
+        pool: &Pool<Sqlite>,
+    ) -> Result<Option<(u64, Digest)>> {
         let row = sqlx::query("SELECT value FROM wallet_state_keys WHERE id = 'tip'")
-            .fetch_one(&self.pool)
+            .fetch_one(pool)
             .await;
 
         match row {

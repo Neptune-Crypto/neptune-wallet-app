@@ -127,6 +127,15 @@ impl Config {
                     .await
                     .unwrap_or(1);
 
+            // The last block this account has scanned. None for an account
+            // that has never synced; the UI shows staleness from this, so a
+            // read failure degrades to "not synced" rather than an error.
+            let sync_height = WalletState::persisted_tip_from_pool(&wallet_pool)
+                .await
+                .ok()
+                .flatten()
+                .map(|(height, _digest)| height);
+
             wallet_pool.close().await; // Clean up
 
             wallets.push(WalletData {
@@ -138,6 +147,7 @@ impl Config {
                 num_symmetric_addresses,
                 num_ec_hybrid_addresses,
                 num_viewing_addresses,
+                sync_height,
             })
         }
         Ok(wallets)
@@ -189,6 +199,8 @@ pub(crate) struct WalletData {
     num_symmetric_addresses: u64,
     num_ec_hybrid_addresses: u64,
     num_viewing_addresses: u64,
+    /// Height of the last block this account scanned; `None` if never synced.
+    sync_height: Option<u64>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
