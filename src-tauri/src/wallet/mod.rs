@@ -60,6 +60,7 @@ mod spend;
 pub(crate) mod sync;
 pub(crate) mod wallet_file;
 mod wallet_state_table;
+pub(crate) mod watch_only;
 
 pub(crate) struct WalletState {
     key: WalletEntropy,
@@ -464,6 +465,9 @@ impl WalletState {
         self.update_utxos_with_expected_utxos(&mut tx, expected, height.try_into()?)
             .await?;
 
+        debug!("scan watch-only addresses");
+        self.scan_watch_only(&mut tx, block).await?;
+
         debug!(
             "set tip {} {:x}",
             block.kernel.header.height.value(),
@@ -711,8 +715,13 @@ mod tests {
     use std::range::Range;
 
     use neptune_consensus::block::Block;
+    use neptune_consensus::transaction::transaction_kernel::TransactionKernelProxy;
+    use neptune_consensus::transaction::utxo::Coin;
+    use neptune_consensus::transaction::utxo_triple::UtxoTriple;
     use neptune_rpc_api::model::wallet::block::RpcWalletBlock;
+    use neptune_wallet::address::generation_address::GenerationReceivingAddress;
     use neptune_wallet::address::SpendingKey;
+    use neptune_wallet::utxo_notification::UtxoNotificationPayload;
     use num_traits::Zero;
     use tracing_test::traced_test;
 
@@ -981,6 +990,85 @@ mod tests {
             5,
             wallet_state.ephemeral_key_index(KeyType::Symmetric),
             "Symmetric key index must be 5 after handling block, as key with index 4 got a UTXO in it"
+        );
+    }
+
+    /// Rebuild `template` so its transaction announces `utxo` to `address` and
+    /// its outputs contain that UTXO's addition record.
+    fn block_announcing_utxo(
+        template: &WalletBlock,
+        address: &GenerationReceivingAddress,
+        utxo: &Utxo,
+        sender_randomness: Digest,
+    ) -> WalletBlock {
+        let payload = UtxoNotificationPayload::new(utxo.clone(), sender_randomness);
+        let announcement = address.generate_announcement(&payload);
+        let addition_record = UtxoTriple {
+            utxo: utxo.clone(),
+            sender_randomness,
+            receiver_digest: address.receiver_postimage(),
+        }
+        .addition_record();
+
+        let mut block = template.clone();
+        let mut proxy =
+            TransactionKernelProxy::from(block.kernel.body.transaction_kernel().clone());
+        // No inputs: this block only pays us, it spends nothing of ours.
+        proxy.inputs = vec![];
+        proxy.outputs = vec![addition_record];
+        proxy.announcements = vec![announcement];
+        block.kernel.body.transaction_kernel = proxy.into_kernel();
+        block
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    async fn ignores_incoming_utxo_with_unknown_type_script() {
+        let wallet_state = test_devnet_wallet().await;
+        let template = wallet_block_from_test_data(38260).unwrap();
+        // Index 0 is within the scanned key range, so the wallet will find it.
+        let address = WalletEntropy::devnet_wallet()
+            .nth_generation_spending_key(0)
+            .to_address();
+        let amount = NativeCurrencyAmount::coins(1);
+        let sender_randomness = Digest::default();
+
+        let good = Utxo::new(
+            address.lock_script().hash(),
+            vec![Coin::new_native_currency(amount)],
+        );
+        let block = block_announcing_utxo(&template, &address, &good, sender_randomness);
+        wallet_state.update_new_tip(&block, false).await.unwrap();
+        assert_eq!(
+            1,
+            wallet_state.get_utxos().await.unwrap().len(),
+            "control UTXO must be recorded"
+        );
+        assert_eq!(amount, wallet_state.get_balance().await.unwrap());
+
+        // Now the same UTXO plus a coin whose type script we cannot evaluate,
+        let wallet_state = test_devnet_wallet().await;
+        let bad = Utxo::new(
+            address.lock_script().hash(),
+            vec![
+                Coin::new_native_currency(amount),
+                Coin {
+                    // Neither NativeCurrency nor TimeLock => unknown type script.
+                    type_script_hash: Digest::default(),
+                    state: vec![],
+                },
+            ],
+        );
+        assert!(
+            !bad.all_type_script_states_are_valid(),
+            "test UTXO must actually have an unresolvable type script"
+        );
+
+        let block = block_announcing_utxo(&template, &address, &bad, sender_randomness);
+        wallet_state.update_new_tip(&block, false).await.unwrap();
+        assert!(
+            wallet_state.get_utxos().await.unwrap().is_empty(),
+            "UTXO with an unresolvable type script must not be recorded"
         );
     }
 

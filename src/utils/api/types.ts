@@ -65,3 +65,27 @@ export interface AddressRecord {
   address_short_form: string;
   label?: string;
 }
+
+// Watch-only address types the backend can import today. EC hybrid is scoped
+// but gated on serializable viewing-key support in neptune-wallet.
+export type WatchOnlyKeyType = "ViewingAddress" | "EcHybrid";
+
+// Matches the Rust WatchOnlyAddressRecord struct
+export interface WatchOnlyAddressRecord {
+  id: number;
+  key_type: string;
+  address: string;
+  address_short_form: string;
+  name: string;
+  // True when a receiver preimage was imported, so balance/available are meaningful.
+  tracks_balance: boolean;
+  total_received: string;
+  // Present only when tracks_balance is true.
+  balance?: string;
+  available?: string;
+  // Amount still time-locked, and the earliest upcoming unlock among those
+  // coins. A time-locked UTXO cannot have been spent yet, so these need no
+  // receiver preimage to populate. Timestamp serializes as epoch millis.
+  locked: string;
+  next_release_date?: number;
+}

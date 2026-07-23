@@ -1,5 +1,6 @@
 import {
   IconArrowDownCircle,
+  IconEye,
   IconHistory,
   IconSettings,
   IconTransfer,
@@ -15,6 +16,7 @@ const AddressesPage = lazy(async () => await import("../pages/addresses"));
 const HistoryPage = lazy(async () => await import("../pages/history"));
 const BatchPage = lazy(async () => await import("../pages/batch"));
 const ContactsPage = lazy(async () => await import("../pages/contacts"));
+const WatchOnlyPage = lazy(async () => await import("../pages/watch-only"));
 export const routesConfig: RouteObject[] = [
   {
     path: "/",
@@ -53,6 +55,10 @@ export const routesConfig: RouteObject[] = [
         element: <AddressesPage />,
       },
       {
+        path: "watch-only",
+        element: <WatchOnlyPage />,
+      },
+      {
         path: "contacts",
         element: <ContactsPage />,
       },
@@ -79,6 +85,7 @@ export const linkdata = [
   { label: "Wallet", href: "/wallet", icon: IconWallet },
   { label: "Send", href: "/send", icon: IconTransfer },
   { label: "Receive", href: "/addresses", icon: IconArrowDownCircle },
+  { label: "Watch-only", href: "/watch-only", icon: IconEye },
   { label: "History", href: "/history", icon: IconHistory },
 ];
 

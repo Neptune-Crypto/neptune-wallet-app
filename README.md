@@ -20,7 +20,6 @@ Refer to [neptune-wallet-core](https://github.com/Neptune-Crypto/neptune-core) f
   - `session_store` session store for frontend
   - `cli` cli entrypoint
   - `gui` gui entrypoint
-- `leveldb-sys` leveldb stub since we dont use it and it is not compatible with cargo-xwin
 
 ### Run in development mode, on a Debian/Ubuntu system
 
