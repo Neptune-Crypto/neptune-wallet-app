@@ -71,6 +71,25 @@ pub(crate) async fn get_network() -> Result<String> {
     Ok(config.get_network().await.into_tauri_result()?.to_string())
 }
 
+/// The current network's target block interval in milliseconds.
+///
+/// Exposed so the frontend never hardcodes this consensus parameter — it
+/// differs per network, so any baked-in constant would be wrong on all but
+/// one of them.
+///
+/// Milliseconds because it is the coarsest unit that keeps every network's
+/// interval a non-zero integer (some test networks have sub-second blocks),
+/// and it is the internal unit of [`neptune_primitives::timestamp::Timestamp`],
+/// so the value is reported without any conversion or rounding. Callers
+/// convert at display time only.
+#[cfg_attr(feature = "gui", tauri::command)]
+#[cfg_attr(not(feature = "gui"), allow(unused))]
+pub(crate) async fn get_block_interval() -> Result<u64> {
+    let config = crate::service::get_state::<Arc<Config>>();
+    let network = config.get_network().await.into_tauri_result()?;
+    Ok(network.target_block_interval().to_millis())
+}
+
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
 pub(crate) async fn set_disk_cache(enabled: bool) -> Result<()> {

@@ -4,6 +4,11 @@ export async function get_network(): Promise<string> {
   return await invoke("get_network", {});
 }
 
+/** Current network's target block interval in milliseconds (differs per network). */
+export async function get_block_interval_ms(): Promise<number> {
+  return await invoke("get_block_interval", {});
+}
+
 export async function set_network(network: string) {
   return await invoke("set_network", { network: network });
 }
