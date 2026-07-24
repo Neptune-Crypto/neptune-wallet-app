@@ -35,7 +35,10 @@ const syncSlice = createSlice({
       state.syncedBlock = action.payload.syncedBlock;
     });
     builder.addCase(handleFinishBlockStatus.fulfilled, (state, action) => {
-      state.syncedBlock = action.payload.data;
+      // The payload is the node's chain tip, not the wallet's processed height,
+      // so only latestBlock is set here; syncedBlock is deliberately left to the
+      // per block sync events. Driving it from the tip would report synced ahead
+      // of blocks not yet scanned.
       state.latestBlock = action.payload.data;
     });
   },
