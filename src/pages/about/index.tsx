@@ -67,6 +67,9 @@ export function AboutView() {
         <Table.Tr>
           <Table.Th>Updates:</Table.Th>
           <Table.Td>
+            {update.status === "disabled" && (
+              <Text c="dimmed">Update checks are disabled in this build.</Text>
+            )}
             {update.status === "checking" && (
               <Flex align="center" gap={8}>
                 <Loader size="xs" />
