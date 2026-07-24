@@ -8,7 +8,14 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 // modal, About view, sidebar badge) through Tauri's one-click updater, so every
 // surface offers the same install action and check failures are visible.
 
-export type UpdateStatus = "checking" | "upToDate" | "available" | "installing" | "error";
+export type UpdateStatus =
+  "disabled" | "checking" | "upToDate" | "available" | "installing" | "error";
+
+// This build ships the watch-only payout-policy feature, which the standard
+// releases the updater points at do not have. An upgrade would silently strip
+// the feature, so update checks are off entirely: no startup prompt, no
+// sidebar badge, and the About page states that checks are disabled.
+const UPDATE_CHECKS_DISABLED = true;
 
 interface UpdateState {
   status: UpdateStatus;
@@ -25,13 +32,19 @@ interface UpdateState {
 const UpdateContext = createContext<UpdateState | null>(null);
 
 export function UpdateProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<UpdateStatus>("checking");
+  const [status, setStatus] = useState<UpdateStatus>(
+    UPDATE_CHECKS_DISABLED ? "disabled" : "checking"
+  );
   const [version, setVersion] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   // The Tauri Update object carries downloadAndInstall(); it can't live in Redux.
   const updateRef = useRef<Update | null>(null);
 
   const checkForUpdates = useCallback(async () => {
+    if (UPDATE_CHECKS_DISABLED) {
+      setStatus("disabled");
+      return;
+    }
     // Not in Tauri (e.g. a plain browser / Playwright): nothing to check.
     if (!isTauri()) {
       setStatus("upToDate");

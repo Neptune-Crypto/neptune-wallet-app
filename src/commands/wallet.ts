@@ -1,6 +1,10 @@
 import {
   AddressRecord,
   NeptuneKeyType,
+  PayoutPolicy,
+  PayoutPolicyDraft,
+  PayoutPreview,
+  PayoutRun,
   WatchOnlyAddressRecord,
   WatchOnlyKeyType,
 } from "@/utils/api/types";
@@ -92,4 +96,33 @@ export async function knownWatchOnlyAddresses(): Promise<WatchOnlyAddressRecord[
 
 export async function removeWatchOnlyAddress(id: number): Promise<void> {
   await invoke("remove_watch_only_address", { id });
+}
+
+// The draft's fields are snake_case to match the backend struct exactly (Tauri
+// only camelCases top-level command args, not nested struct fields).
+export async function savePayoutPolicy(
+  watchOnlyId: number,
+  draft: PayoutPolicyDraft
+): Promise<PayoutPolicy> {
+  return await invoke<PayoutPolicy>("save_payout_policy", { watchOnlyId, draft });
+}
+
+export async function getPayoutPolicy(watchOnlyId: number): Promise<PayoutPolicy | null> {
+  return await invoke<PayoutPolicy | null>("get_payout_policy", { watchOnlyId });
+}
+
+export async function listPayoutPolicies(): Promise<PayoutPolicy[]> {
+  return await invoke<PayoutPolicy[]>("list_payout_policies", {});
+}
+
+export async function removePayoutPolicy(watchOnlyId: number): Promise<void> {
+  await invoke("remove_payout_policy", { watchOnlyId });
+}
+
+export async function getPayoutRuns(watchOnlyId: number): Promise<PayoutRun[]> {
+  return await invoke<PayoutRun[]>("get_payout_runs", { watchOnlyId });
+}
+
+export async function previewPayout(watchOnlyId: number): Promise<PayoutPreview> {
+  return await invoke<PayoutPreview>("preview_payout", { watchOnlyId });
 }

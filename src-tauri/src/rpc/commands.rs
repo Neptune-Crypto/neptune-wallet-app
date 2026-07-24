@@ -24,6 +24,10 @@ use crate::wallet::keys::AddressRecord;
 use crate::wallet::sync::SyncState;
 use crate::wallet::sync::SyncStatus;
 use crate::wallet::watch_only::WatchOnlyAddressRecord;
+use crate::wallet::watch_only_payout_policy::PayoutPolicy;
+use crate::wallet::watch_only_payout_policy::PayoutPolicyDraft;
+use crate::wallet::watch_only_payout_policy::PayoutPreview;
+use crate::wallet::watch_only_payout_policy::PayoutRun;
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
@@ -223,6 +227,51 @@ pub(crate) async fn known_watch_only_addresses() -> Result<Vec<WatchOnlyAddressR
 #[cfg_attr(feature = "gui", tauri::command)]
 pub(crate) async fn remove_watch_only_address(id: i64) -> Result<()> {
     WalletRpcImpl::remove_watch_only_address(id)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn save_payout_policy(
+    watch_only_id: i64,
+    draft: PayoutPolicyDraft,
+) -> Result<PayoutPolicy> {
+    WalletRpcImpl::save_payout_policy(watch_only_id, draft)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn get_payout_policy(watch_only_id: i64) -> Result<Option<PayoutPolicy>> {
+    WalletRpcImpl::get_payout_policy(watch_only_id)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn list_payout_policies() -> Result<Vec<PayoutPolicy>> {
+    WalletRpcImpl::list_payout_policies()
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn remove_payout_policy(watch_only_id: i64) -> Result<()> {
+    WalletRpcImpl::remove_payout_policy(watch_only_id)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn get_payout_runs(watch_only_id: i64) -> Result<Vec<PayoutRun>> {
+    WalletRpcImpl::get_payout_runs(watch_only_id)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn preview_payout(watch_only_id: i64) -> Result<PayoutPreview> {
+    WalletRpcImpl::preview_payout(watch_only_id)
         .await
         .into_tauri_result()
 }

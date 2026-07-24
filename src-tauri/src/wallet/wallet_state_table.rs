@@ -161,8 +161,98 @@ sqlx_migrator::sqlite_migration!(
     ]
 );
 
+struct CreatePayoutPoliciesMigration;
+sqlx_migrator::sqlite_migration!(
+    CreatePayoutPoliciesMigration,
+    "wallet_state",
+    "create_payout_policies",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![(
+        // A daily payout policy attached to a watch-only address (the "meter").
+        // At most one per address. Payouts are sent from this account's own
+        // balance; the watched address only decides how much.
+        //
+        // Amounts/rates are decimal strings applied to i128 nau backend-side.
+        // `run_time` is minutes-of-day in the user's local wall clock.
+        // `meter_start` (ms) is stamped when the policy is armed and reset on
+        // each re-arm; only receipts confirmed after it are ever paid against.
+        "CREATE TABLE payout_policies (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        watch_only_id INTEGER NOT NULL UNIQUE,
+        recipient TEXT NOT NULL,
+        basis TEXT NOT NULL,
+        multiplier TEXT NOT NULL,
+        min_lock_days INTEGER DEFAULT NULL,
+        max_lock_days INTEGER NOT NULL,
+        max_daily_payout TEXT DEFAULT NULL,
+        min_confirmations INTEGER NOT NULL,
+        run_time INTEGER NOT NULL,
+        armed INTEGER NOT NULL DEFAULT 0,
+        meter_start INTEGER DEFAULT NULL,
+        last_run_at INTEGER DEFAULT NULL,
+        created_at INTEGER NOT NULL
+        )", //up
+        "DROP TABLE payout_policies" //down
+    )]
+);
+
+struct CreatePayoutAccountedReceiptsMigration;
+sqlx_migrator::sqlite_migration!(
+    CreatePayoutAccountedReceiptsMigration,
+    "wallet_state",
+    "create_payout_accounted_receipts",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![(
+        // A receipt that a payout run has already counted (whether it paid or
+        // dropped on insufficient funds), so it is never paid against twice.
+        //
+        // Deliberately NOT a column on `watch_only_utxos`: those rows are deleted
+        // and rebuilt on reorg rollback / rescan, which would wipe the accounting
+        // and re-pay everything. This table is keyed by `(watch_only_id,
+        // aocl_index)` — a deterministic, rescan-stable identity (re-scanning the
+        // same chain re-inserts each UTXO with the same AOCL index) — and is
+        // never touched by rollback, so the accounting survives a full resync.
+        "CREATE TABLE payout_accounted_receipts (
+        watch_only_id INTEGER NOT NULL,
+        aocl_index INTEGER NOT NULL,
+        run_id INTEGER NOT NULL,
+        accounted_at INTEGER NOT NULL,
+        PRIMARY KEY (watch_only_id, aocl_index)
+        )", //up
+        "DROP TABLE payout_accounted_receipts" //down
+    )]
+);
+
+struct CreatePayoutRunsMigration;
+sqlx_migrator::sqlite_migration!(
+    CreatePayoutRunsMigration,
+    "wallet_state",
+    "create_payout_runs",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![(
+        // Audit trail: one row per attempted daily run. `status` is one of
+        // 'paid', 'skipped_insufficient_funds', 'skipped_no_receipts', 'failed'.
+        // Amounts are nau strings. `output_commitments` records the broadcast
+        // transaction by its output addition records (canonical commitments,
+        // comma-separated hex).
+        "CREATE TABLE payout_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        policy_id INTEGER NOT NULL,
+        run_at INTEGER NOT NULL,
+        basis_amount TEXT NOT NULL,
+        payout_amount TEXT NOT NULL,
+        fee TEXT NOT NULL,
+        output_commitments TEXT DEFAULT NULL,
+        status TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+        )", //up
+        "DROP TABLE payout_runs" //down
+    )]
+);
+
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct UtxoDbData {
+    /// Database ID of a UTXO. Autoincremented/managed by the database.
     pub(crate) id: i64,
     pub(crate) hash: String,
     pub(crate) recovery_data: UtxoRecoveryData,
@@ -308,6 +398,9 @@ impl WalletState {
         migrator.add_migration(Box::new(CreateWatchOnlyUtxosMigration))?;
         migrator.add_migration(Box::new(AddWatchOnlyPreimageMigration))?;
         migrator.add_migration(Box::new(AddWatchOnlySpendTrackingMigration))?;
+        migrator.add_migration(Box::new(CreatePayoutPoliciesMigration))?;
+        migrator.add_migration(Box::new(CreatePayoutAccountedReceiptsMigration))?;
+        migrator.add_migration(Box::new(CreatePayoutRunsMigration))?;
 
         let mut conn = self.pool.acquire().await?;
         // use apply all to apply all pending migration
