@@ -16,6 +16,12 @@ const PHASES = [
   { label: "Awaiting confirmation" },
 ];
 
+// A block arriving during proving forces a rebuild, sending the panel back to
+// phase 0. Say why, or it reads as a stall.
+const REBUILD_DESCRIPTION =
+  "A new block arrived while your transaction was being proven, so it has to be " +
+  "proven again against the new block, which restarts the wait.";
+
 function phaseFromStatus(status: string): number {
   const match = status.match(/step (\d+)/);
   const step = match ? Number(match[1]) : 1;
@@ -27,6 +33,7 @@ export default function SendProgress({ status }: { status: string }) {
   // The panel mounts when a send starts; anchor the elapsed timer to that moment.
   const [startedAt] = useState(() => Math.floor(Date.now() / 1000));
   const current = phaseFromStatus(status);
+  const rebuilding = status.includes("rebuild");
 
   return (
     <Card withBorder radius="md" padding="md">
@@ -37,6 +44,7 @@ export default function SendProgress({ status }: { status: string }) {
         {PHASES.map((phase, index) => {
           const done = index < current;
           const active = index === current;
+          const description = index === 0 && rebuilding ? REBUILD_DESCRIPTION : phase.description;
           return (
             <Flex key={phase.label} direction="column" gap={2}>
               <Flex direction="row" gap={8} align="center">
@@ -58,9 +66,9 @@ export default function SendProgress({ status }: { status: string }) {
                   />
                 )}
               </Flex>
-              {active && phase.description && (
+              {active && description && (
                 <Text size="xs" c="dimmed" ml={26}>
-                  {phase.description}
+                  {description}
                 </Text>
               )}
             </Flex>

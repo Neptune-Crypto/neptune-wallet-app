@@ -9,6 +9,7 @@ use neptune_consensus::transaction::utxo::Utxo;
 use neptune_consensus::transaction::Transaction;
 use neptune_consensus::transaction::TransactionProof;
 use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
+use neptune_mempool::transaction_kernel_id::Txid;
 use neptune_mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
 use neptune_primitives::block_height::BlockHeight;
 use neptune_primitives::timestamp::Timestamp;
@@ -27,6 +28,7 @@ use num_traits::CheckedSub;
 use thiserror::Error;
 use tracing::*;
 
+use super::input::tip_moved_since;
 use super::input::InputSelectionRule;
 use crate::config::Config;
 use crate::prover::ProofBuilder;
@@ -34,6 +36,25 @@ use crate::rpc::OutputInfo;
 use crate::rpc_client;
 use crate::rpc_client::BroadcastError;
 use crate::wallet::wallet_state_table::ExpectedUtxoData;
+
+/// How many times a send builds and proves before giving up and telling the user.
+///
+/// A block landing during proving makes the proof unconfirmable, and a rebuild is
+/// another full proving run that can lose the same race. Losing three in a row is
+/// rare enough to surface: an unbroadcast transaction is in no mempool, so no
+/// node knows it exists and nothing else can rescue it.
+const MAX_SEND_ATTEMPTS: usize = 3;
+
+/// A transaction proven against one particular tip.
+struct ProvenSend {
+    transaction: Transaction,
+    transaction_details: TransactionDetails,
+    /// Database ids of the UTXOs spent as inputs.
+    db_ids: Vec<i64>,
+    /// All outputs, including change.
+    full_outputs: TxOutputList,
+    change_commitment: Option<String>,
+}
 
 impl super::WalletState {
     pub(crate) async fn send_to_address(
@@ -46,7 +67,6 @@ impl super::WalletState {
         accept_lustration: bool,
     ) -> anyhow::Result<(Transaction, Vec<OutputInfo>), SendError> {
         let _spend_guard = self.spend_lock.lock().await;
-        let now = Timestamp::now();
         let tx_proving_capability = TxProvingCapability::ProofCollection;
 
         let (owned_utxo_notification_medium, unowned_utxo_notification_medium) =
@@ -67,93 +87,165 @@ impl super::WalletState {
             spending_key
         };
 
-        let _ = crate::service::app::emit_event_to(
-            "main",
-            "send_state",
-            "stmi: step 2. generate outputs.",
-        );
+        // Pinning the first attempt's selection keeps the input set stable across
+        // rebuilds, and with it the lustration decision the user approved.
+        let mut pinned_inputs = must_include_utxos;
+        let mut attempt = 1;
 
-        let (tx_inputs, db_ids, tip_msa, tip_header) = self
-            .create_input(&outputs, fee, rule, must_include_utxos)
-            .await?;
+        let proven = loop {
+            let _ = crate::service::app::emit_event_to(
+                "main",
+                "send_state",
+                "stmi: step 2. generate outputs.",
+            );
 
-        let tx_outputs = self
-            .generate_tx_outputs(
-                outputs.clone(),
-                owned_utxo_notification_medium,
-                unowned_utxo_notification_medium,
-                tip_header.height,
-            )
-            .await;
+            // Fresh per attempt: the node rejects transactions that are too old.
+            let now = Timestamp::now();
 
-        let _ =
-            crate::service::app::emit_event_to("main", "send_state", "stmi: step 3. create tx.");
+            let (tx_inputs, db_ids, tip_msa, tip_header) = self
+                .create_input(&outputs, fee, rule, pinned_inputs.clone())
+                .await?;
 
-        // NOTE: A change output will be added to tx_outputs if needed.
-        let (transaction, transaction_details, maybe_change_output) = match self
-            .create_transaction_with_prover_capability(
-                tx_outputs.clone(),
-                tx_inputs,
-                change_key,
-                owned_utxo_notification_medium,
-                fee,
-                now,
-                tx_proving_capability,
-                tip_msa,
-                tip_header,
-            )
-            .await
-        {
-            Ok(tx) => tx,
-            Err(e) => {
-                tracing::error!("Could not create transaction: {}", e);
-                return Err(e.into());
+            let tx_outputs = self
+                .generate_tx_outputs(
+                    outputs.clone(),
+                    owned_utxo_notification_medium,
+                    unowned_utxo_notification_medium,
+                    tip_header.height,
+                )
+                .await;
+
+            // Shown for minutes while proving; on a rebuild it says why.
+            let _ = crate::service::app::emit_event_to(
+                "main",
+                "send_state",
+                if attempt == 1 {
+                    "stmi: step 3. create tx."
+                } else {
+                    "stmi: step 3. create tx, rebuild after new block."
+                },
+            );
+
+            // NOTE: A change output will be added to tx_outputs if needed.
+            let (transaction, transaction_details, maybe_change_output) = match self
+                .create_transaction_with_prover_capability(
+                    tx_outputs.clone(),
+                    tx_inputs,
+                    change_key.clone(),
+                    owned_utxo_notification_medium,
+                    fee,
+                    now,
+                    tx_proving_capability,
+                    tip_msa,
+                    tip_header,
+                )
+                .await
+            {
+                Ok(tx) => tx,
+                Err(e) => {
+                    tracing::error!("Could not create transaction: {}", e);
+                    return Err(e.into());
+                }
+            };
+
+            if transaction_details.contains_lustrations() && !accept_lustration {
+                let lustration_status = tip_header
+                    .pow
+                    .lustration_status()
+                    .expect("If transaction requires lustration, lustration status must be set.");
+                return Err(SendError::RequiresLustration(LustrationError(format!(
+                    "All inputs with AOCL ranges at or below {} must lustrate. \
+                     You must accept lustrations before making this transaction.",
+                    lustration_status.max_lustrating_aocl_leaf_index
+                ))));
             }
+
+            let _ = crate::service::app::emit_event_to(
+                "main",
+                "send_state",
+                "stmi: step 4. extract expected utxos.",
+            );
+
+            // The change output (funds returning to us) is created explicitly.
+            // Capture its commitment now, before maybe_change_output is consumed
+            // below, so the per-output summary can flag it. Note
+            // create_change_output builds it with onchain/offchain_native_currency
+            // (NOT the *_as_change variant), so TxOutput::is_change() is always
+            // false here and cannot be relied on.
+            let change_commitment = maybe_change_output
+                .as_ref()
+                .map(|txo| txo.addition_record().canonical_commitment.to_hex());
+
+            let mut full_outputs = tx_outputs;
+            if let Some(change_output) = maybe_change_output {
+                full_outputs.push(change_output);
+            }
+
+            let proven = ProvenSend {
+                transaction,
+                transaction_details,
+                db_ids,
+                full_outputs,
+                change_commitment,
+            };
+
+            // If the node moved on while we proved, this can never confirm.
+            let stale = if tip_moved_since(&tip_header).await {
+                info!(
+                    "A block arrived while proving; the transaction is no longer \
+                     confirmable relative to the node's mutator set."
+                );
+                true
+            } else {
+                let _ = crate::service::app::emit_event_to(
+                    "main",
+                    "send_state",
+                    "stmi: step 5. broadcast transaction.",
+                );
+
+                match rpc_client::node_rpc_client()
+                    .broadcast_transaction(proven.transaction.clone())
+                    .await
+                {
+                    Ok(_txid) => false,
+                    // Lost the race between the check and the submission.
+                    Err(BroadcastError::NotConfirmable) => {
+                        info!("Node rejected the transaction as not confirmable.");
+                        true
+                    }
+                    Err(e) => return Err(e.into()),
+                }
+            };
+
+            if !stale {
+                break proven;
+            }
+
+            if attempt == MAX_SEND_ATTEMPTS {
+                warn!("Could not broadcast the transaction within {MAX_SEND_ATTEMPTS} attempts.");
+                // An unbroadcast transaction is in no mempool, so nothing would
+                // ever advance it. Recording it as pending would strand it.
+                return Err(SendError::NotConfirmable(NotConfirmableError(format!(
+                    "A new block arrived during each of {MAX_SEND_ATTEMPTS} attempts to \
+                     prove this transaction, so none of them could be submitted. \
+                     Please try again."
+                ))));
+            }
+
+            attempt += 1;
+            info!(
+                "Rebuilding the transaction against the node's new tip \
+                 (attempt {attempt} of {MAX_SEND_ATTEMPTS})."
+            );
+            pinned_inputs = proven.db_ids;
         };
 
-        if transaction_details.contains_lustrations() && !accept_lustration {
-            let lustration_status = tip_header
-                .pow
-                .lustration_status()
-                .expect("If transaction requires lustration, lustration status must be set.");
-            return Err(SendError::RequiresLustration(LustrationError(format!(
-                "All inputs with AOCL ranges at or below {} must lustrate. \
-                 You must accept lustrations before making this transaction.",
-                lustration_status.max_lustrating_aocl_leaf_index
-            ))));
-        }
+        // Derived from the transaction, not assigned by the node.
+        let txid = proven.transaction.txid().to_string();
+        let now = Timestamp::now();
 
-        let _ = crate::service::app::emit_event_to(
-            "main",
-            "send_state",
-            "stmi: step 4. extract expected utxos.",
-        );
-
-        // The change output (funds returning to us) is created explicitly. Capture
-        // its commitment now, before maybe_change_output is consumed below, so the
-        // per-output summary can flag it. Note create_change_output builds it with
-        // onchain/offchain_native_currency (NOT the *_as_change variant), so
-        // TxOutput::is_change() is always false here and cannot be relied on.
-        let change_commitment = maybe_change_output
-            .as_ref()
-            .map(|txo| txo.addition_record().canonical_commitment.to_hex());
-
-        let mut full_outputs = tx_outputs;
-        if let Some(change_output) = maybe_change_output {
-            full_outputs.push(change_output);
-        }
-
-        let utxos_sent_to_self = self.extract_expected_utxos(&full_outputs, UtxoNotifier::Myself);
-
-        let _ = crate::service::app::emit_event_to(
-            "main",
-            "send_state",
-            "stmi: step 5. broadcast transaction.",
-        );
-
-        let txid = rpc_client::node_rpc_client()
-            .broadcast_transaction(transaction.clone())
-            .await?;
+        let utxos_sent_to_self =
+            self.extract_expected_utxos(&proven.full_outputs, UtxoNotifier::Myself);
 
         let _ = crate::service::app::emit_event_to(
             "main",
@@ -188,12 +280,13 @@ impl super::WalletState {
         // are derived from (TransactionDetails::transaction_kernel), so these
         // commitments match the on-chain outputs exactly. The change output is
         // identified by its commitment (see change_commitment above).
-        let output_infos = transaction_details
+        let output_infos = proven
+            .transaction_details
             .tx_outputs
             .iter()
             .map(|txo| {
                 let commitment = txo.addition_record().canonical_commitment.to_hex();
-                let is_change = change_commitment.as_deref() == Some(commitment.as_str());
+                let is_change = proven.change_commitment.as_deref() == Some(commitment.as_str());
                 let address = if is_change {
                     None
                 } else {
@@ -211,15 +304,17 @@ impl super::WalletState {
             })
             .collect();
 
+        // Recorded as pending so the balance reflects it and the UI can show it
+        // awaiting confirmation. The node maintains the transaction from here.
         self.updater
-            .add_transaction(txid.clone(), transaction_details, db_ids)
+            .add_transaction(txid.clone(), proven.transaction_details, proven.db_ids)
             .await?;
 
         // Refresh the accounts list's cached total (otherwise only rewritten on
         // block sync): the send just moved coins into pending, so the cached
         // figure would overstate this account's balance until the next block.
-        // Best-effort — the transaction is already broadcast, so a cache miss
-        // must not fail the send.
+        // Best effort. The transaction is already recorded, so a cache miss must
+        // not fail the send.
         match self.get_all_balance().await {
             Ok((_available, _pending, total)) => {
                 let config = crate::service::get_state::<Arc<Config>>();
@@ -233,7 +328,7 @@ impl super::WalletState {
             Err(e) => warn!("Could not compute balance after send: {}", e),
         }
 
-        Ok((transaction, output_infos))
+        Ok((proven.transaction, output_infos))
     }
 
     /// Cheap pre-check: would a transaction built from these parameters require
@@ -543,6 +638,13 @@ impl super::WalletState {
 #[error("Lustration is required for this transaction: {0}")]
 pub struct LustrationError(pub String);
 
+/// Every attempt lost its race against a new block, so none could be submitted.
+/// Nothing was broadcast, so nothing is left behind to retry: the user has to
+/// start the send again.
+#[derive(Debug, Error)]
+#[error("{0}")]
+pub struct NotConfirmableError(pub String);
+
 #[derive(Debug, Error)]
 pub(crate) enum SendError {
     #[error(transparent)]
@@ -551,4 +653,6 @@ pub(crate) enum SendError {
     Broadcast(#[from] BroadcastError),
     #[error(transparent)]
     RequiresLustration(#[from] LustrationError),
+    #[error(transparent)]
+    NotConfirmable(#[from] NotConfirmableError),
 }

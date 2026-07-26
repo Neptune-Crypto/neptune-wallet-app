@@ -16,12 +16,30 @@ use neptune_wallet::twenty_first::tip5::Tip5;
 use neptune_wallet::unlocked_utxo::UnlockedUtxo;
 use rand::seq::SliceRandom;
 use tracing::trace;
+use tracing::warn;
 
 use super::wallet_state_table::UtxoDbData;
 use super::UtxoRecoveryData;
 use crate::rpc_client;
 
-#[derive(Default)]
+/// Has the node moved off `tip_header`?
+///
+/// Every block mutates the mutator set, so a transaction proven against
+/// `tip_header` stops being confirmable the moment the tip changes. Compares the
+/// whole header, so a reorg at the same height counts too.
+///
+/// Returns `false` if the node is unreachable. The submission is the authority.
+pub(super) async fn tip_moved_since(tip_header: &BlockHeader) -> bool {
+    match rpc_client::node_rpc_client().get_tip_header().await {
+        Ok(current_tip) => &current_tip != tip_header,
+        Err(e) => {
+            warn!("Could not read the node's tip to check confirmability: {e}");
+            false
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
 pub(crate) enum InputSelectionRule {
     Minimum,
     Maximum,

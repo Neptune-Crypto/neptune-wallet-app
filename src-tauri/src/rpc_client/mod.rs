@@ -13,6 +13,7 @@ use neptune_primitives::block_height::BlockHeight;
 use neptune_primitives::block_selector::BlockSelector;
 use neptune_rpc_api::api::rpc::RpcApi;
 use neptune_rpc_api::api::rpc::RpcError;
+use neptune_rpc_api::api::rpc::SubmitTransactionError;
 use neptune_rpc_api::model::wallet::mutator_set::RpcMsMembershipSnapshot;
 use neptune_rpc_api::model::wallet::transaction::RpcTransaction;
 use neptune_rpc_client::http::HttpClient;
@@ -194,7 +195,7 @@ impl NodeRpcClient {
             Err(e) => {
                 error!("Failed to broadcast transaction: {e}");
 
-                return Err(BroadcastError::Server(e.into()));
+                return Err(e.into());
             }
         };
 
@@ -256,13 +257,23 @@ pub(crate) enum BroadcastError {
     Server(anyhow::Error),
     #[error("Internal error: {0}")]
     Internal(anyhow::Error),
+    /// Proven against a mutator set that is no longer the node's, meaning a block
+    /// landed during proving. Its own variant because it is recoverable by
+    /// rebuilding against the new tip.
+    #[error("Transaction is not confirmable relative to the node's mutator set.")]
+    NotConfirmable,
     #[error("Transaction rejected by server.")]
     UnspecifiedServerError,
 }
 
 impl From<RpcError> for BroadcastError {
     fn from(value: RpcError) -> Self {
-        Self::Server(anyhow::Error::msg(value.to_string()))
+        match value {
+            RpcError::SubmitTransaction(SubmitTransactionError::NotConfirmable) => {
+                Self::NotConfirmable
+            }
+            other => Self::Server(anyhow::Error::msg(other.to_string())),
+        }
     }
 }
 
@@ -281,5 +292,33 @@ impl From<reqwest::Error> for BroadcastError {
 impl From<anyhow::Error> for BroadcastError {
     fn from(e: anyhow::Error) -> Self {
         BroadcastError::Internal(e)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The send path keys its retry on this variant, so the mapping has to stay
+    /// exact: anything that flattens it into Server turns a recoverable race into
+    /// a failed send.
+    #[test]
+    fn not_confirmable_survives_as_its_own_variant() {
+        let err: BroadcastError =
+            RpcError::SubmitTransaction(SubmitTransactionError::NotConfirmable).into();
+        assert!(matches!(err, BroadcastError::NotConfirmable));
+    }
+
+    #[test]
+    fn other_submission_failures_are_server_errors() {
+        let err: BroadcastError =
+            RpcError::SubmitTransaction(SubmitTransactionError::FeeNegative).into();
+        assert!(matches!(err, BroadcastError::Server(_)));
+    }
+
+    #[test]
+    fn unrelated_rpc_errors_are_server_errors() {
+        let err: BroadcastError = RpcError::InvalidAddress.into();
+        assert!(matches!(err, BroadcastError::Server(_)));
     }
 }
