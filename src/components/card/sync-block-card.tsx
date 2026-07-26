@@ -14,9 +14,15 @@ export default function SyncBlockCard() {
     if (latestBlock === 0) {
       return 0;
     }
+    const percentage = (syncedBlock / latestBlock) * 100;
+    // Reserve 100% for actually being at the tip. One block short of 46,084 is
+    // 99.998%, which the one decimal formatter rounds up to "100.0%".
+    if (syncedBlock < latestBlock) {
+      return Math.min(99.9, percentage);
+    }
     // Clamp: during an account switch the synced height can briefly exceed a
-    // stale latest height, which would render as "100.0%" (or >100%).
-    return Math.min(100, (syncedBlock / latestBlock) * 100);
+    // stale latest height, which would render as more than 100%.
+    return Math.min(100, percentage);
   }
   useEffect(() => {
     if (latestBlock < syncedBlock) {
