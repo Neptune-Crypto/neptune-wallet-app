@@ -66,7 +66,10 @@ impl super::WalletState {
         must_include_utxos: Vec<i64>,
         accept_lustration: bool,
     ) -> anyhow::Result<(Transaction, Vec<OutputInfo>), SendError> {
-        let _spend_guard = self.spend_lock.lock().await;
+        // Held for the whole send: until this transaction is recorded as pending,
+        // its chosen inputs are invisible to input selection, so a second send
+        // would happily pick them again.
+        let _send_guard = self.send_lock.lock().await;
         let tx_proving_capability = TxProvingCapability::ProofCollection;
 
         let (owned_utxo_notification_medium, unowned_utxo_notification_medium) =
@@ -102,18 +105,59 @@ impl super::WalletState {
             // Fresh per attempt: the node rejects transactions that are too old.
             let now = Timestamp::now();
 
-            let (tx_inputs, db_ids, tip_msa, tip_header) = self
-                .create_input(&outputs, fee, rule, pinned_inputs.clone())
-                .await?;
+            // Everything that reads wallet state happens here, under the spend
+            // lock. NOTE: a change output will be added to tx_outputs if needed.
+            let (transaction_details, maybe_change_output, db_ids, tx_outputs, tip_header) = {
+                let _spend_guard = self.spend_lock.lock().await;
 
-            let tx_outputs = self
-                .generate_tx_outputs(
-                    outputs.clone(),
-                    owned_utxo_notification_medium,
-                    unowned_utxo_notification_medium,
-                    tip_header.height,
-                )
-                .await;
+                let (tx_inputs, db_ids, tip_msa, tip_header) = self
+                    .create_input(&outputs, fee, rule, pinned_inputs.clone())
+                    .await?;
+
+                let tx_outputs = self
+                    .generate_tx_outputs(
+                        outputs.clone(),
+                        owned_utxo_notification_medium,
+                        unowned_utxo_notification_medium,
+                        tip_header.height,
+                    )
+                    .await;
+
+                let (details, change) = match self
+                    .build_transaction_details(
+                        tx_outputs.clone(),
+                        tx_inputs,
+                        change_key.clone(),
+                        owned_utxo_notification_medium,
+                        fee,
+                        now,
+                        tip_msa,
+                        tip_header,
+                    )
+                    .await
+                {
+                    Ok(built) => built,
+                    Err(e) => {
+                        tracing::error!("Could not create transaction: {}", e);
+                        return Err(e.into());
+                    }
+                };
+
+                (details, change, db_ids, tx_outputs, tip_header)
+            };
+
+            // Checked before proving so a rejected transaction costs no proof.
+            if transaction_details.contains_lustrations() && !accept_lustration {
+                let lustration_status = tip_header
+                    .pow
+                    .lustration_status()
+                    .expect("If transaction requires lustration, lustration status must be set.");
+                return Err(SendError::RequiresLustration(LustrationError(format!(
+                    "All inputs with AOCL ranges at or below {} must lustrate. \
+                     You must accept lustrations before making this transaction.",
+                    lustration_status.max_lustrating_aocl_leaf_index
+                ))));
+            }
 
             // Shown for minutes while proving; on a rebuild it says why.
             let _ = crate::service::app::emit_event_to(
@@ -126,39 +170,18 @@ impl super::WalletState {
                 },
             );
 
-            // NOTE: A change output will be added to tx_outputs if needed.
-            let (transaction, transaction_details, maybe_change_output) = match self
-                .create_transaction_with_prover_capability(
-                    tx_outputs.clone(),
-                    tx_inputs,
-                    change_key.clone(),
-                    owned_utxo_notification_medium,
-                    fee,
-                    now,
-                    tx_proving_capability,
-                    tip_msa,
-                    tip_header,
-                )
+            // No spend lock here. Proving takes minutes and touches no wallet
+            // state, so blocks keep being applied while it runs.
+            let transaction = match self
+                .create_raw_transaction(&transaction_details, tx_proving_capability)
                 .await
             {
                 Ok(tx) => tx,
                 Err(e) => {
-                    tracing::error!("Could not create transaction: {}", e);
+                    tracing::error!("Could not prove transaction: {}", e);
                     return Err(e.into());
                 }
             };
-
-            if transaction_details.contains_lustrations() && !accept_lustration {
-                let lustration_status = tip_header
-                    .pow
-                    .lustration_status()
-                    .expect("If transaction requires lustration, lustration status must be set.");
-                return Err(SendError::RequiresLustration(LustrationError(format!(
-                    "All inputs with AOCL ranges at or below {} must lustrate. \
-                     You must accept lustrations before making this transaction.",
-                    lustration_status.max_lustrating_aocl_leaf_index
-                ))));
-            }
 
             let _ = crate::service::app::emit_event_to(
                 "main",
@@ -239,6 +262,9 @@ impl super::WalletState {
             );
             pinned_inputs = proven.db_ids;
         };
+
+        // Back under the spend lock: everything below writes wallet state.
+        let _spend_guard = self.spend_lock.lock().await;
 
         // Derived from the transaction, not assigned by the node.
         let txid = proven.transaction.txid().to_string();
@@ -440,8 +466,12 @@ impl super::WalletState {
         )
     }
 
+    /// Assemble everything a transaction needs *except* its proof.
+    ///
+    /// Split from the proving step so the caller can drop the spend lock before
+    /// paying for a proof: this part reads wallet state, that part does not.
     #[expect(clippy::too_many_arguments)]
-    async fn create_transaction_with_prover_capability(
+    async fn build_transaction_details(
         &self,
         mut tx_outputs: TxOutputList,
         tx_inputs: Vec<UnlockedUtxo>,
@@ -449,10 +479,9 @@ impl super::WalletState {
         change_utxo_notify_medium: UtxoNotificationMedium,
         fee: NativeCurrencyAmount,
         timestamp: Timestamp,
-        prover_capability: TxProvingCapability,
         tip_msa: MutatorSetAccumulator,
         tip_header: BlockHeader,
-    ) -> anyhow::Result<(Transaction, TransactionDetails, Option<TxOutput>)> {
+    ) -> anyhow::Result<(TransactionDetails, Option<TxOutput>)> {
         // 1. create/add change output if necessary.
         let total_spend = tx_outputs.total_native_coins() + fee;
 
@@ -497,12 +526,7 @@ impl super::WalletState {
             transaction_details = transaction_details.with_announcements(lustrations);
         }
 
-        // 2. Create the transaction
-        let transaction = self
-            .create_raw_transaction(&transaction_details, prover_capability)
-            .await?;
-
-        Ok((transaction, transaction_details, maybe_change_output))
+        Ok((transaction_details, maybe_change_output))
     }
 
     /// Generate a change UTXO to ensure that the difference in input amount

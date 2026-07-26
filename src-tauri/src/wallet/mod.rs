@@ -89,7 +89,16 @@ pub(crate) struct WalletState {
     updater: TransactionUpdater,
     key_cache: key_cache::KeyCache,
     id: i64,
+
+    /// Guards wallet state against concurrent mutation. Held while a block is
+    /// applied, and while a send reads or writes the tables a block touches. Not
+    /// held across proving, which touches no wallet state.
     spend_lock: tokio::sync::Mutex<()>,
+
+    /// Serializes sends against each other, including across proving, when a
+    /// send's chosen inputs are not yet recorded anywhere. Separate from
+    /// [`Self::spend_lock`] so block application is not blocked for that long.
+    send_lock: tokio::sync::Mutex<()>,
 }
 
 impl WalletState {
@@ -156,6 +165,7 @@ impl WalletState {
             key_cache: key_cache::KeyCache::new(),
             id: wallet_config.id,
             spend_lock: tokio::sync::Mutex::new(()),
+            send_lock: tokio::sync::Mutex::new(()),
         };
 
         state.migrate_tables().await.context("migrate_tables")?;
