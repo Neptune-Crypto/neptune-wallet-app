@@ -307,6 +307,10 @@ impl SyncState {
         {
             info!("fork at height: {}", fork);
 
+            // The chain got shorter, so the monotonic record above is now too
+            // high and would abandon every subsequent proof on sight.
+            crate::prover::reset_observed_tip_height(fork);
+
             self.update(fork);
             self.fake_archival_state
                 .reset_to_height(fork)
@@ -342,6 +346,10 @@ impl SyncState {
     }
 
     fn syncing_new_tip(&self, height: u64) {
+        // Fetching this block means the node has at least this height. Any proof
+        // still running against an earlier tip is already dead; tell the prover
+        // so it can stop rather than finish a result it cannot use.
+        crate::prover::observe_tip_height(height);
         let _ = crate::service::app::emit_event_to("main", "syncing_new_block", height);
     }
 

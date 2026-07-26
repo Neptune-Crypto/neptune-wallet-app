@@ -32,6 +32,8 @@ use super::input::tip_moved_since;
 use super::input::InputSelectionRule;
 use crate::config::Config;
 use crate::prover::ProofBuilder;
+use crate::prover::ProvingGuard;
+use crate::prover::StaleProof;
 use crate::rpc::OutputInfo;
 use crate::rpc_client;
 use crate::rpc_client::BroadcastError;
@@ -171,12 +173,37 @@ impl super::WalletState {
             );
 
             // No spend lock here. Proving takes minutes and touches no wallet
-            // state, so blocks keep being applied while it runs.
-            let transaction = match self
-                .create_raw_transaction(&transaction_details, tx_proving_capability)
-                .await
-            {
+            // state, so blocks keep being applied while it runs, which is what
+            // lets the guard notice one and abandon the proof.
+            let proving = self
+                .create_raw_transaction(
+                    &transaction_details,
+                    tx_proving_capability,
+                    tip_header.height,
+                )
+                .await;
+
+            let transaction = match proving {
                 Ok(tx) => tx,
+                // Abandoned, not failed: a block landed, so the tip check below
+                // would have rejected this proof anyway. Fall through to it.
+                Err(e) if e.downcast_ref::<StaleProof>().is_some() => {
+                    if attempt == MAX_SEND_ATTEMPTS {
+                        warn!(
+                            "Abandoned proving on the final attempt. Recording the \
+                             transaction as pending for the updater to rebuild."
+                        );
+                        // Nothing proven to enqueue, so this attempt ends the send.
+                        return Err(SendError::Proof(e));
+                    }
+                    attempt += 1;
+                    info!(
+                        "Rebuilding the transaction against the node's new tip \
+                         (attempt {attempt} of {MAX_SEND_ATTEMPTS})."
+                    );
+                    pinned_inputs = db_ids;
+                    continue;
+                }
                 Err(e) => {
                     tracing::error!("Could not prove transaction: {}", e);
                     return Err(e.into());
@@ -594,16 +621,19 @@ impl super::WalletState {
         &self,
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
+        built_against: BlockHeight,
     ) -> anyhow::Result<Transaction> {
         // note: this executes the prover which can take a very
         //       long time, perhaps minutes.  The `await` here, should avoid
         //       block the tokio executor and other async tasks.
-        Self::create_transaction_from_data_worker(transaction_details, proving_power).await
+        Self::create_transaction_from_data_worker(transaction_details, proving_power, built_against)
+            .await
     }
 
     async fn create_transaction_from_data_worker(
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
+        built_against: BlockHeight,
     ) -> anyhow::Result<Transaction> {
         let primitive_witness = transaction_details.primitive_witness();
 
@@ -619,8 +649,9 @@ impl super::WalletState {
             TxProvingCapability::PrimitiveWitness => TransactionProof::Witness(primitive_witness),
             TxProvingCapability::LockScript => todo!(),
             TxProvingCapability::ProofCollection => {
+                let guard = ProvingGuard::new(built_against.into());
                 let collection = tokio::task::spawn_blocking(move || {
-                    ProofBuilder::produce_proof_collection(&primitive_witness)
+                    ProofBuilder::produce_proof_collection(&primitive_witness, &guard)
                 })
                 .await??;
 
