@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use neptune_consensus::proof_abstractions::tx_proving_capability::TxProvingCapability;
-use neptune_consensus::transaction::announcement::Announcement;
-use neptune_consensus::transaction::transparent_input::TransparentInput;
-use neptune_primitives::timestamp::Timestamp;
-use neptune_wallet::expected_utxo::UtxoNotifier;
 use neptune_wallet::transaction_details::TransactionDetails;
 use sqlx::Row;
 use sqlx::SqliteConnection;
@@ -16,9 +11,7 @@ use sqlx_migrator::Migrator;
 use sqlx_migrator::Plan;
 use tracing::*;
 
-use super::WalletState;
 use crate::config::Config;
-use crate::rpc_client;
 
 impl super::WalletState {
     // txid, amount
@@ -115,103 +108,6 @@ impl TransactionUpdater {
         Ok(())
     }
 
-    pub(crate) async fn update_transactions(&self, wallet_state: &WalletState) {
-        info!("Updating transactions");
-        let mut tx = match self.pool.acquire().await {
-            Ok(conn) => conn,
-            Err(err) => {
-                error!("Error acquiring database connection: {}", err);
-                return;
-            }
-        };
-
-        let transactions = match self.get_pending_transactions(&mut tx).await {
-            Ok(transactions) => transactions,
-            Err(err) => {
-                error!("Error getting pending transactions: {}", err);
-                return;
-            }
-        };
-
-        for (txid, transaction, _) in transactions {
-            info!("updating transaction {}", txid);
-            match self
-                .update_transaction(txid.to_owned(), wallet_state, transaction)
-                .await
-            {
-                Ok(detail) => {
-                    if let Err(e) = self.update_detail(&txid, &detail).await {
-                        error!("Error updating transaction: {}", e);
-                    }
-                }
-                Err(err) => {
-                    error!("error update transaction {} : {:#?}", txid, err);
-                }
-            };
-        }
-    }
-
-    // update transaction to tip and broadcast to node
-    async fn update_transaction(
-        &self,
-        tx_id: String,
-        wallet_state: &WalletState,
-        detail: TransactionDetails,
-    ) -> Result<TransactionDetails> {
-        info!("update transaction {}", tx_id);
-        let tx_inputs: Vec<TransparentInput> =
-            detail.tx_inputs.iter().cloned().map(|x| x.into()).collect();
-        let tx_outputs = detail.tx_outputs;
-        let fee = detail.fee;
-        let timestamp = Timestamp::now();
-
-        let mut recovery_data_list = Vec::with_capacity(tx_inputs.len());
-        for tx_input in tx_inputs.iter() {
-            let recovery_data = wallet_state
-                .get_recovery_data_from_utxo(&tx_input.utxo)
-                .await?;
-            recovery_data_list.push(recovery_data);
-        }
-
-        let (unlocked_new, tip_mutator_set_accumulator, tip_header) =
-            wallet_state.unlock_utxos(recovery_data_list).await?;
-
-        let expected_utxo = wallet_state.extract_expected_utxos(&tx_outputs, UtxoNotifier::Myself);
-
-        wallet_state
-            .update_new_generation_expected_utxos(&tx_id, timestamp, expected_utxo)
-            .await?;
-
-        let mut transaction_details = TransactionDetails::new_without_coinbase(
-            unlocked_new,
-            tx_outputs,
-            fee,
-            timestamp,
-            tip_mutator_set_accumulator,
-            wallet_state.network,
-        );
-
-        // if lustration is required create those here
-        if let Ok(lustration_status) = tip_header.pow.lustration_status() {
-            let lustrations = Announcement::lustration_announcements(lustration_status, &tx_inputs);
-
-            transaction_details = transaction_details.with_announcements(lustrations);
-        }
-
-        let transaction = wallet_state
-            .create_raw_transaction(&transaction_details, TxProvingCapability::ProofCollection)
-            .await?;
-        info!("Created transaction. Now ready to broadcast to server.");
-
-        let txid = rpc_client::node_rpc_client()
-            .broadcast_transaction(transaction)
-            .await?;
-
-        info!("Successfully broadcasted transaction with txid {txid} to server.");
-
-        Ok(transaction_details)
-    }
-
     pub(crate) async fn add_transaction(
         &self,
         tx_id: String,
@@ -237,19 +133,6 @@ impl TransactionUpdater {
         }
 
         conn.commit().await?;
-
-        Ok(())
-    }
-
-    async fn update_detail(&self, tx_id: &str, detail: &TransactionDetails) -> Result<()> {
-        let mut conn = self.pool.acquire().await?;
-
-        let detail = bincode::serialize(&detail)?;
-        sqlx::query("UPDATE wallet_state_pending SET details = ? WHERE id = ?")
-            .bind(&detail)
-            .bind(tx_id)
-            .execute(&mut *conn)
-            .await?;
 
         Ok(())
     }

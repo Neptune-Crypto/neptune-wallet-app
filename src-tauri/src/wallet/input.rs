@@ -3,7 +3,6 @@ use std::str::FromStr;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
-use anyhow::Result;
 use neptune_consensus::block::block_header::BlockHeader;
 use neptune_consensus::transaction::utxo::Utxo;
 use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
@@ -264,17 +263,5 @@ impl super::WalletState {
         self.all_known_keys()
             .into_iter()
             .find(|k| k.lock_script_hash() == utxo.lock_script_hash())
-    }
-
-    pub(crate) async fn get_recovery_data_from_utxo(
-        &self,
-        utxo: &Utxo,
-    ) -> Result<UtxoRecoveryData> {
-        let digest = Tip5::hash(utxo);
-        let db_data = self.get_utxo_db_data(&digest).await?;
-        match db_data {
-            Some(db_data) => Ok(db_data.recovery_data),
-            None => Err(anyhow::anyhow!("UTXO not found")),
-        }
     }
 }

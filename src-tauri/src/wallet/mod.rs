@@ -329,11 +329,7 @@ impl WalletState {
         Ok(total_recovered)
     }
 
-    pub(crate) async fn update_new_tip(
-        &self,
-        block: &WalletBlock,
-        should_update: bool,
-    ) -> Result<Option<u64>> {
+    pub(crate) async fn update_new_tip(&self, block: &WalletBlock) -> Result<Option<u64>> {
         let height: u64 = block.kernel.header.height.into();
 
         let mut tx = self.pool.begin().await?;
@@ -479,10 +475,6 @@ impl WalletState {
         tx.commit().await?;
 
         self.clean_old_expected_utxos().await?;
-
-        if should_update {
-            self.updater.update_transactions(self).await;
-        }
 
         if height.is_multiple_of(20) {
             info!("sync finished: {}", height);
@@ -833,10 +825,7 @@ mod tests {
         let mut block_height = 38260;
         let block_38260 = wallet_block_from_test_data(block_height).unwrap();
 
-        wallet_state
-            .update_new_tip(&block_38260, false)
-            .await
-            .unwrap();
+        wallet_state.update_new_tip(&block_38260).await.unwrap();
 
         // Genesis block was never retrieved, so only income in block 38260
         // should be registered: 0.75 NPT.
@@ -862,7 +851,7 @@ mod tests {
         block_height += 1;
         while block_height < 38290 {
             let block = wallet_block_from_test_data(block_height).unwrap();
-            wallet_state.update_new_tip(&block, false).await.unwrap();
+            wallet_state.update_new_tip(&block).await.unwrap();
             block_height += 1;
         }
 
@@ -917,7 +906,7 @@ mod tests {
         let block = wallet_block_from_test_data(38404).unwrap();
 
         let num_checked_addrs_before = wallet_state.get_future_spending_keys().len();
-        wallet_state.update_new_tip(&block, false).await.unwrap();
+        wallet_state.update_new_tip(&block).await.unwrap();
         assert_eq!(
             5,
             wallet_state.ephemeral_key_index(KeyType::Symmetric),
@@ -980,7 +969,7 @@ mod tests {
             wallet_state.get_balance().await.unwrap().is_zero(),
             "Empty balance before applying block"
         );
-        wallet_state.update_new_tip(&block, false).await.unwrap();
+        wallet_state.update_new_tip(&block).await.unwrap();
         assert!(
             !wallet_state.get_balance().await.unwrap().is_zero(),
             "Non-empty balance before applying block"
@@ -1038,7 +1027,7 @@ mod tests {
             vec![Coin::new_native_currency(amount)],
         );
         let block = block_announcing_utxo(&template, &address, &good, sender_randomness);
-        wallet_state.update_new_tip(&block, false).await.unwrap();
+        wallet_state.update_new_tip(&block).await.unwrap();
         assert_eq!(
             1,
             wallet_state.get_utxos().await.unwrap().len(),
@@ -1065,7 +1054,7 @@ mod tests {
         );
 
         let block = block_announcing_utxo(&template, &address, &bad, sender_randomness);
-        wallet_state.update_new_tip(&block, false).await.unwrap();
+        wallet_state.update_new_tip(&block).await.unwrap();
         assert!(
             wallet_state.get_utxos().await.unwrap().is_empty(),
             "UTXO with an unresolvable type script must not be recorded"
@@ -1088,7 +1077,7 @@ mod tests {
             .add_expected_utxo(expected_utxos)
             .await
             .unwrap();
-        wallet_state.update_new_tip(&genesis, false).await.unwrap();
+        wallet_state.update_new_tip(&genesis).await.unwrap();
 
         assert_eq!(
             NativeCurrencyAmount::coins(20),

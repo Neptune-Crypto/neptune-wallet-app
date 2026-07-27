@@ -483,23 +483,6 @@ impl WalletState {
         Ok(utxos)
     }
 
-    pub(crate) async fn get_utxo_db_data(&self, hash: &Digest) -> Result<Option<UtxoDbData>> {
-        let hash = hash.to_hex();
-        let row = sqlx::query("SELECT * FROM wallet_state_utxos WHERE hash =?")
-            .bind(&hash)
-            .fetch_one(&self.pool)
-            .await;
-
-        match row {
-            Ok(row) => {
-                let data: UtxoDbData = UtxoDbData::from_row(row)?;
-                Ok(Some(data))
-            }
-            Err(sqlx::Error::RowNotFound) => Ok(None),
-            Err(err) => Err(err.into()),
-        }
-    }
-
     pub(crate) async fn get_unspent_utxos(
         &self,
         tx: &mut SqliteConnection,
@@ -559,32 +542,6 @@ impl WalletState {
         }
 
         Ok(utxos)
-    }
-
-    pub(crate) async fn update_new_generation_expected_utxos(
-        &self,
-        txid: &str,
-        timestamp: Timestamp,
-        expected_utxos: Vec<ExpectedUtxo>,
-    ) -> Result<()> {
-        let mut tx = self.pool.begin().await?;
-
-        // sqlx::query("DELETE FROM wallet_state_expected_utxos WHERE txid = ?")
-        //     .bind(txid)
-        //     .execute(&mut *tx)
-        //     .await?;
-
-        for utxo in expected_utxos {
-            let expected_data = ExpectedUtxoData {
-                id: 0,
-                txid: txid.to_owned(),
-                expected_utxo: utxo,
-                timestamp,
-            };
-
-            expected_data.create(&mut *tx).await?;
-        }
-        Ok(())
     }
 
     pub(crate) async fn clean_old_expected_utxos(&self) -> Result<()> {

@@ -1203,7 +1203,7 @@ mod tests {
         proxy.announcements = vec![address.generate_announcement(&payload)];
         block.kernel.body.transaction_kernel = proxy.into_kernel();
 
-        wallet.update_new_tip(&block, false).await.unwrap();
+        wallet.update_new_tip(&block).await.unwrap();
 
         let stored: i64 =
             sqlx::query("SELECT confirm_timestamp FROM watch_only_utxos WHERE watch_only_id = ?")
