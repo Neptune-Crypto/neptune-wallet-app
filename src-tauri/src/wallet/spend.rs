@@ -1,4 +1,7 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
 
 use itertools::Itertools;
 use neptune_consensus::block::block_header::BlockHeader;
@@ -46,6 +49,13 @@ use crate::wallet::wallet_state_table::ExpectedUtxoData;
 /// rare enough to surface: an unbroadcast transaction is in no mempool, so no
 /// node knows it exists and nothing else can rescue it.
 const MAX_SEND_ATTEMPTS: usize = 3;
+
+/// How often to ask the node whether the tip moved while a proof is running.
+///
+/// Only bounds how late an abandonment can be, so it trades a cheap request
+/// against wasted proving. Sub proofs are seconds to minutes long, so polling
+/// faster than this would not abandon any sooner.
+const TIP_POLL_INTERVAL: Duration = Duration::from_secs(10);
 
 /// A transaction proven against one particular tip.
 struct ProvenSend {
@@ -173,14 +183,9 @@ impl super::WalletState {
             );
 
             // No spend lock here. Proving takes minutes and touches no wallet
-            // state, so blocks keep being applied while it runs, which is what
-            // lets the guard notice one and abandon the proof.
+            // state, so blocks keep being applied while it runs.
             let proving = self
-                .create_raw_transaction(
-                    &transaction_details,
-                    tx_proving_capability,
-                    tip_header.height,
-                )
+                .create_raw_transaction(&transaction_details, tx_proving_capability, tip_header)
                 .await;
 
             let transaction = match proving {
@@ -621,7 +626,7 @@ impl super::WalletState {
         &self,
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
-        built_against: BlockHeight,
+        built_against: BlockHeader,
     ) -> anyhow::Result<Transaction> {
         // note: this executes the prover which can take a very
         //       long time, perhaps minutes.  The `await` here, should avoid
@@ -633,7 +638,7 @@ impl super::WalletState {
     async fn create_transaction_from_data_worker(
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
-        built_against: BlockHeight,
+        built_against: BlockHeader,
     ) -> anyhow::Result<Transaction> {
         let primitive_witness = transaction_details.primitive_witness();
 
@@ -649,13 +654,32 @@ impl super::WalletState {
             TxProvingCapability::PrimitiveWitness => TransactionProof::Witness(primitive_witness),
             TxProvingCapability::LockScript => todo!(),
             TxProvingCapability::ProofCollection => {
-                let guard = ProvingGuard::new(built_against.into());
+                // Ask the node whether the tip still matches the one this
+                // transaction was built against. Comparing whole headers catches
+                // a reorg that keeps the same height, and asking the node keeps
+                // this independent of how far the wallet itself has synced.
+                let stale = Arc::new(AtomicBool::new(false));
+                let watcher = {
+                    let stale = stale.clone();
+                    tokio::spawn(async move {
+                        loop {
+                            tokio::time::sleep(TIP_POLL_INTERVAL).await;
+                            if tip_moved_since(&built_against).await {
+                                stale.store(true, Ordering::Relaxed);
+                                return;
+                            }
+                        }
+                    })
+                };
+
+                let guard = ProvingGuard::new(stale);
                 let collection = tokio::task::spawn_blocking(move || {
                     ProofBuilder::produce_proof_collection(&primitive_witness, &guard)
                 })
-                .await??;
+                .await;
+                watcher.abort();
 
-                TransactionProof::ProofCollection(collection)
+                TransactionProof::ProofCollection(collection??)
             }
             TxProvingCapability::SingleProof => todo!(),
         };
