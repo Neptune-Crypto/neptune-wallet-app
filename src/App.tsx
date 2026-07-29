@@ -8,7 +8,12 @@ import { ViewPort } from "./components/base/ViewPort";
 import { UpdateProvider } from "./components/update/update-context";
 import { UpdateHandler } from "./components/UpdateHandler"; // Path to the new component
 import WindowTitlebarCard from "./components/windowTitlebarCard";
-import { SYNC_FINISH_EVENT, SYNC_HEIGHT_EVENT, SYNC_SENT_STATUS_EVENT } from "./constant";
+import {
+  SYNC_FINISH_EVENT,
+  SYNC_HEIGHT_EVENT,
+  SYNC_NEW_BLOCK_EVENT,
+  SYNC_SENT_STATUS_EVENT,
+} from "./constant";
 import { queryAboutInfo } from "./store/about/about-slice";
 import { checkAuthPassword, startRunRpcServer } from "./store/auth/auth-slice";
 import { useAuth, useStartRpcServer } from "./store/auth/hooks";
@@ -21,6 +26,7 @@ import {
   handleFinishBlockStatus,
   queryLatestBlock,
   querySyncBlockStatus,
+  raiseLatestBlock,
   updateSyncedBlock,
 } from "./store/sync/sync-slice";
 import { useCurrentWalledId } from "./store/wallet/hooks";
@@ -85,9 +91,15 @@ const InitApp = (): null => {
     listen<number>(SYNC_HEIGHT_EVENT, (event) => {
       dispatch(updateSyncedBlock(event.payload));
     });
+    listen<number>(SYNC_NEW_BLOCK_EVENT, (event) => {
+      // Fired as the wallet picks up a block, before it takes the spend lock to
+      // process it, so this tip update survives a long proving run.
+      dispatch(raiseLatestBlock(event.payload));
+    });
     listen<number>(SYNC_FINISH_EVENT, (event) => {
       console.log("sync finish");
-      dispatch(handleFinishBlockStatus({ serverUrl }));
+      // The payload is the wallet's cursor, so it reports real scanned progress.
+      dispatch(handleFinishBlockStatus({ serverUrl, syncCursor: event.payload }));
       if (event.payload === lastSyncedHeight.current) return;
       lastSyncedHeight.current = event.payload;
       // A processed block can confirm pending transactions and mint change;

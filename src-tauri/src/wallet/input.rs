@@ -3,7 +3,6 @@ use std::str::FromStr;
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
-use anyhow::Result;
 use neptune_consensus::block::block_header::BlockHeader;
 use neptune_consensus::transaction::utxo::Utxo;
 use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
@@ -13,16 +12,45 @@ use neptune_primitives::block_height::BlockHeight;
 use neptune_primitives::timestamp::Timestamp;
 use neptune_wallet::address::ReceivingAddress;
 use neptune_wallet::address::SpendingKey;
+use neptune_wallet::twenty_first::tip5::Digest;
 use neptune_wallet::twenty_first::tip5::Tip5;
 use neptune_wallet::unlocked_utxo::UnlockedUtxo;
 use rand::seq::SliceRandom;
 use tracing::trace;
+use tracing::warn;
 
 use super::wallet_state_table::UtxoDbData;
 use super::UtxoRecoveryData;
 use crate::rpc_client;
 
-#[derive(Default)]
+/// Has the node moved off `tip_digest`?
+///
+/// Every block mutates the mutator set, so a transaction proven against
+/// `tip_digest` stops being confirmable the moment the tip changes. The digest
+/// identifies the block, so a reorg at the same height counts too.
+///
+/// Returns `false` if the node is unreachable. The submission is the authority.
+pub(super) async fn tip_moved_since(tip_digest: &Digest) -> bool {
+    match rpc_client::node_rpc_client().get_tip_digest().await {
+        Ok(current_tip) => &current_tip != tip_digest,
+        Err(e) => {
+            warn!("Could not read the node's tip to check confirmability: {e}");
+            false
+        }
+    }
+}
+
+/// The tip a send is built against.
+///
+/// The three travel together because they must describe the same block: the
+/// membership proofs are only valid against the mutator set they were synced to.
+pub(crate) struct TipSnapshot {
+    pub(crate) msa: MutatorSetAccumulator,
+    pub(crate) header: BlockHeader,
+    pub(crate) digest: Digest,
+}
+
+#[derive(Clone, Copy, Default)]
 pub(crate) enum InputSelectionRule {
     Minimum,
     Maximum,
@@ -79,12 +107,7 @@ impl super::WalletState {
         fee: NativeCurrencyAmount,
         rule: InputSelectionRule,
         must_include_inputs: Vec<i64>,
-    ) -> anyhow::Result<(
-        Vec<UnlockedUtxo>,
-        Vec<i64>,
-        MutatorSetAccumulator,
-        BlockHeader,
-    )> {
+    ) -> anyhow::Result<(Vec<UnlockedUtxo>, Vec<i64>, TipSnapshot)> {
         let utxos = {
             let mut tx = self.pool.begin().await?;
             self.get_unspent_utxos(&mut tx).await?
@@ -179,7 +202,7 @@ impl super::WalletState {
         }
 
         trace!("Selected a total of {} inputs", inputs.len());
-        let (inputs, tip_msa, tip_header) = self.unlock_utxos(inputs).await?;
+        let (inputs, tip) = self.unlock_utxos(inputs).await?;
         trace!("Managed to unlock {} inputs", inputs.len());
 
         trace!("Inputs length is: {}", inputs.len());
@@ -189,14 +212,13 @@ impl super::WalletState {
             "Inputs and db_idxs must have the same length"
         );
 
-        Ok((inputs, db_idxs, tip_msa, tip_header))
+        Ok((inputs, db_idxs, tip))
     }
 
-    /// Returns triple  (list of unlocked UTXOs, tip mutator set, tip header)
     pub(crate) async fn unlock_utxos(
         &self,
         utxos: Vec<UtxoRecoveryData>,
-    ) -> anyhow::Result<(Vec<UnlockedUtxo>, MutatorSetAccumulator, BlockHeader)> {
+    ) -> anyhow::Result<(Vec<UnlockedUtxo>, TipSnapshot)> {
         let mut index_sets = Vec::with_capacity(utxos.len());
 
         for utxo in &utxos {
@@ -211,7 +233,7 @@ impl super::WalletState {
             index_sets.push(index_set);
         }
 
-        let (msmps_recovery_data, tip_header) = loop {
+        let (msmps_recovery_data, tip_header, tip_digest) = loop {
             trace!("Requesting {} ms membership proofs", index_sets.len());
             let msmps_recovery_data = rpc_client::node_rpc_client()
                 .restore_msmps(index_sets.clone())
@@ -221,11 +243,15 @@ impl super::WalletState {
                 msmps_recovery_data.membership_proofs.len()
             );
 
+            // Read the digest before the header. A tip that moves in between
+            // then fails the height check below, rather than yielding a digest
+            // for a block the proofs were not synced to.
+            let tip_digest = rpc_client::node_rpc_client().get_tip_digest().await?;
             let tip_header = rpc_client::node_rpc_client().get_tip_header().await?;
 
             let msmp_height: BlockHeight = msmps_recovery_data.synced_height.into();
             if tip_header.height == msmp_height {
-                break (msmps_recovery_data, tip_header);
+                break (msmps_recovery_data, tip_header, tip_digest);
             }
         };
 
@@ -253,8 +279,11 @@ impl super::WalletState {
 
         Ok((
             unlocked,
-            msmps_recovery_data.synced_mutator_set.into(),
-            tip_header,
+            TipSnapshot {
+                msa: MutatorSetAccumulator::from(msmps_recovery_data.synced_mutator_set),
+                header: tip_header,
+                digest: tip_digest,
+            },
         ))
     }
 
@@ -264,17 +293,5 @@ impl super::WalletState {
         self.all_known_keys()
             .into_iter()
             .find(|k| k.lock_script_hash() == utxo.lock_script_hash())
-    }
-
-    pub(crate) async fn get_recovery_data_from_utxo(
-        &self,
-        utxo: &Utxo,
-    ) -> Result<UtxoRecoveryData> {
-        let digest = Tip5::hash(utxo);
-        let db_data = self.get_utxo_db_data(&digest).await?;
-        match db_data {
-            Some(db_data) => Ok(db_data.recovery_data),
-            None => Err(anyhow::anyhow!("UTXO not found")),
-        }
     }
 }

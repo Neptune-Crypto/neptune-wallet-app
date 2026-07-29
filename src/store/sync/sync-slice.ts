@@ -21,6 +21,11 @@ const syncSlice = createSlice({
     updateSyncedBlock: (state, action) => {
       state.syncedBlock = action.payload;
     },
+    raiseLatestBlock: (state, action) => {
+      // Max, not assign: the payload is the block the wallet is about to process,
+      // which during a catch up trails the node's tip and would drag it backwards.
+      state.latestBlock = Math.max(state.latestBlock, action.payload);
+    },
     syncFinishBlock: (state, action) => {
       state.syncedBlock = action.payload;
       state.latestBlock = action.payload;
@@ -35,11 +40,12 @@ const syncSlice = createSlice({
       state.syncedBlock = action.payload.syncedBlock;
     });
     builder.addCase(handleFinishBlockStatus.fulfilled, (state, action) => {
-      // The payload is the node's chain tip, not the wallet's processed height,
-      // so only latestBlock is set here; syncedBlock is deliberately left to the
-      // per block sync events. Driving it from the tip would report synced ahead
-      // of blocks not yet scanned.
+      // syncedBlock comes from the event's cursor, never the node tip, so it
+      // cannot report blocks that were not scanned. The per block events are
+      // throttled and a fast catch up drops its last one; this heartbeat repeats
+      // every 60s and repairs that.
       state.latestBlock = action.payload.data;
+      state.syncedBlock = action.payload.syncedBlock;
     });
   },
 });
@@ -70,17 +76,19 @@ export const querySyncBlockStatus = createAsyncThunk<
     syncedBlock,
   };
 });
-export const handleFinishBlockStatus = createAsyncThunk<{ data: any }, { serverUrl: string }>(
-  "/api/sync/handleFinishBlockStatus",
-  async ({ serverUrl }) => {
-    const req = await requestLatestBlock({ serverUrl });
-    let latestBlock = req.data;
-    return {
-      data: latestBlock,
-    };
-  }
-);
+export const handleFinishBlockStatus = createAsyncThunk<
+  { data: any; syncedBlock: number },
+  { serverUrl: string; syncCursor: number }
+>("/api/sync/handleFinishBlockStatus", async ({ serverUrl, syncCursor }) => {
+  const req = await requestLatestBlock({ serverUrl });
+  let latestBlock = req.data;
+  // Cursor is the NEXT height to fetch, as in querySyncBlockStatus.
+  return {
+    data: latestBlock,
+    syncedBlock: Math.max(0, syncCursor - 1),
+  };
+});
 
-export const { updateSyncedBlock, syncFinishBlock } = syncSlice.actions;
+export const { updateSyncedBlock, syncFinishBlock, raiseLatestBlock } = syncSlice.actions;
 
 export default syncSlice.reducer;

@@ -299,17 +299,9 @@ impl SyncState {
 
         debug!("update wallet state with new block: {}", current_height);
 
-        let mut should_update = self.updated_to_tip.load(Ordering::Relaxed) == 1;
-        if should_update
-            && (Timestamp::now() - current_block.kernel.header.timestamp).as_duration()
-                > Duration::from_secs(26 * 60)
-        {
-            should_update = false
-        }
-
         if let Some(fork) = self
             .wallet
-            .update_new_tip(&current_block, should_update)
+            .update_new_tip(&current_block)
             .await
             .context("update wallet state error")?
         {

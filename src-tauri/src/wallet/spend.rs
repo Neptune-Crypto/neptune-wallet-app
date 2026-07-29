@@ -1,4 +1,7 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
 
 use itertools::Itertools;
 use neptune_consensus::block::block_header::BlockHeader;
@@ -9,6 +12,7 @@ use neptune_consensus::transaction::utxo::Utxo;
 use neptune_consensus::transaction::Transaction;
 use neptune_consensus::transaction::TransactionProof;
 use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
+use neptune_mempool::transaction_kernel_id::Txid;
 use neptune_mutator_set::mutator_set_accumulator::MutatorSetAccumulator;
 use neptune_primitives::block_height::BlockHeight;
 use neptune_primitives::timestamp::Timestamp;
@@ -27,13 +31,74 @@ use num_traits::CheckedSub;
 use thiserror::Error;
 use tracing::*;
 
+use super::input::tip_moved_since;
 use super::input::InputSelectionRule;
 use crate::config::Config;
 use crate::prover::ProofBuilder;
+use crate::prover::ProvingGuard;
+use crate::prover::StaleProof;
 use crate::rpc::OutputInfo;
 use crate::rpc_client;
 use crate::rpc_client::BroadcastError;
 use crate::wallet::wallet_state_table::ExpectedUtxoData;
+
+/// How many times a send builds and proves before giving up and telling the user.
+///
+/// A block landing during proving makes the proof unconfirmable, and a rebuild is
+/// another full proving run that can lose the same race. Losing three in a row is
+/// rare enough to surface: an unbroadcast transaction is in no mempool, so no
+/// node knows it exists and nothing else can rescue it.
+const MAX_SEND_ATTEMPTS: usize = 3;
+
+/// How often to ask the node whether the tip moved while a proof is running.
+///
+/// Only bounds how late an abandonment can be, so it trades a cheap request
+/// against wasted proving. Sub proofs are seconds to minutes long, so polling
+/// faster than this would not abandon any sooner.
+const TIP_POLL_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Polls the node's tip while a proof runs, raising the guard once it moves.
+///
+/// Aborts on drop, so no exit path leaves the poll running.
+struct TipWatcher(tokio::task::JoinHandle<()>);
+
+impl TipWatcher {
+    fn spawn(built_against: Digest) -> (Self, ProvingGuard) {
+        let stale = Arc::new(AtomicBool::new(false));
+
+        let handle = {
+            let stale = stale.clone();
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(TIP_POLL_INTERVAL).await;
+                    if tip_moved_since(&built_against).await {
+                        stale.store(true, Ordering::Relaxed);
+                        return;
+                    }
+                }
+            })
+        };
+
+        (Self(handle), ProvingGuard::new(stale))
+    }
+}
+
+impl Drop for TipWatcher {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+/// A transaction proven against one particular tip.
+struct ProvenSend {
+    transaction: Transaction,
+    transaction_details: TransactionDetails,
+    /// Database ids of the UTXOs spent as inputs.
+    db_ids: Vec<i64>,
+    /// All outputs, including change.
+    full_outputs: TxOutputList,
+    change_commitment: Option<String>,
+}
 
 impl super::WalletState {
     pub(crate) async fn send_to_address(
@@ -45,8 +110,10 @@ impl super::WalletState {
         must_include_utxos: Vec<i64>,
         accept_lustration: bool,
     ) -> anyhow::Result<(Transaction, Vec<OutputInfo>), SendError> {
-        let _spend_guard = self.spend_lock.lock().await;
-        let now = Timestamp::now();
+        // Held for the whole send: until this transaction is recorded as pending,
+        // its chosen inputs are invisible to input selection, so a second send
+        // would happily pick them again.
+        let _send_guard = self.send_lock.lock().await;
         let tx_proving_capability = TxProvingCapability::ProofCollection;
 
         let (owned_utxo_notification_medium, unowned_utxo_notification_medium) =
@@ -67,93 +134,208 @@ impl super::WalletState {
             spending_key
         };
 
-        let _ = crate::service::app::emit_event_to(
-            "main",
-            "send_state",
-            "stmi: step 2. generate outputs.",
-        );
+        // Pinning the first attempt's selection keeps the input set stable across
+        // rebuilds, and with it the lustration decision the user approved.
+        let mut pinned_inputs = must_include_utxos;
+        let mut attempt = 1;
 
-        let (tx_inputs, db_ids, tip_msa, tip_header) = self
-            .create_input(&outputs, fee, rule, must_include_utxos)
-            .await?;
+        let proven = loop {
+            let _ = crate::service::app::emit_event_to(
+                "main",
+                "send_state",
+                "stmi: step 2. generate outputs.",
+            );
 
-        let tx_outputs = self
-            .generate_tx_outputs(
-                outputs.clone(),
-                owned_utxo_notification_medium,
-                unowned_utxo_notification_medium,
-                tip_header.height,
-            )
-            .await;
+            // Fresh per attempt: the node rejects transactions that are too old.
+            let now = Timestamp::now();
 
-        let _ =
-            crate::service::app::emit_event_to("main", "send_state", "stmi: step 3. create tx.");
+            // Everything that reads wallet state happens here, under the spend
+            // lock. NOTE: a change output will be added to tx_outputs if needed.
+            let (transaction_details, maybe_change_output, db_ids, tx_outputs, tip) = {
+                let _spend_guard = self.spend_lock.lock().await;
 
-        // NOTE: A change output will be added to tx_outputs if needed.
-        let (transaction, transaction_details, maybe_change_output) = match self
-            .create_transaction_with_prover_capability(
-                tx_outputs.clone(),
-                tx_inputs,
-                change_key,
-                owned_utxo_notification_medium,
-                fee,
-                now,
-                tx_proving_capability,
-                tip_msa,
-                tip_header,
-            )
-            .await
-        {
-            Ok(tx) => tx,
-            Err(e) => {
-                tracing::error!("Could not create transaction: {}", e);
-                return Err(e.into());
+                let (tx_inputs, db_ids, tip) = self
+                    .create_input(&outputs, fee, rule, pinned_inputs.clone())
+                    .await?;
+
+                let tx_outputs = self
+                    .generate_tx_outputs(
+                        outputs.clone(),
+                        owned_utxo_notification_medium,
+                        unowned_utxo_notification_medium,
+                        tip.header.height,
+                    )
+                    .await;
+
+                let (details, change) = match self
+                    .build_transaction_details(
+                        tx_outputs.clone(),
+                        tx_inputs,
+                        change_key.clone(),
+                        owned_utxo_notification_medium,
+                        fee,
+                        now,
+                        tip.msa.clone(),
+                        tip.header,
+                    )
+                    .await
+                {
+                    Ok(built) => built,
+                    Err(e) => {
+                        tracing::error!("Could not create transaction: {}", e);
+                        return Err(e.into());
+                    }
+                };
+
+                (details, change, db_ids, tx_outputs, tip)
+            };
+
+            // Checked before proving so a rejected transaction costs no proof.
+            if transaction_details.contains_lustrations() && !accept_lustration {
+                let lustration_status =
+                    tip.header.pow.lustration_status().expect(
+                        "If transaction requires lustration, lustration status must be set.",
+                    );
+                return Err(SendError::RequiresLustration(LustrationError(format!(
+                    "All inputs with AOCL ranges at or below {} must lustrate. \
+                     You must accept lustrations before making this transaction.",
+                    lustration_status.max_lustrating_aocl_leaf_index
+                ))));
             }
+
+            // Shown for minutes while proving; on a rebuild it says why.
+            let _ = crate::service::app::emit_event_to(
+                "main",
+                "send_state",
+                if attempt == 1 {
+                    "stmi: step 3. create tx."
+                } else {
+                    "stmi: step 3. create tx, rebuild after new block."
+                },
+            );
+
+            // No spend lock here. Proving takes minutes and touches no wallet
+            // state, so blocks keep being applied while it runs.
+            let proving = self
+                .create_raw_transaction(&transaction_details, tx_proving_capability, tip.digest)
+                .await;
+
+            let transaction = match proving {
+                Ok(tx) => tx,
+                // Abandoned, not failed: a block landed, so the tip check below
+                // would have rejected this proof anyway. Fall through to it.
+                Err(e) if e.downcast_ref::<StaleProof>().is_some() => {
+                    if attempt == MAX_SEND_ATTEMPTS {
+                        warn!(
+                            "Abandoned proving on the final attempt. Recording the \
+                             transaction as pending for the updater to rebuild."
+                        );
+                        // Nothing proven to enqueue, so this attempt ends the send.
+                        return Err(SendError::Proof(e));
+                    }
+                    attempt += 1;
+                    info!(
+                        "Rebuilding the transaction against the node's new tip \
+                         (attempt {attempt} of {MAX_SEND_ATTEMPTS})."
+                    );
+                    pinned_inputs = db_ids;
+                    continue;
+                }
+                Err(e) => {
+                    tracing::error!("Could not prove transaction: {}", e);
+                    return Err(e.into());
+                }
+            };
+
+            let _ = crate::service::app::emit_event_to(
+                "main",
+                "send_state",
+                "stmi: step 4. extract expected utxos.",
+            );
+
+            // The change output (funds returning to us) is created explicitly.
+            // Capture its commitment now, before maybe_change_output is consumed
+            // below, so the summary for each output can flag it. Note
+            // create_change_output builds it with onchain/offchain_native_currency
+            // (NOT the *_as_change variant), so TxOutput::is_change() is always
+            // false here and cannot be relied on.
+            let change_commitment = maybe_change_output
+                .as_ref()
+                .map(|txo| txo.addition_record().canonical_commitment.to_hex());
+
+            let mut full_outputs = tx_outputs;
+            if let Some(change_output) = maybe_change_output {
+                full_outputs.push(change_output);
+            }
+
+            let proven = ProvenSend {
+                transaction,
+                transaction_details,
+                db_ids,
+                full_outputs,
+                change_commitment,
+            };
+
+            // If the node moved on while we proved, this can never confirm.
+            let stale = if tip_moved_since(&tip.digest).await {
+                info!(
+                    "A block arrived while proving; the transaction is no longer \
+                     confirmable relative to the node's mutator set."
+                );
+                true
+            } else {
+                let _ = crate::service::app::emit_event_to(
+                    "main",
+                    "send_state",
+                    "stmi: step 5. broadcast transaction.",
+                );
+
+                match rpc_client::node_rpc_client()
+                    .broadcast_transaction(proven.transaction.clone())
+                    .await
+                {
+                    Ok(_txid) => false,
+                    // Lost the race between the check and the submission.
+                    Err(BroadcastError::NotConfirmable) => {
+                        info!("Node rejected the transaction as not confirmable.");
+                        true
+                    }
+                    Err(e) => return Err(e.into()),
+                }
+            };
+
+            if !stale {
+                break proven;
+            }
+
+            if attempt == MAX_SEND_ATTEMPTS {
+                warn!("Could not broadcast the transaction within {MAX_SEND_ATTEMPTS} attempts.");
+                // An unbroadcast transaction is in no mempool, so nothing would
+                // ever advance it. Recording it as pending would strand it.
+                return Err(SendError::NotConfirmable(NotConfirmableError(format!(
+                    "A new block arrived during each of {MAX_SEND_ATTEMPTS} attempts to \
+                     prove this transaction, so none of them could be submitted. \
+                     Please try again."
+                ))));
+            }
+
+            attempt += 1;
+            info!(
+                "Rebuilding the transaction against the node's new tip \
+                 (attempt {attempt} of {MAX_SEND_ATTEMPTS})."
+            );
+            pinned_inputs = proven.db_ids;
         };
 
-        if transaction_details.contains_lustrations() && !accept_lustration {
-            let lustration_status = tip_header
-                .pow
-                .lustration_status()
-                .expect("If transaction requires lustration, lustration status must be set.");
-            return Err(SendError::RequiresLustration(LustrationError(format!(
-                "All inputs with AOCL ranges at or below {} must lustrate. \
-                 You must accept lustrations before making this transaction.",
-                lustration_status.max_lustrating_aocl_leaf_index
-            ))));
-        }
+        // Back under the spend lock: everything below writes wallet state.
+        let _spend_guard = self.spend_lock.lock().await;
 
-        let _ = crate::service::app::emit_event_to(
-            "main",
-            "send_state",
-            "stmi: step 4. extract expected utxos.",
-        );
+        // Derived from the transaction, not assigned by the node.
+        let txid = proven.transaction.txid().to_string();
+        let now = Timestamp::now();
 
-        // The change output (funds returning to us) is created explicitly. Capture
-        // its commitment now, before maybe_change_output is consumed below, so the
-        // per-output summary can flag it. Note create_change_output builds it with
-        // onchain/offchain_native_currency (NOT the *_as_change variant), so
-        // TxOutput::is_change() is always false here and cannot be relied on.
-        let change_commitment = maybe_change_output
-            .as_ref()
-            .map(|txo| txo.addition_record().canonical_commitment.to_hex());
-
-        let mut full_outputs = tx_outputs;
-        if let Some(change_output) = maybe_change_output {
-            full_outputs.push(change_output);
-        }
-
-        let utxos_sent_to_self = self.extract_expected_utxos(&full_outputs, UtxoNotifier::Myself);
-
-        let _ = crate::service::app::emit_event_to(
-            "main",
-            "send_state",
-            "stmi: step 5. broadcast transaction.",
-        );
-
-        let txid = rpc_client::node_rpc_client()
-            .broadcast_transaction(transaction.clone())
-            .await?;
+        let utxos_sent_to_self =
+            self.extract_expected_utxos(&proven.full_outputs, UtxoNotifier::Myself);
 
         let _ = crate::service::app::emit_event_to(
             "main",
@@ -188,12 +370,13 @@ impl super::WalletState {
         // are derived from (TransactionDetails::transaction_kernel), so these
         // commitments match the on-chain outputs exactly. The change output is
         // identified by its commitment (see change_commitment above).
-        let output_infos = transaction_details
+        let output_infos = proven
+            .transaction_details
             .tx_outputs
             .iter()
             .map(|txo| {
                 let commitment = txo.addition_record().canonical_commitment.to_hex();
-                let is_change = change_commitment.as_deref() == Some(commitment.as_str());
+                let is_change = proven.change_commitment.as_deref() == Some(commitment.as_str());
                 let address = if is_change {
                     None
                 } else {
@@ -211,15 +394,17 @@ impl super::WalletState {
             })
             .collect();
 
+        // Recorded as pending so the balance reflects it and the UI can show it
+        // awaiting confirmation. The node maintains the transaction from here.
         self.updater
-            .add_transaction(txid.clone(), transaction_details, db_ids)
+            .add_transaction(txid.clone(), proven.transaction_details, proven.db_ids)
             .await?;
 
         // Refresh the accounts list's cached total (otherwise only rewritten on
         // block sync): the send just moved coins into pending, so the cached
         // figure would overstate this account's balance until the next block.
-        // Best-effort — the transaction is already broadcast, so a cache miss
-        // must not fail the send.
+        // Best effort. The transaction is already recorded, so a cache miss must
+        // not fail the send.
         match self.get_all_balance().await {
             Ok((_available, _pending, total)) => {
                 let config = crate::service::get_state::<Arc<Config>>();
@@ -233,7 +418,7 @@ impl super::WalletState {
             Err(e) => warn!("Could not compute balance after send: {}", e),
         }
 
-        Ok((transaction, output_infos))
+        Ok((proven.transaction, output_infos))
     }
 
     /// Cheap pre-check: would a transaction built from these parameters require
@@ -258,12 +443,12 @@ impl super::WalletState {
         rule: InputSelectionRule,
         must_include_utxos: Vec<i64>,
     ) -> anyhow::Result<(bool, Vec<i64>)> {
-        let (tx_inputs, db_ids, _tip_msa, tip_header) = self
+        let (tx_inputs, db_ids, tip) = self
             .create_input(&outputs, fee, rule, must_include_utxos)
             .await?;
 
         // No threshold set (e.g. before the relevant hard fork) => never required.
-        let Ok(lustration_status) = tip_header.pow.lustration_status() else {
+        let Ok(lustration_status) = tip.header.pow.lustration_status() else {
             return Ok((false, db_ids));
         };
 
@@ -345,8 +530,12 @@ impl super::WalletState {
         )
     }
 
+    /// Assemble everything a transaction needs *except* its proof.
+    ///
+    /// Split from the proving step so the caller can drop the spend lock before
+    /// paying for a proof: this part reads wallet state, that part does not.
     #[expect(clippy::too_many_arguments)]
-    async fn create_transaction_with_prover_capability(
+    async fn build_transaction_details(
         &self,
         mut tx_outputs: TxOutputList,
         tx_inputs: Vec<UnlockedUtxo>,
@@ -354,10 +543,9 @@ impl super::WalletState {
         change_utxo_notify_medium: UtxoNotificationMedium,
         fee: NativeCurrencyAmount,
         timestamp: Timestamp,
-        prover_capability: TxProvingCapability,
         tip_msa: MutatorSetAccumulator,
         tip_header: BlockHeader,
-    ) -> anyhow::Result<(Transaction, TransactionDetails, Option<TxOutput>)> {
+    ) -> anyhow::Result<(TransactionDetails, Option<TxOutput>)> {
         // 1. create/add change output if necessary.
         let total_spend = tx_outputs.total_native_coins() + fee;
 
@@ -402,12 +590,7 @@ impl super::WalletState {
             transaction_details = transaction_details.with_announcements(lustrations);
         }
 
-        // 2. Create the transaction
-        let transaction = self
-            .create_raw_transaction(&transaction_details, prover_capability)
-            .await?;
-
-        Ok((transaction, transaction_details, maybe_change_output))
+        Ok((transaction_details, maybe_change_output))
     }
 
     /// Generate a change UTXO to ensure that the difference in input amount
@@ -475,16 +658,19 @@ impl super::WalletState {
         &self,
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
+        built_against: Digest,
     ) -> anyhow::Result<Transaction> {
         // note: this executes the prover which can take a very
         //       long time, perhaps minutes.  The `await` here, should avoid
         //       block the tokio executor and other async tasks.
-        Self::create_transaction_from_data_worker(transaction_details, proving_power).await
+        Self::create_transaction_from_data_worker(transaction_details, proving_power, built_against)
+            .await
     }
 
     async fn create_transaction_from_data_worker(
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
+        built_against: Digest,
     ) -> anyhow::Result<Transaction> {
         let primitive_witness = transaction_details.primitive_witness();
 
@@ -500,12 +686,17 @@ impl super::WalletState {
             TxProvingCapability::PrimitiveWitness => TransactionProof::Witness(primitive_witness),
             TxProvingCapability::LockScript => todo!(),
             TxProvingCapability::ProofCollection => {
-                let collection = tokio::task::spawn_blocking(move || {
-                    ProofBuilder::produce_proof_collection(&primitive_witness)
-                })
-                .await??;
+                // Asking the node keeps this independent of the wallet's own
+                // sync progress. The digest identifies the block, so a reorg at
+                // the same height counts as a move.
+                let (_watcher, guard) = TipWatcher::spawn(built_against);
 
-                TransactionProof::ProofCollection(collection)
+                let collection = tokio::task::spawn_blocking(move || {
+                    ProofBuilder::produce_proof_collection(&primitive_witness, &guard)
+                })
+                .await;
+
+                TransactionProof::ProofCollection(collection??)
             }
             TxProvingCapability::SingleProof => todo!(),
         };
@@ -543,6 +734,13 @@ impl super::WalletState {
 #[error("Lustration is required for this transaction: {0}")]
 pub struct LustrationError(pub String);
 
+/// Every attempt lost its race against a new block, so none could be submitted.
+/// Nothing was broadcast, so nothing is left behind to retry: the user has to
+/// start the send again.
+#[derive(Debug, Error)]
+#[error("{0}")]
+pub struct NotConfirmableError(pub String);
+
 #[derive(Debug, Error)]
 pub(crate) enum SendError {
     #[error(transparent)]
@@ -551,4 +749,6 @@ pub(crate) enum SendError {
     Broadcast(#[from] BroadcastError),
     #[error(transparent)]
     RequiresLustration(#[from] LustrationError),
+    #[error(transparent)]
+    NotConfirmable(#[from] NotConfirmableError),
 }
