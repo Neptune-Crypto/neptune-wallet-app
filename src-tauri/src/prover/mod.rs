@@ -27,7 +27,7 @@ pub(crate) struct StaleProof;
 /// be abandoned at a boundary.
 ///
 /// The flag is raised by whoever watches the node's tip, so the prover needs no
-/// notion of blocks or of how far the wallet has synced.
+/// notion of blocks or chains.
 #[derive(Clone)]
 pub(crate) struct ProvingGuard {
     stale: Arc<AtomicBool>,

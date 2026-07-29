@@ -78,6 +78,15 @@ impl NodeRpcClient {
         Ok(block)
     }
 
+    pub(crate) async fn get_tip_digest(&self) -> Result<Digest> {
+        debug!("request: get_tip_digest");
+        let client = self.rest_server();
+
+        let digest = client.tip_digest().await?;
+
+        Ok(digest.digest)
+    }
+
     pub(crate) async fn get_tip_header(&self) -> Result<BlockHeader> {
         debug!("request: get_tip_header");
         let client = self.rest_server();

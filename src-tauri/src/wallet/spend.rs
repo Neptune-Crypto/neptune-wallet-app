@@ -57,6 +57,38 @@ const MAX_SEND_ATTEMPTS: usize = 3;
 /// faster than this would not abandon any sooner.
 const TIP_POLL_INTERVAL: Duration = Duration::from_secs(10);
 
+/// Polls the node's tip while a proof runs, raising the guard once it moves.
+///
+/// Aborts on drop, so no exit path leaves the poll running.
+struct TipWatcher(tokio::task::JoinHandle<()>);
+
+impl TipWatcher {
+    fn spawn(built_against: Digest) -> (Self, ProvingGuard) {
+        let stale = Arc::new(AtomicBool::new(false));
+
+        let handle = {
+            let stale = stale.clone();
+            tokio::spawn(async move {
+                loop {
+                    tokio::time::sleep(TIP_POLL_INTERVAL).await;
+                    if tip_moved_since(&built_against).await {
+                        stale.store(true, Ordering::Relaxed);
+                        return;
+                    }
+                }
+            })
+        };
+
+        (Self(handle), ProvingGuard::new(stale))
+    }
+}
+
+impl Drop for TipWatcher {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
 /// A transaction proven against one particular tip.
 struct ProvenSend {
     transaction: Transaction,
@@ -119,10 +151,10 @@ impl super::WalletState {
 
             // Everything that reads wallet state happens here, under the spend
             // lock. NOTE: a change output will be added to tx_outputs if needed.
-            let (transaction_details, maybe_change_output, db_ids, tx_outputs, tip_header) = {
+            let (transaction_details, maybe_change_output, db_ids, tx_outputs, tip) = {
                 let _spend_guard = self.spend_lock.lock().await;
 
-                let (tx_inputs, db_ids, tip_msa, tip_header) = self
+                let (tx_inputs, db_ids, tip) = self
                     .create_input(&outputs, fee, rule, pinned_inputs.clone())
                     .await?;
 
@@ -131,7 +163,7 @@ impl super::WalletState {
                         outputs.clone(),
                         owned_utxo_notification_medium,
                         unowned_utxo_notification_medium,
-                        tip_header.height,
+                        tip.header.height,
                     )
                     .await;
 
@@ -143,8 +175,8 @@ impl super::WalletState {
                         owned_utxo_notification_medium,
                         fee,
                         now,
-                        tip_msa,
-                        tip_header,
+                        tip.msa.clone(),
+                        tip.header,
                     )
                     .await
                 {
@@ -155,15 +187,15 @@ impl super::WalletState {
                     }
                 };
 
-                (details, change, db_ids, tx_outputs, tip_header)
+                (details, change, db_ids, tx_outputs, tip)
             };
 
             // Checked before proving so a rejected transaction costs no proof.
             if transaction_details.contains_lustrations() && !accept_lustration {
-                let lustration_status = tip_header
-                    .pow
-                    .lustration_status()
-                    .expect("If transaction requires lustration, lustration status must be set.");
+                let lustration_status =
+                    tip.header.pow.lustration_status().expect(
+                        "If transaction requires lustration, lustration status must be set.",
+                    );
                 return Err(SendError::RequiresLustration(LustrationError(format!(
                     "All inputs with AOCL ranges at or below {} must lustrate. \
                      You must accept lustrations before making this transaction.",
@@ -185,7 +217,7 @@ impl super::WalletState {
             // No spend lock here. Proving takes minutes and touches no wallet
             // state, so blocks keep being applied while it runs.
             let proving = self
-                .create_raw_transaction(&transaction_details, tx_proving_capability, tip_header)
+                .create_raw_transaction(&transaction_details, tx_proving_capability, tip.digest)
                 .await;
 
             let transaction = match proving {
@@ -223,7 +255,7 @@ impl super::WalletState {
 
             // The change output (funds returning to us) is created explicitly.
             // Capture its commitment now, before maybe_change_output is consumed
-            // below, so the per-output summary can flag it. Note
+            // below, so the summary for each output can flag it. Note
             // create_change_output builds it with onchain/offchain_native_currency
             // (NOT the *_as_change variant), so TxOutput::is_change() is always
             // false here and cannot be relied on.
@@ -245,7 +277,7 @@ impl super::WalletState {
             };
 
             // If the node moved on while we proved, this can never confirm.
-            let stale = if tip_moved_since(&tip_header).await {
+            let stale = if tip_moved_since(&tip.digest).await {
                 info!(
                     "A block arrived while proving; the transaction is no longer \
                      confirmable relative to the node's mutator set."
@@ -411,12 +443,12 @@ impl super::WalletState {
         rule: InputSelectionRule,
         must_include_utxos: Vec<i64>,
     ) -> anyhow::Result<(bool, Vec<i64>)> {
-        let (tx_inputs, db_ids, _tip_msa, tip_header) = self
+        let (tx_inputs, db_ids, tip) = self
             .create_input(&outputs, fee, rule, must_include_utxos)
             .await?;
 
         // No threshold set (e.g. before the relevant hard fork) => never required.
-        let Ok(lustration_status) = tip_header.pow.lustration_status() else {
+        let Ok(lustration_status) = tip.header.pow.lustration_status() else {
             return Ok((false, db_ids));
         };
 
@@ -626,7 +658,7 @@ impl super::WalletState {
         &self,
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
-        built_against: BlockHeader,
+        built_against: Digest,
     ) -> anyhow::Result<Transaction> {
         // note: this executes the prover which can take a very
         //       long time, perhaps minutes.  The `await` here, should avoid
@@ -638,7 +670,7 @@ impl super::WalletState {
     async fn create_transaction_from_data_worker(
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
-        built_against: BlockHeader,
+        built_against: Digest,
     ) -> anyhow::Result<Transaction> {
         let primitive_witness = transaction_details.primitive_witness();
 
@@ -654,30 +686,15 @@ impl super::WalletState {
             TxProvingCapability::PrimitiveWitness => TransactionProof::Witness(primitive_witness),
             TxProvingCapability::LockScript => todo!(),
             TxProvingCapability::ProofCollection => {
-                // Ask the node whether the tip still matches the one this
-                // transaction was built against. Comparing whole headers catches
-                // a reorg that keeps the same height, and asking the node keeps
-                // this independent of how far the wallet itself has synced.
-                let stale = Arc::new(AtomicBool::new(false));
-                let watcher = {
-                    let stale = stale.clone();
-                    tokio::spawn(async move {
-                        loop {
-                            tokio::time::sleep(TIP_POLL_INTERVAL).await;
-                            if tip_moved_since(&built_against).await {
-                                stale.store(true, Ordering::Relaxed);
-                                return;
-                            }
-                        }
-                    })
-                };
+                // Asking the node keeps this independent of the wallet's own
+                // sync progress. The digest identifies the block, so a reorg at
+                // the same height counts as a move.
+                let (_watcher, guard) = TipWatcher::spawn(built_against);
 
-                let guard = ProvingGuard::new(stale);
                 let collection = tokio::task::spawn_blocking(move || {
                     ProofBuilder::produce_proof_collection(&primitive_witness, &guard)
                 })
                 .await;
-                watcher.abort();
 
                 TransactionProof::ProofCollection(collection??)
             }
