@@ -3424,9 +3424,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-consensus"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32f1e754fe8d8eccfde11fbba06b5930ab2fd4a9bf1f94faee33546767e79a48"
+checksum = "7aba0074ff5be2c29cacecf15ffec1bb8173cad75c82465ec21ce7c459d0d544"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3458,9 +3458,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-job-queue"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49c81d0bfed3580bdc1487569bb2b455284cdf6449c4be41c6750e4651d9bcb3"
+checksum = "dd2bb6c129c2af6cf716ba1459e2ff12fc0e98e846717f201c04e979517a33de"
 dependencies = [
  "async-trait",
  "rand 0.9.5",
@@ -3472,9 +3472,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-mempool"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb5d1760ebcbd5a2fc0bfa8a7f5de3a0ff4e99d98ee1b88de8354a3e2b18f4fb"
+checksum = "26a1ade79e1bd794c07ebc6dfa2f49acfec31f4d08bcc7548ad480775c2b8c79"
 dependencies = [
  "anyhow",
  "bytesize",
@@ -3495,9 +3495,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-mutator-set"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b86a1aa3b15b3e095ce486eb83b1661ca3803a70754be7eb8bf38278a7cb7e0"
+checksum = "e2dcd2e6cab792675bc73e34254a93484202635124e4e28dd85f887260a8e6b1"
 dependencies = [
  "get-size2",
  "itertools",
@@ -3510,9 +3510,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-primitives"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6581678541cbd5ee3bf2d82e5550e7dadb770269011909b53a9fe0701196792"
+checksum = "356b5b376afd2f6df1248d9852b7560dcaa4cfe211841882620a282a673f16ac"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3531,9 +3531,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-rpc-api"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d49cbe5689e5994414c473f1ca4df41e8160a14dd33a78150635c710afbaaf4e"
+checksum = "1c3c16f621323dd22da0d27a716a5f9e5b98db1e002a08d31a99061cf2b98ce3"
 dependencies = [
  "async-trait",
  "hex",
@@ -3542,7 +3542,7 @@ dependencies = [
  "neptune-mutator-set",
  "neptune-primitives",
  "neptune-rpc-macros",
- "neptune-wallet 0.14.2",
+ "neptune-wallet 0.15.0",
  "num-bigint",
  "serde",
  "serde_arrays",
@@ -3555,9 +3555,9 @@ dependencies = [
 
 [[package]]
 name = "neptune-rpc-client"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91c345f815539d20001cbc3a3f70839c28ee61d481c810bf1f00f6e995a56663"
+checksum = "4d2d72316a1bab0d85e09e05f80ef11d3aac97c124700700aac3def4c9683fa4"
 dependencies = [
  "async-trait",
  "neptune-consensus",
@@ -3569,20 +3569,20 @@ dependencies = [
 
 [[package]]
 name = "neptune-rpc-macros"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c138a352c51fb3be8592f544b4144e9266097546b882fc650f1f8ee818a5ff6c"
+checksum = "8c4ecc27f76c9ee379bc06521c54fad252ccc047f71782243311cfc50d263f29"
 dependencies = [
  "convert_case",
  "quote",
- "syn 2.0.118",
+ "syn 3.0.3",
 ]
 
 [[package]]
 name = "neptune-wallet"
-version = "0.14.2"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fa5371774eadb75d67f1da622fbeeafa30b90e58167c1db83ce3e75d58652b5"
+checksum = "2565599154c3379c7669218d189c62e42f6a0c7427596d0e398f2d9cc554630c"
 dependencies = [
  "aead",
  "aes-gcm",
@@ -3634,7 +3634,7 @@ dependencies = [
  "neptune-primitives",
  "neptune-rpc-api",
  "neptune-rpc-client",
- "neptune-wallet 0.14.2",
+ "neptune-wallet 0.15.0",
  "num-traits",
  "once_cell",
  "openssl-sys",
@@ -6028,6 +6028,17 @@ name = "syn"
 version = "2.0.118"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b9ae57f904213ebb649ce6895b8a66c66f0203b9319718f69a5612a065b1422"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
+]
+
+[[package]]
+name = "syn"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53e9bae58849f64dfa4f5d5ae372c8341f7305f82a3868709269343628b659a3"
 dependencies = [
  "proc-macro2",
  "quote",
