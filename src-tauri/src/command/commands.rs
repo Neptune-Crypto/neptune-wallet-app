@@ -6,6 +6,7 @@ use std::time::Duration;
 use anyhow::Context;
 use neptune_primitives::network::Network;
 use neptune_wallet::address::KeyType;
+use tracing::warn;
 
 use crate::config::wallet::ScanConfig;
 use crate::config::wallet::WalletData;
@@ -242,6 +243,18 @@ pub(crate) async fn input_password(password: String) -> Result<()> {
         .await
         .context("wrong password")
         .into_tauri_result()?;
+    config.unlock();
+
+    // Unlocking after a manual lock: the sync state was left running, so only
+    // the RPC server needs bringing back. At first startup there is no sync
+    // state yet and the frontend's `run_rpc_server` does the full
+    // initialization instead, so there is nothing to restart here.
+    if crate::service::try_get_state::<Arc<SyncState>>().is_some() {
+        if let Err(e) = crate::rpc::start_rpc_server().await {
+            warn!("Could not restart RPC server after unlock: {}", e);
+        }
+    }
+
     Ok(())
 }
 
@@ -265,10 +278,34 @@ pub(crate) async fn has_password() -> Result<bool> {
 #[cfg_attr(feature = "gui", tauri::command)]
 pub(crate) async fn try_password() -> Result<bool> {
     let config = crate::service::get_state::<Arc<Config>>();
+    // Checked first so a manual lock answers on its own terms, rather than
+    // relying on the empty-password branch below happening to reject a wallet
+    // whose password was cleared.
+    if config.is_locked() {
+        return Ok(false);
+    }
     if config.password.lock().await.is_some() {
         return Ok(true);
     }
     Ok(config.decrypt_config("").await.is_ok())
+}
+
+/// Lock the wallet without quitting the app.
+///
+/// Guards against someone reaching the running app: the UI returns to the lock
+/// screen and the local RPC server is shut down. The sync state is deliberately
+/// left running, so block sync and any in-flight proving survive the lock, and
+/// key material is not scrubbed from memory.
+#[cfg_attr(feature = "gui", tauri::command)]
+#[cfg_attr(not(feature = "gui"), allow(unused))]
+pub(crate) async fn lock_wallet() -> Result<()> {
+    let config = crate::service::get_state::<Arc<Config>>();
+    config.lock().await;
+    crate::rpc::stop_rpc_server()
+        .await
+        .context("failed to stop RPC server")
+        .into_tauri_result()?;
+    Ok(())
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]

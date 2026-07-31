@@ -1,5 +1,10 @@
 import RustySessionStore from "@/commands/store";
-import { Box, Flex, Group, Image, Space } from "@mantine/core";
+import { lockWallet } from "@/store/auth/auth-slice";
+import { useAuth } from "@/store/auth/hooks";
+import { useAppDispatch } from "@/store/hooks";
+import { notify } from "@/utils/notify";
+import { ActionIcon, Box, Flex, Group, Image, Space, Tooltip } from "@mantine/core";
+import { IconLock } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { bottomLinkdata, linkdata } from "../../routers";
@@ -11,6 +16,20 @@ function Navbar() {
   const [active, setActive] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { hasPassword } = useAuth();
+
+  async function handleLock() {
+    try {
+      await dispatch(lockWallet()).unwrap();
+    } catch (error: any) {
+      // The UI stays unlocked when the backend could not lock, so say that
+      // rather than leaving the user believing the wallet is secured.
+      notify.error(error, "The wallet is still unlocked.", "Couldn't lock wallet", {
+        id: "lock-error",
+      });
+    }
+  }
   useEffect(() => {
     if (location && location.pathname) {
       setActive(location.pathname);
@@ -73,6 +92,31 @@ function Navbar() {
               the gap between Contacts and Settings. */}
           <div>{bottomLinks}</div>
           <div className={classes.footer}>
+            {/* Utility strip: an action rather than a destination, so it stays out
+                of the link groups above where another entry would read as a page.
+                Destinations in this sidebar carry labels, utilities are icons,
+                which is why this is unlabelled. Its own row because the sync card
+                below is full-bleed and cannot share one. Right-aligned so it steps
+                out of the 24px column the nav items and account name share, with
+                px chosen so the glyph lands on the sync card's content edge. The
+                gap leaves room for further utilities without a re-layout.
+
+                Only offered once a password exists: without one the lock screen
+                unlocks on an empty password, so locking would be a dead end. */}
+            {hasPassword && (
+              <Flex justify={"flex-end"} gap={4} px={12} pb={8}>
+                <Tooltip label="Lock wallet" withArrow position="top">
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    aria-label="Lock wallet"
+                    onClick={handleLock}
+                  >
+                    <IconLock size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              </Flex>
+            )}
             <SyncBlockCard />
           </div>
         </nav>

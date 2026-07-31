@@ -1,5 +1,5 @@
 import { run_rpc_server } from "@/commands/app";
-import { has_password, try_password } from "@/commands/password";
+import { has_password, lock_wallet, try_password } from "@/commands/password";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { AuthData, AuthState } from "../types";
 
@@ -43,6 +43,17 @@ const authSlice = createSlice({
     builder.addCase(startRunRpcServer.fulfilled, (state, action) => {
       state.startRpcServer = action.payload.data;
     });
+    // Only on success: if the backend could not lock, the UI must not pretend
+    // it did. Resetting startRpcServer keeps it honest about the RPC server
+    // the backend just shut down, and makes the flag flip again on unlock so
+    // the settings refetch re-runs.
+    builder.addCase(lockWallet.fulfilled, (state) => {
+      state.data = {
+        ...state.data,
+        hasAuth: false,
+      };
+      state.startRpcServer = false;
+    });
   },
 });
 
@@ -61,6 +72,15 @@ export const checkAuthPassword = createAsyncThunk<{
     console.log(error);
   }
   return { hasPassword, hasAuth };
+});
+
+/**
+ * Lock the wallet without quitting: the backend forgets the password and stops
+ * the RPC server, and the UI drops back to the lock screen. Sync and any
+ * in-flight proving keep running, so nothing in progress is lost.
+ */
+export const lockWallet = createAsyncThunk<void>("/api/auth/lockWallet", async () => {
+  await lock_wallet();
 });
 
 /**
