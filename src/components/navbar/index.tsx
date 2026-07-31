@@ -23,8 +23,6 @@ function Navbar() {
     try {
       await dispatch(lockWallet()).unwrap();
     } catch (error: any) {
-      // The UI stays unlocked when the backend could not lock, so say that
-      // rather than leaving the user believing the wallet is secured.
       notify.error(error, "The wallet is still unlocked.", "Couldn't lock wallet", {
         id: "lock-error",
       });
@@ -87,22 +85,11 @@ function Navbar() {
             {links}
           </div>
           {/* Wrap the bottom links in a block box (like navbarMain) so their
-              margins collapse to the same 8px gap as the main links — as direct
+              margins collapse to the same gap as the main links — as direct
               flex children of .navbar their margins wouldn't collapse, doubling
               the gap between Contacts and Settings. */}
           <div>{bottomLinks}</div>
           <div className={classes.footer}>
-            {/* Utility strip: an action rather than a destination, so it stays out
-                of the link groups above where another entry would read as a page.
-                Destinations in this sidebar carry labels, utilities are icons,
-                which is why this is unlabelled. Its own row because the sync card
-                below is full-bleed and cannot share one. Right-aligned so it steps
-                out of the 24px column the nav items and account name share, with
-                px chosen so the glyph lands on the sync card's content edge. The
-                gap leaves room for further utilities without a re-layout.
-
-                Only offered once a password exists: without one the lock screen
-                unlocks on an empty password, so locking would be a dead end. */}
             {hasPassword && (
               <Flex justify={"flex-end"} gap={4} px={12} pb={8}>
                 <Tooltip label="Lock wallet" withArrow position="top">
