@@ -182,15 +182,20 @@ impl TransactionUpdater {
         Ok(())
     }
 
+    /// Pending transaction ids, newest send first.
+    /// No send timestamp exists, so insertion order stands in: `rowid` only ever
+    /// reuses the largest freed value, so descending is newest-first.
     pub(crate) async fn get_pending_transaction_ids(&self) -> Result<Vec<String>> {
         let mut conn = self.pool.acquire().await?;
 
-        let transactions = sqlx::query("SELECT id FROM wallet_state_pending WHERE finished = 0")
-            .fetch_all(&mut *conn)
-            .await?
-            .into_iter()
-            .map(|row| row.get::<String, _>(0))
-            .collect::<Vec<_>>();
+        let transactions = sqlx::query(
+            "SELECT id FROM wallet_state_pending WHERE finished = 0 ORDER BY rowid DESC",
+        )
+        .fetch_all(&mut *conn)
+        .await?
+        .into_iter()
+        .map(|row| row.get::<String, _>(0))
+        .collect::<Vec<_>>();
 
         Ok(transactions)
     }
