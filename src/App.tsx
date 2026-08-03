@@ -1,4 +1,5 @@
 import { notify } from "@/utils/notify";
+import { useAutoLock } from "@/utils/use-auto-lock";
 import "@mantine/charts/styles.css";
 import "@mantine/core/styles.css";
 import { listen } from "@tauri-apps/api/event";
@@ -21,7 +22,11 @@ import { updateSendState } from "./store/execution/execution-slice";
 import { useRequesetSendTransactionResponse } from "./store/execution/hooks";
 import { useAppDispatch } from "./store/hooks";
 import { useCurrentPlatform, useSettingActionData } from "./store/settings/hooks";
-import { queryCurrentPlatform, querySettingActionData } from "./store/settings/settings-slice";
+import {
+  queryAutoLockMinutes,
+  queryCurrentPlatform,
+  querySettingActionData,
+} from "./store/settings/settings-slice";
 import {
   handleFinishBlockStatus,
   queryLatestBlock,
@@ -45,6 +50,7 @@ function App() {
       <UpdateHandler />
       <NotificationCard />
       <InitApp />
+      <AutoLockWatcher />
       <ViewPort />
     </UpdateProvider>
   );
@@ -67,6 +73,10 @@ const InitApp = (): null => {
   useEffect(() => {
     dispatch(queryCurrentPlatform());
     dispatch(checkAuthPassword());
+    // Read once at startup rather than on every unlock: it is a plain config
+    // value that does not need the RPC server. The Settings page updates this
+    // value itself whenever the user picks a new one.
+    dispatch(queryAutoLockMinutes());
   }, [dispatch]);
 
   useEffect(() => {
@@ -114,6 +124,12 @@ const InitApp = (): null => {
       dispatch(updateSendState(event.payload));
     });
   }
+  return null;
+};
+// Mounted above ViewPort so the idle timer spans every page, and outside it so
+// switching pages doesn't remount the watcher and restart the countdown.
+const AutoLockWatcher = (): null => {
+  useAutoLock();
   return null;
 };
 const NotificationCard = (): null => {

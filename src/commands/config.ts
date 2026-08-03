@@ -28,6 +28,16 @@ export async function set_disk_cache(enable: boolean) {
 export async function get_disk_cache(): Promise<boolean> {
   return await invoke("get_disk_cache", {});
 }
+
+/** The idle auto-lock timeout, in minutes; 0 means never. */
+export async function get_auto_lock_minutes(): Promise<number> {
+  return await invoke("get_auto_lock_minutes", {});
+}
+
+export async function set_auto_lock_minutes(minutes: number) {
+  await invoke("set_auto_lock_minutes", { minutes });
+}
+
 export async function get_list_cache(): Promise<BlockCacheFile[]> {
   return await invoke("list_cache", {});
 }

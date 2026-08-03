@@ -132,6 +132,8 @@ export interface SettingsState {
   acctionData: SettingActionData;
   platform: string;
   cacheFiles: BlockCacheFile[];
+  // Held in the store because both the Settings row and the idle watcher read it.
+  autoLockMinutes: number;
 }
 
 export interface BlockCacheFile {

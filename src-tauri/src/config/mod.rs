@@ -43,6 +43,8 @@ pub(crate) struct Config {
 
 const PASSWORD_TEST: &str = "hello world!";
 const PASSWORD_TEST_KEY: &str = "password_test";
+const AUTO_LOCK_MINUTES_KEY: &str = "auto_lock_minutes";
+const DEFAULT_AUTO_LOCK_MINUTES: u64 = 15;
 impl Config {
     pub(crate) async fn new(data_dir: &PathBuf) -> Result<Self> {
         DataDirectory::create_dir_if_not_exists(data_dir).await?;
@@ -337,6 +339,19 @@ impl Config {
         Ok(())
     }
 
+    /// Stored here rather than in the frontend so the choice survives a reset
+    /// of the webview's local storage.
+    pub(crate) async fn set_auto_lock_minutes(&self, minutes: u64) -> Result<()> {
+        self.set_data::<u64>(AUTO_LOCK_MINUTES_KEY, &minutes).await
+    }
+
+    pub(crate) async fn get_auto_lock_minutes(&self) -> Result<u64> {
+        Ok(self
+            .get_data::<u64>(AUTO_LOCK_MINUTES_KEY)
+            .await?
+            .unwrap_or(DEFAULT_AUTO_LOCK_MINUTES))
+    }
+
     pub(crate) async fn set_log_level(&self, level: &str) -> Result<()> {
         self.set_data::<String>("log_level", &level.to_string())
             .await
@@ -381,6 +396,25 @@ mod tests {
 
     use super::*;
     use crate::tests::unit_test_dir;
+
+    #[tokio::test]
+    #[traced_test]
+    async fn auto_lock_minutes_roundtrip() {
+        let config = Config::new(&unit_test_dir()).await.unwrap();
+
+        assert_eq!(
+            DEFAULT_AUTO_LOCK_MINUTES,
+            config.get_auto_lock_minutes().await.unwrap()
+        );
+
+        // 0 is "never", so it must read back as stored rather than falling
+        // through to the default the way an absent value does.
+        config.set_auto_lock_minutes(0).await.unwrap();
+        assert_eq!(0, config.get_auto_lock_minutes().await.unwrap());
+
+        config.set_auto_lock_minutes(5).await.unwrap();
+        assert_eq!(5, config.get_auto_lock_minutes().await.unwrap());
+    }
 
     #[tokio::test]
     #[traced_test]

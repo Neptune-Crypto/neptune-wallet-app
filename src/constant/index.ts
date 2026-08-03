@@ -39,6 +39,17 @@ export const LOG_LEVELS = [
 
 export const NETWORKS = [{ value: "main", label: "Mainnet" }];
 
+// Idle timeouts offered for auto-lock. Values are strings because Mantine's
+// Select works in strings; they count minutes, and 0 is "Never".
+export const AUTO_LOCK_NEVER = 0;
+export const AUTO_LOCK_OPTIONS = [
+  { value: "1", label: "1 minute" },
+  { value: "5", label: "5 minutes" },
+  { value: "15", label: "15 minutes" },
+  { value: "30", label: "30 minutes" },
+  { value: String(AUTO_LOCK_NEVER), label: "Never" },
+];
+
 // Manual-download fallback for installs the one-click updater can't service
 // (e.g. Linux .deb/.rpm, which Tauri's updater cannot replace in place).
 export const RELEASES_URL = "https://github.com/Neptune-Crypto/neptune-wallet-app/releases/latest";
