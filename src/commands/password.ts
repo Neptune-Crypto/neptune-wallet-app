@@ -17,3 +17,7 @@ export async function has_password(): Promise<boolean> {
 export async function try_password(): Promise<boolean> {
   return await invoke("try_password", {});
 }
+
+export async function lock_wallet() {
+  await invoke("lock_wallet", {});
+}

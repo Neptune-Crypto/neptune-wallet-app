@@ -1,5 +1,10 @@
 import RustySessionStore from "@/commands/store";
-import { Box, Flex, Group, Image, Space } from "@mantine/core";
+import { lockWallet } from "@/store/auth/auth-slice";
+import { useAuth } from "@/store/auth/hooks";
+import { useAppDispatch } from "@/store/hooks";
+import { notify } from "@/utils/notify";
+import { ActionIcon, Box, Flex, Group, Image, Space, Tooltip } from "@mantine/core";
+import { IconLock } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { bottomLinkdata, linkdata } from "../../routers";
@@ -11,6 +16,18 @@ function Navbar() {
   const [active, setActive] = useState("");
   const location = useLocation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { hasPassword } = useAuth();
+
+  async function handleLock() {
+    try {
+      await dispatch(lockWallet()).unwrap();
+    } catch (error: any) {
+      notify.error(error, "The wallet is still unlocked.", "Couldn't lock wallet", {
+        id: "lock-error",
+      });
+    }
+  }
   useEffect(() => {
     if (location && location.pathname) {
       setActive(location.pathname);
@@ -68,11 +85,25 @@ function Navbar() {
             {links}
           </div>
           {/* Wrap the bottom links in a block box (like navbarMain) so their
-              margins collapse to the same 8px gap as the main links — as direct
+              margins collapse to the same gap as the main links — as direct
               flex children of .navbar their margins wouldn't collapse, doubling
               the gap between Contacts and Settings. */}
           <div>{bottomLinks}</div>
           <div className={classes.footer}>
+            {hasPassword && (
+              <Flex justify={"flex-end"} gap={4} px={12} pb={8}>
+                <Tooltip label="Lock wallet" withArrow position="top">
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    aria-label="Lock wallet"
+                    onClick={handleLock}
+                  >
+                    <IconLock size={18} />
+                  </ActionIcon>
+                </Tooltip>
+              </Flex>
+            )}
             <SyncBlockCard />
           </div>
         </nav>
