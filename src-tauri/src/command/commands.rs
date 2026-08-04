@@ -106,6 +106,28 @@ pub(crate) async fn get_disk_cache() -> Result<bool> {
     config.get_disk_cache().await.into_tauri_result()
 }
 
+/// Minutes of inactivity before the wallet locks itself, 0 meaning never.
+///
+/// The idle timer itself lives in the frontend, which is where user activity
+/// shows up; this pair only persists the choice.
+#[cfg_attr(feature = "gui", tauri::command)]
+#[cfg_attr(not(feature = "gui"), allow(unused))]
+pub(crate) async fn set_auto_lock_minutes(minutes: u64) -> Result<()> {
+    let config = crate::service::get_state::<Arc<Config>>();
+    config
+        .set_auto_lock_minutes(minutes)
+        .await
+        .into_tauri_result()?;
+    Ok(())
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+#[cfg_attr(not(feature = "gui"), allow(unused))]
+pub(crate) async fn get_auto_lock_minutes() -> Result<u64> {
+    let config = crate::service::get_state::<Arc<Config>>();
+    config.get_auto_lock_minutes().await.into_tauri_result()
+}
+
 #[cfg_attr(feature = "gui", tauri::command)]
 pub(crate) async fn add_wallet(
     name: String,

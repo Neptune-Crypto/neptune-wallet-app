@@ -14,3 +14,7 @@ export const useCurrentPlatform = () => {
 export const useCacheFiles = () => {
   return useAppSelector((state) => state.settings.cacheFiles);
 };
+
+export const useAutoLockMinutes = () => {
+  return useAppSelector((state) => state.settings.autoLockMinutes);
+};

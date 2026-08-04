@@ -1,9 +1,15 @@
 import { snapshot_dir } from "@/commands/app";
-import { get_disk_cache, set_disk_cache, set_network } from "@/commands/config";
+import {
+  get_disk_cache,
+  set_auto_lock_minutes,
+  set_disk_cache,
+  set_network,
+} from "@/commands/config";
 import { set_log_level } from "@/commands/log";
-import { LOG_LEVELS, NETWORKS } from "@/constant";
+import { AUTO_LOCK_NEVER, AUTO_LOCK_OPTIONS, LOG_LEVELS, NETWORKS } from "@/constant";
 import { useAppDispatch } from "@/store/hooks";
-import { useSettingActionData } from "@/store/settings/hooks";
+import { useAutoLockMinutes, useSettingActionData } from "@/store/settings/hooks";
+import { queryAutoLockMinutes, updateAutoLockMinutes } from "@/store/settings/settings-slice";
 import { querySyncBlockStatus } from "@/store/sync/sync-slice";
 import { queryWalletBalance, queryWallets } from "@/store/wallet/wallet-slice";
 import { notify } from "@/utils/notify";
@@ -11,6 +17,7 @@ import { Flex, Select, Switch, Text } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import {
   IconCirclesRelation,
+  IconClockShield,
   IconCube,
   IconDatabase,
   IconEye,
@@ -34,6 +41,7 @@ import TrashDiskIcon from "./trash-disk-icon";
 export default function SettingList() {
   const dispatch = useAppDispatch();
   const { serverUrl, network, logLevel, remoteUrl } = useSettingActionData();
+  const autoLockMinutes = useAutoLockMinutes();
   const [selectedLogLevel, setSelectedLogLevel] = useState<string | null>("");
 
   const [selectedNetwork, setSelectedNetwork] = useState<string | null>("");
@@ -48,6 +56,7 @@ export default function SettingList() {
   useEffect(() => {
     queryDiskCache();
     queryDataRir();
+    dispatch(queryAutoLockMinutes());
   }, []);
   async function queryDataRir() {
     let address = await snapshot_dir();
@@ -66,6 +75,25 @@ export default function SettingList() {
       notify.success("Disk cache has been changed");
     } catch (error: any) {
       notify.error(error, "Please try again.", "Couldn't change disk cache");
+    }
+  }
+
+  // The store is updated only after the backend accepted the new value, so a
+  // failed write leaves the Select showing the timeout that is actually in force.
+  async function changeAutoLock(value: string | null) {
+    if (value === null) return;
+    const minutes = Number(value);
+    try {
+      await set_auto_lock_minutes(minutes);
+      dispatch(updateAutoLockMinutes(minutes));
+      notify.success(
+        minutes === AUTO_LOCK_NEVER
+          ? "The wallet will stay unlocked until you lock it."
+          : `The wallet will lock after ${minutes} minute${minutes === 1 ? "" : "s"} of inactivity.`,
+        "Auto-lock changed"
+      );
+    } catch (error: any) {
+      notify.error(error, "Please try again.", "Couldn't change auto-lock");
     }
   }
 
@@ -188,6 +216,21 @@ export default function SettingList() {
         label={"Password"}
         description="Change the password that unlocks this wallet."
         rightSection={<ResetPasswordIcon />}
+      />
+
+      <BaseItem
+        leftSection={<IconClockShield />}
+        label={"Auto-lock"}
+        description="How long the wallet can sit idle before it locks itself. Syncing continues while locked, and a transaction you are sending finishes first."
+        rightSection={
+          <Select
+            allowDeselect={false}
+            size="xs"
+            data={AUTO_LOCK_OPTIONS}
+            value={String(autoLockMinutes)}
+            onChange={changeAutoLock}
+          />
+        }
       />
 
       <SectionHeader>Data &amp; storage</SectionHeader>

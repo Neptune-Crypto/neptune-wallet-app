@@ -1,7 +1,13 @@
 import { get_server_url } from "@/commands/app";
-import { get_list_cache, get_network, get_rest_url } from "@/commands/config";
+import {
+  get_auto_lock_minutes,
+  get_list_cache,
+  get_network,
+  get_rest_url,
+} from "@/commands/config";
 import { get_log_level } from "@/commands/log";
 import { get_platform, os_info } from "@/commands/os";
+import { AUTO_LOCK_NEVER } from "@/constant";
 import { handleServiceUrl } from "@/utils/url";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { BlockCacheFile, Info, SettingActionData, SettingsState } from "../types";
@@ -25,12 +31,19 @@ const initialState: SettingsState = {
   loadingSettings: false,
   platform: "",
   cacheFiles: [],
+  // Until the stored value is read back, treat the wallet as never
+  // auto-locking, so a slow query can't lock a wallet the user set to "Never".
+  autoLockMinutes: AUTO_LOCK_NEVER,
 };
 
 const settingsSlice = createSlice({
   name: "settings",
   initialState,
-  reducers: {},
+  reducers: {
+    updateAutoLockMinutes: (state, action) => {
+      state.autoLockMinutes = action.payload;
+    },
+  },
   extraReducers: (builder) => {
     builder.addCase(querySettingActionData.pending, (state) => {
       state.loadingSettings = true;
@@ -47,6 +60,9 @@ const settingsSlice = createSlice({
     });
     builder.addCase(queryDiskCacheFiles.fulfilled, (state, action) => {
       state.cacheFiles = action.payload.data;
+    });
+    builder.addCase(queryAutoLockMinutes.fulfilled, (state, action) => {
+      state.autoLockMinutes = action.payload.data;
     });
   },
 });
@@ -124,6 +140,20 @@ export const querySettingActionData = createAsyncThunk<{
   };
 });
 
+/**
+ * Read the stored idle auto-lock timeout. Kept out of `querySettingActionData`
+ * because that one waits on the RPC server, and the timeout is a plain config
+ * value the idle watcher needs as soon as the wallet is unlocked.
+ */
+export const queryAutoLockMinutes = createAsyncThunk<{ data: number }>(
+  "/api/settings/queryAutoLockMinutes",
+  async () => {
+    return {
+      data: await get_auto_lock_minutes(),
+    };
+  }
+);
+
 export const queryDiskCacheFiles = createAsyncThunk<{ data: BlockCacheFile[] }>(
   "/api/settings/queryDiskCacheFiles",
   async () => {
@@ -134,6 +164,6 @@ export const queryDiskCacheFiles = createAsyncThunk<{ data: BlockCacheFile[] }>(
   }
 );
 
-export const {} = settingsSlice.actions;
+export const { updateAutoLockMinutes } = settingsSlice.actions;
 
 export default settingsSlice.reducer;
