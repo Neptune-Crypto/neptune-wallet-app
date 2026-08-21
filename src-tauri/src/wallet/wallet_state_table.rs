@@ -161,6 +161,22 @@ sqlx_migrator::sqlite_migration!(
     ]
 );
 
+struct BackfillSpentHeightMigration;
+sqlx_migrator::sqlite_migration!(
+    BackfillSpentHeightMigration,
+    "wallet_state",
+    "backfill_spent_height",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![(
+        // Rows spent before spent_height was populated carry the spend height
+        // only inside the spent_in_block JSON, while roll_back selects rows to
+        // un-spend by the spent_height column, so those spends were invisible
+        // to reorg rollback.
+        "UPDATE wallet_state_utxos SET spent_height = json_extract(spent_in_block, '$.block_height') WHERE spent_in_block IS NOT NULL AND spent_height IS NULL", //up
+        "UPDATE wallet_state_utxos SET spent_height = NULL WHERE spent_in_block IS NOT NULL" //down
+    )]
+);
+
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct UtxoDbData {
     pub(crate) id: i64,
@@ -308,6 +324,7 @@ impl WalletState {
         migrator.add_migration(Box::new(CreateWatchOnlyUtxosMigration))?;
         migrator.add_migration(Box::new(AddWatchOnlyPreimageMigration))?;
         migrator.add_migration(Box::new(AddWatchOnlySpendTrackingMigration))?;
+        migrator.add_migration(Box::new(BackfillSpentHeightMigration))?;
 
         let mut conn = self.pool.acquire().await?;
         // use apply all to apply all pending migration
@@ -424,11 +441,16 @@ impl WalletState {
         for utxo in &utxos {
             let info = serde_json::to_string(&utxo.1)?;
 
-            sqlx::query::<Sqlite>("UPDATE wallet_state_utxos SET spent_in_block = ? WHERE id = ?")
-                .bind(&info)
-                .bind(utxo.0)
-                .execute(&mut *tx)
-                .await?;
+            // spent_height must be kept in sync with the JSON: roll_back
+            // selects the rows to un-spend by the spent_height column.
+            sqlx::query::<Sqlite>(
+                "UPDATE wallet_state_utxos SET spent_in_block = ?, spent_height = ? WHERE id = ?",
+            )
+            .bind(&info)
+            .bind(utxo.1.block_height as i64)
+            .bind(utxo.0)
+            .execute(&mut *tx)
+            .await?;
         }
 
         // remove from pending so it will not be updated again
@@ -607,6 +629,8 @@ impl WalletState {
 
 #[cfg(test)]
 mod tests {
+    use neptune_consensus::transaction::utxo::Utxo;
+    use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
     use neptune_primitives::network::Network;
     use neptune_wallet::wallet_entropy::WalletEntropy;
 
@@ -615,8 +639,7 @@ mod tests {
     use crate::config::wallet::WalletConfig;
     use crate::tests::test_wallet_db;
 
-    #[tokio::test]
-    async fn test_migrate_tables() {
+    async fn test_wallet_state() -> WalletState {
         let config = WalletConfig {
             id: 0,
             key: WalletEntropy::devnet_wallet(),
@@ -629,7 +652,42 @@ mod tests {
         };
 
         let db_path = test_wallet_db().await;
-        let wallet_state = WalletState::new(config, &db_path).await.unwrap();
+        WalletState::new(config, &db_path).await.unwrap()
+    }
+
+    fn block_info(block_height: u64) -> UtxoBlockInfo {
+        UtxoBlockInfo {
+            block_height,
+            block_digest: Digest::default(),
+            timestamp: Timestamp::now(),
+        }
+    }
+
+    fn unspent_utxo_row(confirm_height: i64) -> UtxoDbData {
+        UtxoDbData {
+            id: 0,
+            hash: Digest::default().to_hex(),
+            recovery_data: UtxoRecoveryData {
+                utxo: Utxo::new_native_currency(
+                    Digest::default(),
+                    NativeCurrencyAmount::from_nau(5000),
+                ),
+                sender_randomness: Digest::default(),
+                receiver_preimage: Digest::default(),
+                aocl_index: 7,
+            },
+            spent_in_block: None,
+            confirmed_in_block: block_info(confirm_height as u64),
+            confirm_height,
+            spent_height: None,
+            confirmed_txid: None,
+            spent_txid: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn test_migrate_tables() {
+        let wallet_state = test_wallet_state().await;
 
         wallet_state.migrate_tables().await.unwrap();
 
@@ -678,5 +736,81 @@ mod tests {
                 .unwrap(),
             5
         );
+    }
+
+    #[tokio::test]
+    async fn test_roll_back_reverts_spent_utxos() {
+        let wallet_state = test_wallet_state().await;
+        wallet_state.migrate_tables().await.unwrap();
+
+        let mut conn = wallet_state.pool.acquire().await.unwrap();
+        unspent_utxo_row(10).create(&mut *conn).await.unwrap();
+        drop(conn);
+        let id = wallet_state.get_utxos().await.unwrap()[0].id;
+
+        let mut tx = wallet_state.pool.begin().await.unwrap();
+        wallet_state
+            .update_spent_utxos(&mut tx, vec![(id, block_info(12))])
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        let utxo = &wallet_state.get_utxos().await.unwrap()[0];
+        assert_eq!(utxo.spent_height, Some(12));
+        assert!(utxo.spent_in_block.is_some());
+
+        // Roll back to a height above the confirmation but below the spend:
+        // the row must survive but be unspent again.
+        let mut tx = wallet_state.pool.begin().await.unwrap();
+        wallet_state
+            .roll_back(&mut tx, 11, Digest::default())
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        let utxo = &wallet_state.get_utxos().await.unwrap()[0];
+        assert_eq!(utxo.spent_height, None);
+        assert!(utxo.spent_in_block.is_none());
+        assert!(utxo.spent_txid.is_none());
+
+        // Rolling back below the confirmation height deletes the row.
+        let mut tx = wallet_state.pool.begin().await.unwrap();
+        wallet_state
+            .roll_back(&mut tx, 9, Digest::default())
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        assert!(wallet_state.get_utxos().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_backfill_spent_height_migration() {
+        // WalletState::new has already applied every migration, including the
+        // backfill, on the then-empty table.
+        let wallet_state = test_wallet_state().await;
+
+        // Simulate a wallet from before the backfill migration existed: a
+        // spend recorded the way the old code wrote it (JSON only, column
+        // NULL) and no backfill entry in the migration ledger.
+        let mut conn = wallet_state.pool.acquire().await.unwrap();
+        unspent_utxo_row(10).create(&mut *conn).await.unwrap();
+        let legacy_spend = serde_json::to_string(&block_info(12)).unwrap();
+        sqlx::query("UPDATE wallet_state_utxos SET spent_in_block = ?")
+            .bind(&legacy_spend)
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+        sqlx::query("DELETE FROM _sqlx_migrator_migrations WHERE name = 'backfill_spent_height'")
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+        drop(conn);
+
+        // Upgrading the wallet applies the pending backfill migration.
+        wallet_state.migrate_tables().await.unwrap();
+
+        let utxo = &wallet_state.get_utxos().await.unwrap()[0];
+        assert_eq!(utxo.spent_height, Some(12));
     }
 }
