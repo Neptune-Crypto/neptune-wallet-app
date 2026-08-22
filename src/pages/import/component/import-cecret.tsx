@@ -1,4 +1,4 @@
-import { set_password } from "@/commands/password";
+import { set_onboarding_password } from "@/commands/password";
 import { addWallet } from "@/commands/wallet";
 import { useAppDispatch } from "@/store/hooks";
 import { useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
@@ -7,7 +7,7 @@ import { normalizeMnemonic } from "@/utils/mnemonic";
 import { notify } from "@/utils/notify";
 import { Button, Flex, NumberInput, Stack, Text, Textarea, Tooltip } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
   const [importData, setImportData] = useState({
@@ -17,6 +17,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
     startHeight: 0,
   });
   const [loading, setLoading] = useState(false);
+  const walletCreated = useRef(false);
   const walletName = useOneTimeWalletName();
   const oneTimePassword = useOneTimePassword();
   const dispatch = useAppDispatch();
@@ -24,14 +25,20 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
   async function handleImport() {
     setLoading(true);
     try {
-      await set_password("", oneTimePassword);
-      await addWallet(
-        walletName,
-        normalizeMnemonic(importData.mnemonic),
-        importData.numKeys || 25,
-        importData.startHeight || 0,
-        false
-      );
+      // Order matters: persist the password only after the account exists,
+      // so a failed attempt leaves the config untouched. The ref keeps a
+      // retry after a password failure from creating a second account.
+      if (!walletCreated.current) {
+        await addWallet(
+          walletName,
+          normalizeMnemonic(importData.mnemonic),
+          importData.numKeys || 25,
+          importData.startHeight || 0,
+          false
+        );
+        walletCreated.current = true;
+      }
+      await set_onboarding_password(oneTimePassword);
       dispatch(setOneTimePassword(""));
       nextStep();
     } catch (error: any) {

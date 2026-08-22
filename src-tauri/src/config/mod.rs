@@ -285,6 +285,21 @@ impl Config {
         Ok(secret_key)
     }
 
+    /// Creates the wallet encryption keys when none exist yet, so an account
+    /// can be created before a password is chosen. A no-op once a secret key
+    /// is stored.
+    pub(crate) async fn ensure_wallet_keys(&self) -> Result<()> {
+        if self.get_data::<Vec<u8>>("secret_key").await?.is_some() {
+            return Ok(());
+        }
+        // create_secret_key encrypts under the in-memory password, which is
+        // still unset here; the empty password stores the key unencrypted
+        // until set_password re-wraps everything under the real one.
+        self.password.lock().await.get_or_insert_with(String::new);
+        let secret_key = self.create_secret_key().await?;
+        self.update_decrypt_key(secret_key).await
+    }
+
     // secret_key is encoded with the password, it will be changed when the password is changed
     // it is not stable to use it as the key to decrypt the wallet secret, but can be used to validate access via rpc
     pub(crate) async fn get_secret_key(&self) -> Result<Vec<u8>> {
@@ -414,6 +429,35 @@ mod tests {
 
         config.set_auto_lock_minutes(5).await.unwrap();
         assert_eq!(5, config.get_auto_lock_minutes().await.unwrap());
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn add_wallet_before_password() {
+        const PASSWORD: &str = "chosen after the account";
+        let config = Config::new(&unit_test_dir()).await.unwrap();
+
+        let mnemonic: Vec<String> = vec![
+            "margin", "quality", "divorce", "tuition", "notable", "squirrel", "park", "jar", "end",
+            "beauty", "attend", "cliff", "media", "letter", "private", "decline", "absurd",
+            "uniform",
+        ]
+        .into_iter()
+        .map(|x| x.to_string())
+        .collect();
+
+        // First-run order: the account exists before any password does.
+        let id = config
+            .add_wallet("first", mnemonic.clone(), Default::default())
+            .await
+            .unwrap();
+        assert!(!config.has_password().await.unwrap());
+
+        config.set_password("", PASSWORD).await.unwrap();
+
+        // The mnemonic stored before the password must survive the re-wrap.
+        assert_eq!(mnemonic, config.get_wallet_mnemonic(id).await.unwrap());
+        assert!(config.decrypt_config(PASSWORD).await.is_ok());
     }
 
     #[tokio::test]

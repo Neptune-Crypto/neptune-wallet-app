@@ -1,4 +1,4 @@
-import { set_password } from "@/commands/password";
+import { set_onboarding_password } from "@/commands/password";
 import { addWallet } from "@/commands/wallet";
 import { startRunRpcServer } from "@/store/auth/auth-slice";
 import { useAppDispatch } from "@/store/hooks";
@@ -7,7 +7,7 @@ import { setMnemonic, setOneTimePassword } from "@/store/wallet/wallet-slice";
 import { notify } from "@/utils/notify";
 import { Box, Button, Flex, Grid, Text } from "@mantine/core";
 import { IconX } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 interface Props {
   nextStep: () => void;
 }
@@ -18,6 +18,7 @@ export default function ConfirmSecret(props: Props) {
   const mnemonic = useMnemonic();
   const [numbers, setNumbers] = useState([] as number[]);
   const [loading, setLoading] = useState(false);
+  const walletCreated = useRef(false);
   const dispatch = useAppDispatch();
   useEffect(() => {
     generateRandomNumbers();
@@ -101,8 +102,14 @@ export default function ConfirmSecret(props: Props) {
     }
     setLoading(true);
     try {
-      await set_password("", oneTimePassword);
-      await addWallet(walletName, mnemonic, 25, 0, true);
+      // Order matters: persist the password only after the account exists,
+      // so a failed attempt leaves the config untouched. The ref keeps a
+      // retry after a password failure from creating a second account.
+      if (!walletCreated.current) {
+        await addWallet(walletName, mnemonic, 25, 0, true);
+        walletCreated.current = true;
+      }
+      await set_onboarding_password(oneTimePassword);
       dispatch(startRunRpcServer());
       dispatch(setMnemonic(""));
       dispatch(setOneTimePassword(""));
