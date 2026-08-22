@@ -64,6 +64,18 @@ export default function AddressesPage() {
       "A view-only address, best given to a single person. Anyone holding it can see every payment the address has ever received — which is useful for auditing — but can never move or spend any of those funds.",
   };
 
+  // Fine print for the QR modal: each key type's sharing consequence, worded
+  // for the person about to hand the address out. The tab description says
+  // the same, but the modal is the moment of sharing.
+  const QR_FOOTNOTES: Record<string, string> = {
+    [generation_tab]:
+      "Generation addresses make a very dense code. Scan from close up with a steady camera; if it will not read, copy the address, or consider sharing an EC hybrid address instead.",
+    [ec_hybrid_tab]:
+      "Best given to a single person. If shared more widely, a future quantum attacker could reveal, but never spend, the funds sent to it.",
+    [viewing_tab]:
+      "Anyone holding this address can watch every payment it ever receives, though they can never spend the funds. Share it only with someone you trust to see that activity.",
+  };
+
   const getQrPayload = (address: string) => `${uri_scheme_prefix}:${address.toUpperCase()}`;
 
   const keyTypeFromTab = (tab: string | null): NeptuneKeyType => {
@@ -114,80 +126,125 @@ export default function AddressesPage() {
     }
   };
 
-  // QR codes are only available for EC hybrid and viewing keys
-  const has_qr_codes = activeTab == ec_hybrid_tab || activeTab == viewing_tab;
+  const qrPayload = selectedAddress ? getQrPayload(selectedAddress) : "";
+  // Past the alphanumeric capacity of the largest QR version at this error
+  // level, the encoder throws instead of rendering.
+  const qrTooLong = qrPayload.length > 4296;
+  // Every code renders at the same size, the largest the fixed app window
+  // height allows, so the modal has identical dimensions for every key type.
+  // Generation addresses need all of it for their dense module grid; the
+  // short types simply get large, easily scanned modules.
+  const qrDense = qrPayload.length > 1000;
+  const qrSize = 540;
+  const qrFootnote = activeTab ? QR_FOOTNOTES[activeTab] : "";
+
   const qr_button = (item: AddressRecord) => {
     return (
-      has_qr_codes && (
-        <Tooltip label="Show QR code" withArrow position="top">
-          <ActionIcon
-            color="blue"
-            variant="subtle"
-            onClick={() => {
-              setSelectedAddress(item.address);
-              openQrModal();
-            }}
-          >
-            <IconQrcode size={14} />
-          </ActionIcon>
-        </Tooltip>
-      )
+      <Tooltip label="Show QR code" withArrow position="top">
+        <ActionIcon
+          color="blue"
+          variant="subtle"
+          onClick={() => {
+            setSelectedAddress(item.address);
+            openQrModal();
+          }}
+        >
+          <IconQrcode size={14} />
+        </ActionIcon>
+      </Tooltip>
     );
   };
 
-  const qr_modal = has_qr_codes && (
+  // Shared by the side-panel layout and the too-long fallback.
+  const copy_button = (
+    <CopyButton value={selectedAddress} timeout={2000}>
+      {({ copied, copy }) => (
+        <Button
+          size="xs"
+          variant="light"
+          color={copied ? "teal" : "blue"}
+          leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+          onClick={copy}
+        >
+          {copied ? "Copied" : "Copy address"}
+        </Button>
+      )}
+    </CopyButton>
+  );
+
+  const qr_modal = (
     <Modal
       opened={qrModalOpened}
       onClose={closeQrModal}
       title="Receive funds"
       centered
+      size="auto"
+      // Mantine's default vertical clearance caps the modal height just below
+      // what the code needs in the fixed app window, forcing a scrollbar.
+      yOffset={8}
       overlayProps={{ backgroundOpacity: 0.5, blur: 4 }}
     >
       <Box
-        style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "10px" }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "0 10px",
+        }}
       >
-        {selectedAddress && (
+        {selectedAddress && qrTooLong && (
           <>
-            {/* level="L" keeps the grid low-density.
-                marginSize={4} creates the required quiet zone.
-              */}
+            <Text size="sm" c="dimmed" maw={360} ta="center">
+              This address is too long to fit in a QR code. Copy it instead, or share an EC hybrid
+              address.
+            </Text>
+            <Box mt="md">{copy_button}</Box>
+          </>
+        )}
+        {selectedAddress && !qrTooLong && (
+          // One layout for every key type; only the column's content varies.
+          <Group align="center" gap="lg" wrap="nowrap">
+            {/* Lowest error-correction level: generation payloads barely fit
+                as is, and redundancy would push them over capacity. The
+                margin is the spec's quiet zone; the modal background can be
+                dark, so the SVG must carry its own. */}
             <QRCodeSVG
-              value={getQrPayload(selectedAddress)}
+              value={qrPayload}
               level="L"
-              size={256}
+              size={qrSize}
               marginSize={4}
               bgColor="#ffffff"
               fgColor="#000000"
             />
-
-            <Text mt="xl" size="sm" fw={500}>
-              Address
-            </Text>
-            <Box mt={4}>
-              <MonoText
-                value={selectedAddress}
-                copy={false}
-                full
-                size="xs"
-                c="dimmed"
-                ta="center"
-              />
-            </Box>
-            <CopyButton value={selectedAddress} timeout={2000}>
-              {({ copied, copy }) => (
-                <Button
-                  mt="md"
-                  size="xs"
-                  variant="light"
-                  color={copied ? "teal" : "blue"}
-                  leftSection={copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                  onClick={copy}
-                >
-                  {copied ? "Copied" : "Copy address"}
-                </Button>
+            <Flex direction="column" gap="md" maw={240}>
+              <Box>
+                <Text size="sm" fw={500}>
+                  Address
+                </Text>
+                <Box mt={4}>
+                  {/* Full text for the short types; a head/tail abbreviation
+                      for generation, whose full text would dwarf the column.
+                      Both keep first/last characters checkable against the
+                      code being shared. Shorter than the table's abbreviation
+                      so the no-wrap line stays inside the column. */}
+                  <MonoText
+                    value={selectedAddress}
+                    chars={12}
+                    copy={false}
+                    full={!qrDense}
+                    size="xs"
+                    c="dimmed"
+                  />
+                </Box>
+              </Box>
+              {copy_button}
+              {qrFootnote && (
+                <Text size="xs" c="dimmed">
+                  {qrFootnote}
+                </Text>
               )}
-            </CopyButton>
-          </>
+            </Flex>
+          </Group>
         )}
       </Box>
     </Modal>
