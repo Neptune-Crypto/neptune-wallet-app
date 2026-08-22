@@ -20,6 +20,8 @@ interface Props {
   data: SendInputItem;
   showRemove: boolean;
   addressError?: string;
+  /** Detected key type of a valid entered address, e.g. "Generation". */
+  addressKeyType?: string;
   amountError?: string;
   onMax: () => void;
   onChangeToAddress: (address: string) => void;
@@ -33,6 +35,7 @@ export default function TransferForm(props: Props) {
     showRemove,
     data,
     addressError,
+    addressKeyType,
     amountError,
     onMax,
     onRemoveWallet,
@@ -72,6 +75,11 @@ export default function TransferForm(props: Props) {
           {recipientName && (
             <Badge variant="light" radius="sm" tt="none" fw={600}>
               {recipientName}
+            </Badge>
+          )}
+          {addressKeyType && !addressError && (
+            <Badge variant="light" color="gray" radius="sm" tt="none" fw={500}>
+              {addressKeyType}
             </Badge>
           )}
         </Flex>

@@ -4,7 +4,8 @@ import { useAllContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
 import { notify } from "@/utils/notify";
 import { updateContactAddress } from "@/utils/storage";
-import { Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
+import { useAddressValidation } from "@/utils/use-address-validation";
+import { Badge, Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
 import { useEffect, useState } from "react";
 
 export default function EditContact({
@@ -29,6 +30,8 @@ export default function EditContact({
     trimmedAddress !== "" &&
     trimmedAddress !== contact?.address &&
     (contacts ?? []).some((c) => c.address === trimmedAddress);
+  const { invalid: isInvalidAddress, keyType: addressKeyType } =
+    useAddressValidation(trimmedAddress);
 
   // Re-sync the form whenever a different contact is opened for editing.
   useEffect(() => {
@@ -68,11 +71,22 @@ export default function EditContact({
           onChange={(event) => setAliasName(event.target.value)}
           placeholder="Enter a name for this address"
         />
-        <Flex direction={"column"}>
+        <Flex direction={"column"} gap={4}>
           <Flex direction={"row"} justify={"space-between"}>
-            <Flex direction={"row"} gap={4}>
-              <Text>Address</Text>
-              <Text c="var(--input-asterisk-color, var(--mantine-color-error))">*</Text>
+            <Flex direction={"row"} gap={4} align="center">
+              {/* Matches the built-in Mantine input label (as on the Name
+                  field above), so the two fields read as one form. */}
+              <Text size="sm" fw={500}>
+                Address
+              </Text>
+              <Text size="sm" fw={500} c="var(--input-asterisk-color, var(--mantine-color-error))">
+                *
+              </Text>
+              {addressKeyType && !isDuplicate && (
+                <Badge variant="light" color="gray" radius="sm" tt="none" fw={500}>
+                  {addressKeyType}
+                </Badge>
+              )}
             </Flex>
           </Flex>
           <Textarea
@@ -80,14 +94,20 @@ export default function EditContact({
             autosize
             minRows={4}
             value={address}
-            error={isDuplicate ? "A contact with this address already exists" : undefined}
+            error={
+              isDuplicate
+                ? "A contact with this address already exists"
+                : isInvalidAddress
+                  ? "Not a valid address for this network"
+                  : undefined
+            }
             onChange={(event) => setAddress(event.target.value)}
           />
         </Flex>
         <Button
           variant="light"
           loading={loading}
-          disabled={!aliasName || !address.trim() || isDuplicate}
+          disabled={!aliasName || !address.trim() || isDuplicate || isInvalidAddress}
           onClick={handleSubmit}
         >
           Save

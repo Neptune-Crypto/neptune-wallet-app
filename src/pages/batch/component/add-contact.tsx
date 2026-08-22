@@ -5,7 +5,8 @@ import { useAppDispatch } from "@/store/hooks";
 import { sleep_milliseconds } from "@/utils/common";
 import { notify } from "@/utils/notify";
 import { addContactAddress } from "@/utils/storage";
-import { Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
+import { useAddressValidation } from "@/utils/use-address-validation";
+import { Badge, Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
 import { useState } from "react";
 
 export default function AddContact({ opened, close }: { opened: boolean; close: () => void }) {
@@ -25,6 +26,8 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
   const trimmedAddress = (contact.address ?? "").trim();
   const isDuplicate =
     trimmedAddress !== "" && (contacts ?? []).some((c) => c.address === trimmedAddress);
+  const { invalid: isInvalidAddress, keyType: addressKeyType } =
+    useAddressValidation(trimmedAddress);
 
   async function handleSubmit() {
     if (isDuplicate) return;
@@ -52,11 +55,22 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
           onChange={(event) => setContact({ ...contact, aliasName: event.target.value })}
           placeholder="Enter a name for this address"
         />
-        <Flex direction={"column"}>
+        <Flex direction={"column"} gap={4}>
           <Flex direction={"row"} justify={"space-between"}>
-            <Flex direction={"row"} gap={4}>
-              <Text>Address</Text>
-              <Text c="var(--input-asterisk-color, var(--mantine-color-error))">*</Text>
+            <Flex direction={"row"} gap={4} align="center">
+              {/* Matches the built-in Mantine input label (as on the Name
+                  field above), so the two fields read as one form. */}
+              <Text size="sm" fw={500}>
+                Address
+              </Text>
+              <Text size="sm" fw={500} c="var(--input-asterisk-color, var(--mantine-color-error))">
+                *
+              </Text>
+              {addressKeyType && !isDuplicate && (
+                <Badge variant="light" color="gray" radius="sm" tt="none" fw={500}>
+                  {addressKeyType}
+                </Badge>
+              )}
             </Flex>
           </Flex>
           <Textarea
@@ -64,7 +78,13 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
             autosize
             minRows={4}
             value={contact.address ?? ""}
-            error={isDuplicate ? "A contact with this address already exists" : undefined}
+            error={
+              isDuplicate
+                ? "A contact with this address already exists"
+                : isInvalidAddress
+                  ? "Not a valid address for this network"
+                  : undefined
+            }
             onChange={(event) =>
               setContact({
                 ...contact,
@@ -76,7 +96,7 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
         <Button
           variant="light"
           loading={loading}
-          disabled={!contact.aliasName || !contact.address || isDuplicate}
+          disabled={!contact.aliasName || !contact.address || isDuplicate || isInvalidAddress}
           onClick={handleSubmit}
         >
           Add
