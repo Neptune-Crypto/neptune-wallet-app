@@ -440,10 +440,7 @@ pub(crate) async fn list_cache() -> Result<Vec<BlockCacheFile>> {
     let sync_state = sync_state.status().await;
 
     files.retain(|file| {
-        if file.network == network.to_string() && file.range.1 > sync_state.height as i64 {
-            return false;
-        }
-        true
+        !(file.network == network.to_string() && file.range.1 > sync_state.height as i64)
     });
 
     Ok(files)
