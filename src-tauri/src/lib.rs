@@ -53,6 +53,7 @@ fn add_commands<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         command::commands::set_wallet_id,
         command::commands::snapshot_dir,
         command::commands::try_password,
+        command::commands::validate_address,
         command::commands::wallet_address,
         rpc::commands::avaliable_utxos,
         rpc::commands::current_wallet_address,

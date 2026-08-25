@@ -6,6 +6,7 @@ use std::time::Duration;
 use anyhow::Context;
 use neptune_primitives::network::Network;
 use neptune_wallet::address::KeyType;
+use neptune_wallet::address::ReceivingAddress;
 use tracing::warn;
 
 use crate::config::wallet::ScanConfig;
@@ -89,6 +90,56 @@ pub(crate) async fn get_block_interval() -> Result<u64> {
     let config = crate::service::get_state::<Arc<Config>>();
     let network = config.get_network().await.into_tauri_result()?;
     Ok(network.target_block_interval().to_millis())
+}
+
+/// Result of checking whether a string is a valid recipient address.
+/// Forms use it to show validation errors as the user types. The send
+/// path re-parses every address itself, so a wrong verdict here can
+/// never move funds.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AddressValidation {
+    pub(crate) valid: bool,
+    /// Human-readable key type of a valid address.
+    pub(crate) key_type: Option<String>,
+    /// Parser error for an invalid one.
+    pub(crate) error: Option<String>,
+}
+
+fn classify_address(address: &str, network: Network) -> AddressValidation {
+    match ReceivingAddress::from_bech32m(address.trim(), network) {
+        Ok(parsed) => AddressValidation {
+            valid: true,
+            key_type: Some(
+                // The compiler requires the wildcard: the enum is
+                // non_exhaustive upstream. If it ever matches, the parser
+                // has already accepted the address, so it is valid; this
+                // build just has no name for its type.
+                match parsed {
+                    ReceivingAddress::Generation(_) => "Generation",
+                    ReceivingAddress::Symmetric(_) => "Symmetric",
+                    ReceivingAddress::EcHybrid(_) => "EC hybrid",
+                    ReceivingAddress::ViewingAddress(_) => "Viewing",
+                    _ => "Unknown",
+                }
+                .to_string(),
+            ),
+            error: None,
+        },
+        Err(e) => AddressValidation {
+            valid: false,
+            key_type: None,
+            error: Some(e.to_string()),
+        },
+    }
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+#[cfg_attr(not(feature = "gui"), allow(unused))]
+pub(crate) async fn validate_address(address: String) -> Result<AddressValidation> {
+    let config = crate::service::get_state::<Arc<Config>>();
+    let network = config.get_network().await.into_tauri_result()?;
+    Ok(classify_address(&address, network))
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
@@ -406,4 +457,44 @@ pub(crate) async fn delete_cache(path: String) -> Result<()> {
         .await
         .into_tauri_result()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use neptune_wallet::address::SpendingKey;
+    use neptune_wallet::wallet_entropy::WalletEntropy;
+
+    use super::*;
+
+    #[test]
+    fn classify_address_verdicts() {
+        let key = WalletEntropy::devnet_wallet().nth_generation_spending_key(0);
+        let address = SpendingKey::from(key)
+            .to_address()
+            .to_bech32m(Network::Main)
+            .unwrap();
+
+        let verdict = classify_address(&address, Network::Main);
+        assert!(verdict.valid);
+        assert_eq!(verdict.key_type.as_deref(), Some("Generation"));
+        assert!(verdict.error.is_none());
+
+        // Copy-paste whitespace is tolerated.
+        assert!(classify_address(&format!("  {address}\n"), Network::Main).valid);
+
+        // A single corrupted character fails the checksum.
+        let mut tampered = address.clone();
+        let last = tampered.pop().unwrap();
+        tampered.push(if last == 'q' { 'p' } else { 'q' });
+        let verdict = classify_address(&tampered, Network::Main);
+        assert!(!verdict.valid);
+        assert!(verdict.key_type.is_none());
+        assert!(verdict.error.is_some());
+
+        // An address for another network is rejected.
+        assert!(!classify_address(&address, Network::TestnetMock).valid);
+
+        assert!(!classify_address("not an address", Network::Main).valid);
+        assert!(!classify_address("", Network::Main).valid);
+    }
 }

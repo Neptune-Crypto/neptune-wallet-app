@@ -93,3 +93,15 @@ export async function knownWatchOnlyAddresses(): Promise<WatchOnlyAddressRecord[
 export async function removeWatchOnlyAddress(id: number): Promise<void> {
   await invoke("remove_watch_only_address", { id });
 }
+
+export interface AddressValidation {
+  valid: boolean;
+  keyType?: string;
+  error?: string;
+}
+
+// Parses the address with the exact backend parser the send path uses, so
+// forms can flag a typo inline.
+export async function validateAddress(address: string): Promise<AddressValidation> {
+  return await invoke("validate_address", { address });
+}

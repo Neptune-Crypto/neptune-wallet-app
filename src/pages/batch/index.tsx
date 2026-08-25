@@ -1,3 +1,4 @@
+import { AddressValidation, validateAddress } from "@/commands/wallet";
 import AccountContextLabel from "@/components/account-context-label";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader.tsx";
 import MonoText from "@/components/mono-text";
@@ -38,9 +39,10 @@ import {
   Stack,
   Text,
 } from "@mantine/core";
+import { useDebouncedValue } from "@mantine/hooks";
 import { modals } from "@mantine/modals";
 import { IconAlertTriangle, IconPlus } from "@tabler/icons-react";
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import {
   queryCurrentWalletID,
@@ -165,6 +167,35 @@ export default function BatchTranferPage() {
       .map((item, i) => (item.amount !== "" && Number(item.amount) === 0 ? i : -1))
       .filter((i) => i >= 0)
   );
+  // Inline recipient validation, one backend check per distinct address.
+  // A failed invoke deliberately leaves the verdict unknown: unknown never
+  // blocks the form, since the send path re-parses authoritatively.
+  const [addressChecks, setAddressChecks] = useState<Record<string, AddressValidation>>({});
+  const requestedChecks = useRef(new Set<string>());
+  const [debouncedInputs] = useDebouncedValue(sendInputs, 350);
+  useEffect(() => {
+    let cancelled = false;
+    debouncedInputs.forEach((item) => {
+      const addr = item.toAddress.trim();
+      if (!addr || requestedChecks.current.has(addr)) return;
+      requestedChecks.current.add(addr);
+      validateAddress(addr)
+        .then((verdict) => {
+          if (!cancelled) setAddressChecks((prev) => ({ ...prev, [addr]: verdict }));
+        })
+        .catch(() => {
+          requestedChecks.current.delete(addr);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedInputs]);
+  const invalidAddressIndexes = new Set<number>();
+  sendInputs.forEach((item, i) => {
+    const verdict = addressChecks[item.toAddress.trim()];
+    if (verdict && !verdict.valid) invalidAddressIndexes.add(i);
+  });
 
   // Max an individual recipient can receive: spendable minus fee and the other rows.
   function maxAmountFor(index: number) {
@@ -189,7 +220,13 @@ export default function BatchTranferPage() {
     if (findInput) {
       disabledButton = true;
     }
-    if (feeInvalid || overBalance || duplicateIndexes.size > 0 || zeroAmountIndexes.size > 0) {
+    if (
+      feeInvalid ||
+      overBalance ||
+      duplicateIndexes.size > 0 ||
+      zeroAmountIndexes.size > 0 ||
+      invalidAddressIndexes.size > 0
+    ) {
       disabledButton = true;
     }
     return disabledButton;
@@ -538,8 +575,13 @@ export default function BatchTranferPage() {
                     keyIndex={index}
                     showRemove={sendInputs.length > 1}
                     addressError={
-                      duplicateIndexes.has(index) ? "Duplicate recipient address" : undefined
+                      duplicateIndexes.has(index)
+                        ? "Duplicate recipient address"
+                        : invalidAddressIndexes.has(index)
+                          ? "Not a valid address for this network"
+                          : undefined
                     }
+                    addressKeyType={addressChecks[item.toAddress.trim()]?.keyType}
                     amountError={
                       zeroAmountIndexes.has(index) ? "Amount must be greater than 0" : undefined
                     }
