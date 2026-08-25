@@ -60,6 +60,10 @@ impl Config {
         mnemonic: Vec<String>,
         scan_config: ScanConfig,
     ) -> Result<i64> {
+        // The mnemonic is encrypted with the wallet keys below, which do not
+        // exist yet when the first account is created before a password.
+        self.ensure_wallet_keys().await?;
+
         let mut conn = self.db.acquire().await?;
 
         let network = self.get_network().await?;
