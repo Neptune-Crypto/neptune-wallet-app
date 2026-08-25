@@ -76,11 +76,20 @@ impl Config {
     }
 
     async fn set_data<T: Serialize>(&self, key: &str, value: &T) -> Result<()> {
+        let mut conn = self.db.acquire().await?;
+        Self::set_data_on(&mut conn, key, value).await
+    }
+
+    async fn set_data_on<T: Serialize>(
+        conn: &mut sqlx::SqliteConnection,
+        key: &str,
+        value: &T,
+    ) -> Result<()> {
         let data = serde_json::to_vec(value)?;
         sqlx::query("INSERT OR REPLACE INTO config (key, value) VALUES (?1, ?2)")
             .bind(key)
             .bind(data)
-            .execute(&self.db)
+            .execute(conn)
             .await
             .context("Failed to insert or replace data")?;
         Ok(())
@@ -211,27 +220,36 @@ impl Config {
                 .context("failed to decrypt config")?;
         }
 
-        self.password.lock().await.replace(password.to_string());
-        let secret_key = self
-            .create_secret_key()
-            .await
-            .context("create server secret")?;
-        match password {
-            "" => {
-                self.set_data::<Vec<u8>>(PASSWORD_TEST_KEY, &PASSWORD_TEST.as_bytes().to_vec())
-                    .await?;
-            }
-            _ => {
-                let encrypt_key = hash_to_secret_key(password);
-                let encrypted = tls::aes::aes_encode(&encrypt_key, PASSWORD_TEST.as_bytes())?;
-                self.set_data::<Vec<u8>>(PASSWORD_TEST_KEY, &encrypted)
-                    .await?;
-            }
+        let secret_key = tls::generate_p256_secret().context("generate secret")?;
+        let stored_secret_key = match password {
+            "" => secret_key.clone(),
+            _ => tls::aes::aes_encode(&hash_to_secret_key(password), &secret_key)?,
+        };
+        let canary = match password {
+            "" => PASSWORD_TEST.as_bytes().to_vec(),
+            _ => tls::aes::aes_encode(&hash_to_secret_key(password), PASSWORD_TEST.as_bytes())?,
         };
 
-        self.update_decrypt_key(secret_key)
-            .await
-            .context("update_decrypt_key")?;
+        // The guard stays held until the commit below, so no reader can
+        // observe the decrypt key while the rows sealing it are rewritten.
+        let mut decrypt_key_guard = self.decrypt_key.lock().await;
+        if decrypt_key_guard.is_empty() {
+            *decrypt_key_guard = tls::aes::generate_aes_256_key();
+        }
+        let wallet_secret = tls::aes::aes_encode(&secret_key, &decrypt_key_guard)?;
+
+        // The three rows depend on one another: secret_key opens
+        // wallet_secret, and the stored password check must match the
+        // password that opens secret_key. One transaction keeps a crash
+        // from splitting them, which would leave every stored mnemonic
+        // undecryptable.
+        let mut tx = self.db.begin().await?;
+        Self::set_data_on(&mut tx, "secret_key", &stored_secret_key).await?;
+        Self::set_data_on(&mut tx, PASSWORD_TEST_KEY, &canary).await?;
+        Self::set_data_on(&mut tx, "wallet_secret", &wallet_secret).await?;
+        tx.commit().await?;
+
+        self.password.lock().await.replace(password.to_string());
 
         Ok(())
     }
@@ -243,7 +261,7 @@ impl Config {
     /// Mark the wallet locked and forget the password held in memory.
     ///
     /// `decrypt_key` is deliberately left alone: an empty key is the signal
-    /// `update_decrypt_key` uses to generate a fresh one, so clearing it here
+    /// `set_password` uses to generate a fresh one, so clearing it here
     /// would cost the ability to decrypt the wallet secrets.
     pub(crate) async fn lock(&self) {
         self.locked.store(true, Ordering::Relaxed);
@@ -259,32 +277,6 @@ impl Config {
         self.locked.load(Ordering::Relaxed)
     }
 
-    pub(crate) async fn create_secret_key(&self) -> Result<Vec<u8>> {
-        let secret_key = tls::generate_p256_secret().context("generate secret")?;
-
-        match self.password.lock().await.as_ref() {
-            Some(v) => {
-                if v.is_empty() {
-                    self.set_data::<Vec<u8>>("secret_key", &secret_key)
-                        .await
-                        .context("cant write to db")?;
-                } else {
-                    let encrypt_key = hash_to_secret_key(v);
-                    let encrypted = tls::aes::aes_encode(&encrypt_key, &secret_key)?;
-                    self.set_data::<Vec<u8>>("secret_key", &encrypted)
-                        .await
-                        .context("cant write to db")?;
-                }
-            }
-
-            None => {
-                return Err(anyhow!("no password set!"));
-            }
-        }
-
-        Ok(secret_key)
-    }
-
     /// Creates the wallet encryption keys when none exist yet, so an account
     /// can be created before a password is chosen. A no-op once a secret key
     /// is stored.
@@ -292,12 +284,36 @@ impl Config {
         if self.get_data::<Vec<u8>>("secret_key").await?.is_some() {
             return Ok(());
         }
-        // create_secret_key encrypts under the in-memory password, which is
-        // still unset here; the empty password stores the key unencrypted
-        // until set_password re-wraps everything under the real one.
-        self.password.lock().await.get_or_insert_with(String::new);
-        let secret_key = self.create_secret_key().await?;
-        self.update_decrypt_key(secret_key).await
+
+        let secret_key = tls::generate_p256_secret().context("generate secret")?;
+        // The password is normally still unset here; the empty password
+        // stores the key unencrypted until set_password re-wraps everything
+        // under the real one.
+        let stored_secret_key = {
+            let mut password = self.password.lock().await;
+            let password = password.get_or_insert_with(String::new);
+            if password.is_empty() {
+                secret_key.clone()
+            } else {
+                tls::aes::aes_encode(&hash_to_secret_key(password), &secret_key)?
+            }
+        };
+
+        // Same discipline as set_password: the guard stays held until the
+        // commit below, and the two rows land in one transaction, so a crash
+        // cannot store a secret_key without the wallet_secret it opens.
+        let mut decrypt_key_guard = self.decrypt_key.lock().await;
+        if decrypt_key_guard.is_empty() {
+            *decrypt_key_guard = tls::aes::generate_aes_256_key();
+        }
+        let wallet_secret = tls::aes::aes_encode(&secret_key, &decrypt_key_guard)?;
+
+        let mut tx = self.db.begin().await?;
+        Self::set_data_on(&mut tx, "secret_key", &stored_secret_key).await?;
+        Self::set_data_on(&mut tx, "wallet_secret", &wallet_secret).await?;
+        tx.commit().await?;
+
+        Ok(())
     }
 
     // secret_key is encoded with the password, it will be changed when the password is changed
@@ -338,20 +354,6 @@ impl Config {
         let decoded =
             tls::aes::aes_decode(&symmetric_key, &encoded).context("decode decrypt_key")?;
         Ok(decoded)
-    }
-
-    /// used to init or update the decrypt key
-    async fn update_decrypt_key(&self, secret_key: Vec<u8>) -> Result<()> {
-        let mut decrypt_key_guard = self.decrypt_key.lock().await;
-        let mut old_decrypt_key = decrypt_key_guard.clone();
-        if old_decrypt_key.is_empty() {
-            old_decrypt_key = tls::aes::generate_aes_256_key();
-            *decrypt_key_guard = old_decrypt_key.clone();
-        }
-
-        let encoded = tls::aes::aes_encode(&secret_key, &old_decrypt_key)?;
-        self.set_data::<Vec<u8>>("wallet_secret", &encoded).await?;
-        Ok(())
     }
 
     /// Stored here rather than in the frontend so the choice survives a reset
@@ -431,24 +433,68 @@ mod tests {
         assert_eq!(5, config.get_auto_lock_minutes().await.unwrap());
     }
 
-    #[tokio::test]
-    #[traced_test]
-    async fn add_wallet_before_password() {
-        const PASSWORD: &str = "chosen after the account";
-        let config = Config::new(&unit_test_dir()).await.unwrap();
-
-        let mnemonic: Vec<String> = vec![
+    fn devnet_mnemonic() -> Vec<String> {
+        vec![
             "margin", "quality", "divorce", "tuition", "notable", "squirrel", "park", "jar", "end",
             "beauty", "attend", "cliff", "media", "letter", "private", "decline", "absurd",
             "uniform",
         ]
         .into_iter()
         .map(|x| x.to_string())
-        .collect();
+        .collect()
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn password_change_preserves_wallet_secrets() {
+        let config = Config::new(&unit_test_dir()).await.unwrap();
+        config.set_password("", "first password").await.unwrap();
+
+        let sealed = config.mnemonic_to_secret(devnet_mnemonic()).await.unwrap();
+
+        config
+            .set_password("first password", "second password")
+            .await
+            .unwrap();
+
+        // A mnemonic sealed before the change must survive the rekey.
+        assert_eq!(
+            devnet_mnemonic(),
+            config.secret_to_mnemonic(sealed).await.unwrap()
+        );
+        assert!(config.decrypt_config("second password").await.is_ok());
+        assert!(config.decrypt_config("first password").await.is_err());
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn password_change_rejects_wrong_old_password() {
+        let config = Config::new(&unit_test_dir()).await.unwrap();
+        config.set_password("", "right password").await.unwrap();
+        let sealed = config.mnemonic_to_secret(devnet_mnemonic()).await.unwrap();
+
+        assert!(config
+            .set_password("wrong password", "new password")
+            .await
+            .is_err());
+
+        // Nothing changed: the old password still opens everything.
+        assert!(config.decrypt_config("right password").await.is_ok());
+        assert_eq!(
+            devnet_mnemonic(),
+            config.secret_to_mnemonic(sealed).await.unwrap()
+        );
+    }
+
+    #[tokio::test]
+    #[traced_test]
+    async fn add_wallet_before_password() {
+        const PASSWORD: &str = "chosen after the account";
+        let config = Config::new(&unit_test_dir()).await.unwrap();
 
         // First-run order: the account exists before any password does.
         let id = config
-            .add_wallet("first", mnemonic.clone(), Default::default())
+            .add_wallet("first", devnet_mnemonic(), Default::default())
             .await
             .unwrap();
         assert!(!config.has_password().await.unwrap());
@@ -456,7 +502,10 @@ mod tests {
         config.set_password("", PASSWORD).await.unwrap();
 
         // The mnemonic stored before the password must survive the re-wrap.
-        assert_eq!(mnemonic, config.get_wallet_mnemonic(id).await.unwrap());
+        assert_eq!(
+            devnet_mnemonic(),
+            config.get_wallet_mnemonic(id).await.unwrap()
+        );
         assert!(config.decrypt_config(PASSWORD).await.is_ok());
     }
 
