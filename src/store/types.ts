@@ -211,5 +211,7 @@ export interface ExecutionState {
 
 export interface ContactState {
   loadingContacts: boolean;
+  // False until a fetch settles: separates "not loaded yet" from "loaded but empty".
+  contactsLoaded: boolean;
   contacts: Contact[];
 }
