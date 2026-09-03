@@ -2,7 +2,6 @@ import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
 import { useAllContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
-import { sleep_milliseconds } from "@/utils/common";
 import { notify } from "@/utils/notify";
 import { addContactAddress } from "@/utils/storage";
 import { useAddressValidation } from "@/utils/use-address-validation";
@@ -33,10 +32,10 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
     if (isDuplicate) return;
     try {
       setLoading(true);
-      contact.createdTime = new Date().getTime();
-      addContactAddress({ contact: { ...contact, address: trimmedAddress } });
+      await addContactAddress({
+        contact: { ...contact, address: trimmedAddress, createdTime: Date.now() },
+      });
       notify.success("Contact added successfully");
-      await sleep_milliseconds(100);
       dispatch(queryAllContacts());
       close();
     } catch (error: any) {
