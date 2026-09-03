@@ -115,6 +115,18 @@ export default function BatchTranferPage() {
     }
   }, [location]);
 
+  // A pinned coin selection belongs to the account it was made in; its ids
+  // mean nothing to another account, so drop it when the account changes.
+  const selectionAccount = useRef(currentWalletID);
+  useEffect(() => {
+    if (selectionAccount.current === currentWalletID) return;
+    selectionAccount.current = currentWalletID;
+    if (selectedInputs.length === 0) return;
+    setSelectedInputs([]);
+    setSelectedAmount("");
+    notify.info("Coin selection cleared because you switched accounts.", "Selection cleared");
+  }, [currentWalletID]);
+
   useEffect(() => {
     dispatch(queryExecutionHistorys({ addressId: currentWalletID, serverUrl }));
   }, [dispatch, currentWalletID, serverUrl]);
