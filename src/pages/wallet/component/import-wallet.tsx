@@ -1,4 +1,5 @@
 import { addWallet, setCurrentWallet } from "@/commands/wallet";
+import { useLatestBlock } from "@/store/sync/hooks";
 import { normalizeMnemonic } from "@/utils/mnemonic";
 import { notify } from "@/utils/notify";
 import { Button, Flex, NumberInput, Textarea, TextInput, Tooltip } from "@mantine/core";
@@ -13,6 +14,10 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
     startHeight: 0,
   });
   const [loading, setLoading] = useState(false);
+  const latestBlock = useLatestBlock();
+  // The backend rejects this too; checking here gives an inline error instead
+  // of a failed import. Skipped while the tip is unknown (0).
+  const aboveTip = latestBlock > 0 && importData.startHeight > latestBlock;
 
   async function handleImport() {
     try {
@@ -37,7 +42,7 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
     if (importData.name === "" || importData.mnemonic === "" || importData.numKeys === 0) {
       return true;
     }
-    return false;
+    return aboveTip;
   }
 
   return (
@@ -127,6 +132,10 @@ export default function ImportWallet({ onCreated }: { onCreated: () => void }) {
           w={"50%"}
           placeholder="Enter the start block height"
           min={0}
+          max={latestBlock > 0 ? latestBlock : undefined}
+          error={
+            aboveTip ? `Above the current chain tip (${latestBlock.toLocaleString()})` : undefined
+          }
           hideControls
           allowDecimal={false}
           allowNegative={false}

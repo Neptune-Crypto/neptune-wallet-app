@@ -189,13 +189,18 @@ pub(crate) async fn add_wallet(
 ) -> Result<i64> {
     let phrase = mnemonic.split_whitespace().map(|s| s.to_string()).collect();
 
-    //wallet is new, set start height to tip
+    // The tip pins a new account's start height. For an import it only bounds
+    // the typed height, so an unreachable node does not block restoring offline.
+    let tip = rpc_client::node_rpc_client().get_tip_header().await;
     if is_new {
-        let tip = rpc_client::node_rpc_client()
-            .get_tip_header()
-            .await
-            .into_tauri_result()?;
-        start_height = tip.height.into();
+        start_height = tip.into_tauri_result()?.height.into();
+    } else if let Ok(tip) = tip {
+        let tip: u64 = tip.height.into();
+        if start_height > tip {
+            return Err(format!(
+                "Start block height {start_height} is above the current chain tip ({tip}). Use a height at or below the tip."
+            ));
+        }
     }
 
     let wallet_config = ScanConfig {
@@ -384,6 +389,17 @@ pub(crate) async fn lock_wallet() -> Result<()> {
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
 pub(crate) async fn reset_to_height(height: u64) -> Result<()> {
+    let tip: u64 = rpc_client::node_rpc_client()
+        .get_tip_header()
+        .await
+        .into_tauri_result()?
+        .height
+        .into();
+    if height > tip {
+        return Err(format!(
+            "Resync height {height} is above the current chain tip ({tip}). Use a height at or below the tip."
+        ));
+    }
     let state = crate::service::try_get_state_repeated::<Arc<SyncState>>(
         10,
         Duration::from_millis(300),
