@@ -97,6 +97,13 @@ function SyncStatusCell({
       color = "gray";
       label = `At ${height}`;
       detail = `Synced to ${height}`;
+    } else if (behind < -2) {
+      // A start height above the tip: the scan waits for the chain to reach it
+      // and finds nothing until then. A stale latest height can trail the
+      // synced one by a block or two, so only a clear gap is flagged.
+      color = "red";
+      label = "Above chain tip";
+      detail = `Synced height ${height} is above the chain tip ${latestBlock.toLocaleString()} — nothing is scanned until the chain reaches it. Resync from a lower height.`;
     } else if (behind <= 0) {
       color = "green";
       label = "Synced";

@@ -1,6 +1,7 @@
 import { set_onboarding_password } from "@/commands/password";
 import { addWallet } from "@/commands/wallet";
 import { useAppDispatch } from "@/store/hooks";
+import { useLatestBlock } from "@/store/sync/hooks";
 import { useOneTimePassword, useOneTimeWalletName } from "@/store/wallet/hooks";
 import { setOneTimePassword } from "@/store/wallet/wallet-slice";
 import { normalizeMnemonic } from "@/utils/mnemonic";
@@ -21,6 +22,10 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
   const walletName = useOneTimeWalletName();
   const oneTimePassword = useOneTimePassword();
   const dispatch = useAppDispatch();
+  const latestBlock = useLatestBlock();
+  // The backend rejects this too; checking here gives an inline error instead
+  // of a failed import. Skipped while the tip is unknown (0).
+  const aboveTip = latestBlock > 0 && importData.startHeight > latestBlock;
 
   async function handleImport() {
     setLoading(true);
@@ -126,6 +131,10 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
             thousandSeparator
             placeholder="Enter the start block height"
             min={0}
+            max={latestBlock > 0 ? latestBlock : undefined}
+            error={
+              aboveTip ? `Above the current chain tip (${latestBlock.toLocaleString()})` : undefined
+            }
             hideControls
             allowDecimal={false}
             allowNegative={false}
@@ -144,7 +153,7 @@ export default function ImportCecret({ nextStep }: { nextStep: () => void }) {
         <Button
           variant="light"
           fullWidth
-          disabled={!importData.mnemonic}
+          disabled={!importData.mnemonic || aboveTip}
           loading={loading}
           onClick={handleImport}
         >

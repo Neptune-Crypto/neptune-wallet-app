@@ -1,4 +1,5 @@
 import { resetToHeight } from "@/commands/wallet";
+import { useLatestBlock } from "@/store/sync/hooks";
 import { notify } from "@/utils/notify";
 import { Alert, Button, Flex, FocusTrap, Modal, NumberInput, Stack, Text } from "@mantine/core";
 import { useEffect, useState } from "react";
@@ -6,6 +7,10 @@ import { useEffect, useState } from "react";
 export default function ResyncModal({ opened, close }: { opened: boolean; close: () => void }) {
   const [height, setHeight] = useState("0");
   const [loading, setLoading] = useState(false);
+  const latestBlock = useLatestBlock();
+  // The backend rejects this too; checking here gives an inline error instead
+  // of a failed resync. Skipped while the tip is unknown (0).
+  const aboveTip = latestBlock > 0 && Number(height) > latestBlock;
 
   useEffect(() => {
     setHeight("0");
@@ -58,11 +63,15 @@ export default function ResyncModal({ opened, close }: { opened: boolean; close:
           hideControls
           onChange={(value) => setHeight(value.toString())}
           min={0}
+          max={latestBlock > 0 ? latestBlock : undefined}
+          error={
+            aboveTip ? `Above the current chain tip (${latestBlock.toLocaleString()})` : undefined
+          }
         />
         <Button
           loading={loading}
           variant={"light"}
-          disabled={!height}
+          disabled={!height || aboveTip}
           onClick={() => resyncHeight()}
         >
           Resync
