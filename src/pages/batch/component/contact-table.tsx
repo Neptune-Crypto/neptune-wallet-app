@@ -2,7 +2,7 @@ import EmptyTable from "@/components/empty-table";
 import MonoText from "@/components/mono-text";
 import { Contact } from "@/database/types/contact";
 import { queryAllContacts } from "@/store/contact/contact-slice";
-import { useAllContacts, useLoadingContacts } from "@/store/contact/hooks";
+import { useAllContacts, useContactsLoaded, useLoadingContacts } from "@/store/contact/hooks";
 import { useAppDispatch } from "@/store/hooks";
 import { notify } from "@/utils/notify";
 import { deleteContactAddress } from "@/utils/storage";
@@ -19,12 +19,13 @@ import {
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import { IconPencil, IconPlus, IconTrash } from "@tabler/icons-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AddContact from "./add-contact";
 import EditContact from "./edit-contact";
 
 export default function ContactTable() {
   const loading = useLoadingContacts();
+  const contactsLoaded = useContactsLoaded();
   const contracts = useAllContacts();
   // This page manages user-saved contacts only. A wallet's own addresses (type
   // "owner") are merged into the shared list for the Send picker, but are not
@@ -33,6 +34,9 @@ export default function ContactTable() {
   const dispatch = useAppDispatch();
   const [showAddContact, setShowAddContact] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  useEffect(() => {
+    dispatch(queryAllContacts());
+  }, [dispatch]);
   async function handleDelete(address: string) {
     try {
       await deleteContactAddress({ address });
@@ -121,7 +125,10 @@ export default function ContactTable() {
           overlayProps={{ radius: "sm", blur: 2 }}
           loaderProps={{ color: "blue" }}
         />
-        {!loading && customContacts.length > 0 ? (
+        {/* The LoadingOverlay covers the table during a refetch, so the table
+            stays mounted. An empty list only means "no contacts" once a fetch
+            has settled, so the empty state waits for contactsLoaded. */}
+        {customContacts.length > 0 ? (
           <ScrollArea
             style={{ flex: 1, minHeight: 0 }}
             type="auto"
@@ -150,7 +157,7 @@ export default function ContactTable() {
               <Table.Tbody>{rows}</Table.Tbody>
             </Table>
           </ScrollArea>
-        ) : (
+        ) : loading || !contactsLoaded ? null : (
           <EmptyTable message="No contacts yet" />
         )}
       </Box>

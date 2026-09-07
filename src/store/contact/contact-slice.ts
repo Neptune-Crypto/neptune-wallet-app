@@ -5,6 +5,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { ContactState } from "../types";
 const initialState: ContactState = {
   loadingContacts: false,
+  contactsLoaded: false,
   contacts: [],
 };
 const contactSlice = createSlice({
@@ -17,10 +18,14 @@ const contactSlice = createSlice({
     });
     builder.addCase(queryAllContacts.fulfilled, (state, action) => {
       state.loadingContacts = false;
+      state.contactsLoaded = true;
       state.contacts = action.payload.data;
     });
+    // A failure still counts as settled, so views stop waiting; contacts are
+    // left untouched, keeping the last known list.
     builder.addCase(queryAllContacts.rejected, (state) => {
       state.loadingContacts = false;
+      state.contactsLoaded = true;
     });
   },
 });
