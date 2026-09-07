@@ -14,6 +14,9 @@ export default function CreatePage(props: Props) {
   const [active, setActive] = useState(0);
   const nextStep = () => setActive((current) => (current < 3 ? current + 1 : current));
   const prevStep = () => setActive((current) => (current > 0 ? current - 1 : current));
+  // Both navigation controls stop once the wizard completes, so the success
+  // screen cannot reopen it.
+  const inWizard = active <= 2;
 
   return (
     <Card
@@ -26,7 +29,7 @@ export default function CreatePage(props: Props) {
         minWidth: "600px",
       }}
     >
-      {active <= 2 && (
+      {inWizard && (
         <Flex direction={"column"}>
           <Flex
             direction={"row"}
@@ -50,7 +53,7 @@ export default function CreatePage(props: Props) {
         size="xs"
         iconSize={24}
         active={active}
-        onStepClick={setActive}
+        onStepClick={inWizard ? setActive : undefined}
         allowNextStepsSelect={false}
         styles={{
           steps: {
