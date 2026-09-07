@@ -8,14 +8,16 @@ import { useAddressValidation } from "@/utils/use-address-validation";
 import { Badge, Button, Flex, Modal, Text, Textarea, TextInput } from "@mantine/core";
 import { useState } from "react";
 
+const EMPTY_CONTACT: Contact = {
+  aliasName: "",
+  address: "",
+  remark: "",
+  type: "",
+  createdTime: 0,
+};
+
 export default function AddContact({ opened, close }: { opened: boolean; close: () => void }) {
-  const [contact, setContact] = useState({
-    aliasName: "",
-    address: "",
-    remark: "",
-    type: "",
-    createdTime: 0,
-  } as Contact);
+  const [contact, setContact] = useState<Contact>(EMPTY_CONTACT);
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
   const contacts = useAllContacts();
@@ -28,6 +30,12 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
   const { invalid: isInvalidAddress, keyType: addressKeyType } =
     useAddressValidation(trimmedAddress);
 
+  // The dialog stays mounted between opens, so clear the form whenever it closes.
+  function handleClose() {
+    setContact(EMPTY_CONTACT);
+    close();
+  }
+
   async function handleSubmit() {
     if (isDuplicate) return;
     try {
@@ -37,7 +45,7 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
       });
       notify.success("Contact added successfully");
       dispatch(queryAllContacts());
-      close();
+      handleClose();
     } catch (error: any) {
       console.error(error);
       notify.error(error, "Please try again.", "Couldn't add contact");
@@ -45,7 +53,7 @@ export default function AddContact({ opened, close }: { opened: boolean; close: 
     setLoading(false);
   }
   return (
-    <Modal opened={opened} onClose={close} title="Add contact">
+    <Modal opened={opened} onClose={handleClose} title="Add contact">
       <Flex direction="column" gap="md">
         <TextInput
           data-autofocus
