@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use itertools::Itertools;
 use neptune_consensus::block::block_header::BlockHeader;
+use neptune_consensus::consensus_rule_set::ConsensusRuleSet;
 use neptune_consensus::proof_abstractions::tx_proving_capability::TxProvingCapability;
 use neptune_consensus::transaction::announcement::Announcement;
 use neptune_consensus::transaction::transparent_input::TransparentInput;
@@ -190,6 +191,23 @@ impl super::WalletState {
                 (details, change, db_ids, tx_outputs, tip)
             };
 
+            // Nodes admit a transaction under the rule set of their tip, which
+            // also fixes the proof version it must be proven for.
+            let consensus_rule_set = ConsensusRuleSet::infer_from(self.network, tip.header.height);
+
+            // Nodes clear their mempool when a fork activates, so a transaction
+            // built on the last block before one is admitted but never confirms,
+            // leaving its inputs reserved.
+            let next_height = tip.header.height.next();
+            let next_rule_set = ConsensusRuleSet::infer_from(self.network, next_height);
+            if next_rule_set != consensus_rule_set {
+                return Err(SendError::NotConfirmable(NotConfirmableError(format!(
+                    "The network upgrade to {next_rule_set} activates at block {next_height}, \
+                     so a transaction made now could not confirm. Please try again once \
+                     that block has been mined."
+                ))));
+            }
+
             // Checked before proving so a rejected transaction costs no proof.
             if transaction_details.contains_lustrations() && !accept_lustration {
                 let lustration_status =
@@ -217,7 +235,12 @@ impl super::WalletState {
             // No spend lock here. Proving takes minutes and touches no wallet
             // state, so blocks keep being applied while it runs.
             let proving = self
-                .create_raw_transaction(&transaction_details, tx_proving_capability, tip.digest)
+                .create_raw_transaction(
+                    &transaction_details,
+                    tx_proving_capability,
+                    consensus_rule_set,
+                    tip.digest,
+                )
                 .await;
 
             let transaction = match proving {
@@ -658,18 +681,25 @@ impl super::WalletState {
         &self,
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
+        consensus_rule_set: ConsensusRuleSet,
         built_against: Digest,
     ) -> anyhow::Result<Transaction> {
         // note: this executes the prover which can take a very
         //       long time, perhaps minutes.  The `await` here, should avoid
         //       block the tokio executor and other async tasks.
-        Self::create_transaction_from_data_worker(transaction_details, proving_power, built_against)
-            .await
+        Self::create_transaction_from_data_worker(
+            transaction_details,
+            proving_power,
+            consensus_rule_set,
+            built_against,
+        )
+        .await
     }
 
     async fn create_transaction_from_data_worker(
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
+        consensus_rule_set: ConsensusRuleSet,
         built_against: Digest,
     ) -> anyhow::Result<Transaction> {
         let primitive_witness = transaction_details.primitive_witness();
@@ -692,7 +722,11 @@ impl super::WalletState {
                 let (_watcher, guard) = TipWatcher::spawn(built_against);
 
                 let collection = tokio::task::spawn_blocking(move || {
-                    ProofBuilder::produce_proof_collection(&primitive_witness, &guard)
+                    ProofBuilder::produce_proof_collection(
+                        &primitive_witness,
+                        consensus_rule_set,
+                        &guard,
+                    )
                 })
                 .await;
 

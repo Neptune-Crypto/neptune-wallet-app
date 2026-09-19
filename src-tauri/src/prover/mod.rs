@@ -2,6 +2,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use neptune_consensus::proof_abstractions::tasm::legacy_stark_verify::claim_uses_legacy_proof_system;
+use neptune_consensus::proof_abstractions::tasm::legacy_stark_verify::LegacyProverPipeline;
 use neptune_wallet::triton_vm::prelude::Program;
 use neptune_wallet::triton_vm::proof::Claim;
 use neptune_wallet::triton_vm::proof::Proof;
@@ -59,11 +61,63 @@ impl ProofBuilder {
             anyhow::bail!(StaleProof);
         }
 
-        let default_stark: Stark = Stark::default();
-
-        let proof = prove(default_stark, &claim, program, non_determinism)?;
+        // Nodes verify a claim under the proof system its version selects, so
+        // claims from before hardfork delta need the legacy VM. That pipeline
+        // panics on failure.
+        let proof = if claim_uses_legacy_proof_system(&claim) {
+            LegacyProverPipeline::trace(&program, &claim, non_determinism).prove()
+        } else {
+            prove(Stark::default(), &claim, program, non_determinism)?
+        };
         info!("triton-vm: completed proof");
 
         Ok(proof)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use neptune_consensus::consensus_rule_set::ConsensusRuleSet;
+    use neptune_consensus::proof_abstractions::verifier::verify_transaction_proof;
+    use neptune_primitives::network::Network;
+    use neptune_wallet::triton_vm::prelude::BFieldElement;
+
+    use super::proof_collection::claim_version;
+    use super::*;
+
+    /// Uses input, nondeterminism and output, so the legacy VM conversion has
+    /// to carry all three.
+    fn prove_for(consensus_rule_set: ConsensusRuleSet) -> (Claim, Proof) {
+        let program = Program::from_code("read_io 1 divine 1 add write_io 1 halt").unwrap();
+        let claim = Claim::about_program(&program)
+            .about_version(claim_version(consensus_rule_set))
+            .with_input(vec![BFieldElement::new(41)])
+            .with_output(vec![BFieldElement::new(42)]);
+        let non_determinism = NonDeterminism::new(vec![BFieldElement::new(1)]);
+        let guard = ProvingGuard::new(Arc::new(AtomicBool::new(false)));
+
+        let proof = ProofBuilder::produce(program, claim.clone(), non_determinism, &guard).unwrap();
+        (claim, proof)
+    }
+
+    #[tokio::test]
+    async fn nodes_accept_proofs_for_their_rule_set_only() {
+        let network = Network::Main;
+
+        let (gamma_claim, gamma_proof) = prove_for(ConsensusRuleSet::HardforkGamma);
+        let (delta_claim, delta_proof) = prove_for(ConsensusRuleSet::HardforkDelta);
+
+        assert!(
+            verify_transaction_proof(gamma_claim.clone(), gamma_proof.clone().into(), network)
+                .await
+        );
+        assert!(
+            verify_transaction_proof(delta_claim.clone(), delta_proof.clone().into(), network)
+                .await
+        );
+
+        // A version-5 proof checked as version 8 is the bug this branch fixes.
+        assert!(!verify_transaction_proof(delta_claim, gamma_proof.into(), network).await);
+        assert!(!verify_transaction_proof(gamma_claim, delta_proof.into(), network).await);
     }
 }
