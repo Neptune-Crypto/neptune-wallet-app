@@ -208,6 +208,15 @@ impl super::WalletState {
                 ))));
             }
 
+            if !ProofBuilder::can_prove_for(consensus_rule_set) {
+                return Err(SendError::NotConfirmable(NotConfirmableError(format!(
+                    "Your node is at block {}, which is before a network upgrade this \
+                     wallet requires. Please try again once your node has caught up with \
+                     the network.",
+                    tip.header.height
+                ))));
+            }
+
             // Checked before proving so a rejected transaction costs no proof.
             if transaction_details.contains_lustrations() && !accept_lustration {
                 let lustration_status =
@@ -768,7 +777,6 @@ impl super::WalletState {
 #[error("Lustration is required for this transaction: {0}")]
 pub struct LustrationError(pub String);
 
-/// Every attempt lost its race against a new block, so none could be submitted.
 /// Nothing was broadcast, so nothing is left behind to retry: the user has to
 /// start the send again.
 #[derive(Debug, Error)]
