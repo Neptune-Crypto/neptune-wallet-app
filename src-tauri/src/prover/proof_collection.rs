@@ -39,7 +39,6 @@ impl super::ProofBuilder {
     pub(crate) fn produce_proof_collection(
         primitive_witness: &PrimitiveWitness,
         consensus_rule_set: ConsensusRuleSet,
-        guard: &super::ProvingGuard,
     ) -> Result<ProofCollection> {
         let proof_version = claim_version(consensus_rule_set);
         let (
@@ -66,7 +65,6 @@ impl super::ProofBuilder {
                 .claim()
                 .about_version(proof_version),
             removal_records_integrity_witness.nondeterminism(),
-            guard,
         )?
         .into();
 
@@ -77,7 +75,6 @@ impl super::ProofBuilder {
                 .claim()
                 .about_version(proof_version),
             collect_lock_scripts_witness.nondeterminism(),
-            guard,
         )?
         .into();
 
@@ -88,7 +85,6 @@ impl super::ProofBuilder {
                 .claim()
                 .about_version(proof_version),
             kernel_to_outputs_witness.nondeterminism(),
-            guard,
         )?
         .into();
 
@@ -99,7 +95,6 @@ impl super::ProofBuilder {
                 .claim()
                 .about_version(proof_version),
             collect_type_scripts_witness.nondeterminism(),
-            guard,
         )?
         .into();
 
@@ -113,7 +108,6 @@ impl super::ProofBuilder {
                 lock_script_and_witness.program.clone(),
                 claim,
                 lock_script_and_witness.nondeterminism(),
-                guard,
             )?
             .into();
             lock_scripts_halt.push(lock_script_and_witness);
@@ -136,7 +130,7 @@ impl super::ProofBuilder {
                 .with_input(input);
 
             let type_script_halt =
-                Self::produce(tsaw.program.clone(), claim, tsaw.nondeterminism(), guard)?.into();
+                Self::produce(tsaw.program.clone(), claim, tsaw.nondeterminism())?.into();
 
             type_scripts_halt.push(type_script_halt);
         }

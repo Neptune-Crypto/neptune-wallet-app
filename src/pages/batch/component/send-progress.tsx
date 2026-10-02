@@ -16,11 +16,11 @@ const PHASES = [
   { label: "Awaiting confirmation" },
 ];
 
-// A block arriving during proving forces a rebuild, sending the panel back to
-// phase 0. Say why, or it reads as a stall.
+// A proof the node refuses forces a rebuild, sending the panel back to phase 0.
+// Say why, or it reads as a stall.
 const REBUILD_DESCRIPTION =
-  "A new block arrived while your transaction was being proven, so it has to be " +
-  "proven again against the new block, which restarts the wait.";
+  "Several new blocks arrived while your transaction was being proven, so it has to " +
+  "be proven again, which restarts the wait.";
 
 function phaseFromStatus(status: string): number {
   const match = status.match(/step (\d+)/);
