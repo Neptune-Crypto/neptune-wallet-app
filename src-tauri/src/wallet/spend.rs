@@ -1,7 +1,4 @@
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::time::Duration;
 
 use itertools::Itertools;
 use neptune_consensus::block::block_header::BlockHeader;
@@ -32,63 +29,17 @@ use num_traits::CheckedSub;
 use thiserror::Error;
 use tracing::*;
 
-use super::input::tip_moved_since;
 use super::input::InputSelectionRule;
 use crate::config::Config;
 use crate::prover::ProofBuilder;
-use crate::prover::ProvingGuard;
-use crate::prover::StaleProof;
 use crate::rpc::OutputInfo;
 use crate::rpc_client;
 use crate::rpc_client::BroadcastError;
 use crate::wallet::wallet_state_table::ExpectedUtxoData;
 
-/// How many times a send builds and proves before giving up and telling the user.
-///
-/// A block landing during proving makes the proof unconfirmable, and a rebuild is
-/// another full proving run that can lose the same race. Losing three in a row is
-/// rare enough to surface: an unbroadcast transaction is in no mempool, so no
-/// node knows it exists and nothing else can rescue it.
+/// How many proofs a send makes before giving up, should the node refuse each
+/// one as built on a block too far behind its tip.
 const MAX_SEND_ATTEMPTS: usize = 3;
-
-/// How often to ask the node whether the tip moved while a proof is running.
-///
-/// Only bounds how late an abandonment can be, so it trades a cheap request
-/// against wasted proving. Sub proofs are seconds to minutes long, so polling
-/// faster than this would not abandon any sooner.
-const TIP_POLL_INTERVAL: Duration = Duration::from_secs(10);
-
-/// Polls the node's tip while a proof runs, raising the guard once it moves.
-///
-/// Aborts on drop, so no exit path leaves the poll running.
-struct TipWatcher(tokio::task::JoinHandle<()>);
-
-impl TipWatcher {
-    fn spawn(built_against: Digest) -> (Self, ProvingGuard) {
-        let stale = Arc::new(AtomicBool::new(false));
-
-        let handle = {
-            let stale = stale.clone();
-            tokio::spawn(async move {
-                loop {
-                    tokio::time::sleep(TIP_POLL_INTERVAL).await;
-                    if tip_moved_since(&built_against).await {
-                        stale.store(true, Ordering::Relaxed);
-                        return;
-                    }
-                }
-            })
-        };
-
-        (Self(handle), ProvingGuard::new(stale))
-    }
-}
-
-impl Drop for TipWatcher {
-    fn drop(&mut self) {
-        self.0.abort();
-    }
-}
 
 /// A transaction proven against one particular tip.
 struct ProvenSend {
@@ -208,6 +159,15 @@ impl super::WalletState {
                 ))));
             }
 
+            if !ProofBuilder::can_prove_for(consensus_rule_set) {
+                return Err(SendError::NotConfirmable(NotConfirmableError(format!(
+                    "Your node is at block {}, which is before a network upgrade this \
+                     wallet requires. Please try again once your node has caught up with \
+                     the network.",
+                    tip.header.height
+                ))));
+            }
+
             // Checked before proving so a rejected transaction costs no proof.
             if transaction_details.contains_lustrations() && !accept_lustration {
                 let lustration_status =
@@ -239,31 +199,11 @@ impl super::WalletState {
                     &transaction_details,
                     tx_proving_capability,
                     consensus_rule_set,
-                    tip.digest,
                 )
                 .await;
 
             let transaction = match proving {
                 Ok(tx) => tx,
-                // Abandoned, not failed: a block landed, so the tip check below
-                // would have rejected this proof anyway. Fall through to it.
-                Err(e) if e.downcast_ref::<StaleProof>().is_some() => {
-                    if attempt == MAX_SEND_ATTEMPTS {
-                        warn!(
-                            "Abandoned proving on the final attempt. Recording the \
-                             transaction as pending for the updater to rebuild."
-                        );
-                        // Nothing proven to enqueue, so this attempt ends the send.
-                        return Err(SendError::Proof(e));
-                    }
-                    attempt += 1;
-                    info!(
-                        "Rebuilding the transaction against the node's new tip \
-                         (attempt {attempt} of {MAX_SEND_ATTEMPTS})."
-                    );
-                    pinned_inputs = db_ids;
-                    continue;
-                }
                 Err(e) => {
                     tracing::error!("Could not prove transaction: {}", e);
                     return Err(e.into());
@@ -299,46 +239,31 @@ impl super::WalletState {
                 change_commitment,
             };
 
-            // If the node moved on while we proved, this can never confirm.
-            let stale = if tip_moved_since(&tip.digest).await {
-                info!(
-                    "A block arrived while proving; the transaction is no longer \
-                     confirmable relative to the node's mutator set."
-                );
-                true
-            } else {
-                let _ = crate::service::app::emit_event_to(
-                    "main",
-                    "send_state",
-                    "stmi: step 5. broadcast transaction.",
-                );
+            let _ = crate::service::app::emit_event_to(
+                "main",
+                "send_state",
+                "stmi: step 5. broadcast transaction.",
+            );
 
-                match rpc_client::node_rpc_client()
-                    .broadcast_transaction(proven.transaction.clone())
-                    .await
-                {
-                    Ok(_txid) => false,
-                    // Lost the race between the check and the submission.
-                    Err(BroadcastError::NotConfirmable) => {
-                        info!("Node rejected the transaction as not confirmable.");
-                        true
-                    }
-                    Err(e) => return Err(e.into()),
+            match rpc_client::node_rpc_client()
+                .broadcast_transaction(proven.transaction.clone())
+                .await
+            {
+                Ok(_txid) => break proven,
+                Err(BroadcastError::NotConfirmable) => {
+                    info!("Node rejected the transaction as not confirmable.");
                 }
-            };
-
-            if !stale {
-                break proven;
+                Err(e) => return Err(e.into()),
             }
 
             if attempt == MAX_SEND_ATTEMPTS {
-                warn!("Could not broadcast the transaction within {MAX_SEND_ATTEMPTS} attempts.");
-                // An unbroadcast transaction is in no mempool, so nothing would
-                // ever advance it. Recording it as pending would strand it.
+                warn!("The node refused the transaction in all {MAX_SEND_ATTEMPTS} attempts.");
+                // A refused transaction is in no mempool, so recording it as
+                // pending would strand its inputs.
                 return Err(SendError::NotConfirmable(NotConfirmableError(format!(
-                    "A new block arrived during each of {MAX_SEND_ATTEMPTS} attempts to \
-                     prove this transaction, so none of them could be submitted. \
-                     Please try again."
+                    "The node could not accept this transaction in {MAX_SEND_ATTEMPTS} \
+                     attempts: each time, too many blocks arrived while it was being \
+                     proven. Please try again."
                 ))));
             }
 
@@ -682,7 +607,6 @@ impl super::WalletState {
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
         consensus_rule_set: ConsensusRuleSet,
-        built_against: Digest,
     ) -> anyhow::Result<Transaction> {
         // note: this executes the prover which can take a very
         //       long time, perhaps minutes.  The `await` here, should avoid
@@ -691,7 +615,6 @@ impl super::WalletState {
             transaction_details,
             proving_power,
             consensus_rule_set,
-            built_against,
         )
         .await
     }
@@ -700,7 +623,6 @@ impl super::WalletState {
         transaction_details: &TransactionDetails,
         proving_power: TxProvingCapability,
         consensus_rule_set: ConsensusRuleSet,
-        built_against: Digest,
     ) -> anyhow::Result<Transaction> {
         let primitive_witness = transaction_details.primitive_witness();
 
@@ -716,17 +638,8 @@ impl super::WalletState {
             TxProvingCapability::PrimitiveWitness => TransactionProof::Witness(primitive_witness),
             TxProvingCapability::LockScript => todo!(),
             TxProvingCapability::ProofCollection => {
-                // Asking the node keeps this independent of the wallet's own
-                // sync progress. The digest identifies the block, so a reorg at
-                // the same height counts as a move.
-                let (_watcher, guard) = TipWatcher::spawn(built_against);
-
                 let collection = tokio::task::spawn_blocking(move || {
-                    ProofBuilder::produce_proof_collection(
-                        &primitive_witness,
-                        consensus_rule_set,
-                        &guard,
-                    )
+                    ProofBuilder::produce_proof_collection(&primitive_witness, consensus_rule_set)
                 })
                 .await;
 
@@ -768,9 +681,8 @@ impl super::WalletState {
 #[error("Lustration is required for this transaction: {0}")]
 pub struct LustrationError(pub String);
 
-/// Every attempt lost its race against a new block, so none could be submitted.
-/// Nothing was broadcast, so nothing is left behind to retry: the user has to
-/// start the send again.
+/// No node holds the transaction, so nothing is left behind to retry: the user
+/// has to start the send again.
 #[derive(Debug, Error)]
 #[error("{0}")]
 pub struct NotConfirmableError(pub String);

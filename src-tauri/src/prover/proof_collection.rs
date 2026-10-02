@@ -13,6 +13,7 @@ use neptune_consensus::transaction::validity::removal_records_integrity::Removal
 use neptune_primitives::mast_hash::MastHash;
 use neptune_wallet::tasm_lib::prelude::Tip5;
 use neptune_wallet::triton_vm::proof::Claim;
+use neptune_wallet::triton_vm::proof::CURRENT_VERSION;
 use neptune_wallet::triton_vm::vm::PublicInput;
 use tracing::debug;
 use tracing::info;
@@ -29,11 +30,15 @@ pub(crate) fn claim_version(consensus_rule_set: ConsensusRuleSet) -> u32 {
 }
 
 impl super::ProofBuilder {
+    /// False for rule sets before hardfork delta, whose proofs need an older Triton VM.
+    pub(crate) fn can_prove_for(consensus_rule_set: ConsensusRuleSet) -> bool {
+        claim_version(consensus_rule_set) == CURRENT_VERSION
+    }
+
     /// Prove a transaction for the rule set of the block it is built against.
     pub(crate) fn produce_proof_collection(
         primitive_witness: &PrimitiveWitness,
         consensus_rule_set: ConsensusRuleSet,
-        guard: &super::ProvingGuard,
     ) -> Result<ProofCollection> {
         let proof_version = claim_version(consensus_rule_set);
         let (
@@ -60,7 +65,6 @@ impl super::ProofBuilder {
                 .claim()
                 .about_version(proof_version),
             removal_records_integrity_witness.nondeterminism(),
-            guard,
         )?
         .into();
 
@@ -71,7 +75,6 @@ impl super::ProofBuilder {
                 .claim()
                 .about_version(proof_version),
             collect_lock_scripts_witness.nondeterminism(),
-            guard,
         )?
         .into();
 
@@ -82,7 +85,6 @@ impl super::ProofBuilder {
                 .claim()
                 .about_version(proof_version),
             kernel_to_outputs_witness.nondeterminism(),
-            guard,
         )?
         .into();
 
@@ -93,7 +95,6 @@ impl super::ProofBuilder {
                 .claim()
                 .about_version(proof_version),
             collect_type_scripts_witness.nondeterminism(),
-            guard,
         )?
         .into();
 
@@ -107,7 +108,6 @@ impl super::ProofBuilder {
                 lock_script_and_witness.program.clone(),
                 claim,
                 lock_script_and_witness.nondeterminism(),
-                guard,
             )?
             .into();
             lock_scripts_halt.push(lock_script_and_witness);
@@ -130,7 +130,7 @@ impl super::ProofBuilder {
                 .with_input(input);
 
             let type_script_halt =
-                Self::produce(tsaw.program.clone(), claim, tsaw.nondeterminism(), guard)?.into();
+                Self::produce(tsaw.program.clone(), claim, tsaw.nondeterminism())?.into();
 
             type_scripts_halt.push(type_script_halt);
         }
@@ -195,13 +195,13 @@ impl super::ProofBuilder {
 #[cfg(test)]
 mod tests {
     use neptune_consensus::consensus_rule_set::BLOCK_HEIGHT_HARDFORK_DELTA_MAIN_NET;
-    use neptune_consensus::proof_abstractions::tasm::legacy_stark_verify::claim_uses_legacy_proof_system;
     use neptune_primitives::network::Network;
     use neptune_wallet::triton_vm::prelude::BFieldElement;
     use neptune_wallet::twenty_first::tip5::Digest;
     use strum::IntoEnumIterator;
 
     use super::*;
+    use crate::prover::ProofBuilder;
 
     /// Only the claims are inspected here, so the proofs are empty.
     fn unproven_collection() -> ProofCollection {
@@ -245,23 +245,13 @@ mod tests {
     }
 
     #[test]
-    fn delta_switches_proving_to_the_new_proof_system() {
+    fn proves_from_hardfork_delta_on() {
         let network = Network::Main;
         let last_gamma = BLOCK_HEIGHT_HARDFORK_DELTA_MAIN_NET.previous().unwrap();
-        let claim_at = |height| {
-            Claim::new(Digest::default())
-                .about_version(claim_version(ConsensusRuleSet::infer_from(network, height)))
-        };
+        let can_prove_at =
+            |height| ProofBuilder::can_prove_for(ConsensusRuleSet::infer_from(network, height));
 
-        assert!(claim_uses_legacy_proof_system(&claim_at(last_gamma)));
-        assert!(!claim_uses_legacy_proof_system(&claim_at(
-            BLOCK_HEIGHT_HARDFORK_DELTA_MAIN_NET
-        )));
-        assert_eq!(
-            neptune_wallet::triton_vm::proof::CURRENT_VERSION,
-            claim_at(BLOCK_HEIGHT_HARDFORK_DELTA_MAIN_NET).version,
-        );
-        // Gamma is settled history, so its claims stay at version 5.
-        assert_eq!(5, claim_at(last_gamma).version);
+        assert!(!can_prove_at(last_gamma));
+        assert!(can_prove_at(BLOCK_HEIGHT_HARDFORK_DELTA_MAIN_NET));
     }
 }
