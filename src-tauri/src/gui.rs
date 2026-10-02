@@ -228,9 +228,11 @@ fn setup_window<R: tauri::Runtime>(_window: &tauri::WebviewWindow<R>) {
 fn build_tray_menu(app: &mut App) -> anyhow::Result<()> {
     let show = MenuItemBuilder::with_id(MENUITEM_SHOW, MENUITEM_SHOW).build(app)?;
     let copy_addr = MenuItemBuilder::with_id(MENUITEM_COPY_ADDR, MENUITEM_COPY_ADDR).build(app)?;
-    let quit = MenuItemBuilder::with_id(MENU_ITEM_QUIT, MENU_ITEM_QUIT)
-        .accelerator("Cmd+Q")
-        .build(app)?;
+    let quit = MenuItemBuilder::with_id(MENU_ITEM_QUIT, MENU_ITEM_QUIT);
+    // Windows menu accelerators take only Ctrl, Alt and Shift.
+    #[cfg(not(windows))]
+    let quit = quit.accelerator("Cmd+Q");
+    let quit = quit.build(app)?;
 
     let menu = MenuBuilder::new(app)
         .items(&[&show, &copy_addr, &quit])
