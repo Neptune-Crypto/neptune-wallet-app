@@ -12,42 +12,22 @@ use neptune_primitives::block_height::BlockHeight;
 use neptune_primitives::timestamp::Timestamp;
 use neptune_wallet::address::ReceivingAddress;
 use neptune_wallet::address::SpendingKey;
-use neptune_wallet::twenty_first::tip5::Digest;
 use neptune_wallet::twenty_first::tip5::Tip5;
 use neptune_wallet::unlocked_utxo::UnlockedUtxo;
 use rand::seq::SliceRandom;
 use tracing::trace;
-use tracing::warn;
 
 use super::wallet_state_table::UtxoDbData;
 use super::UtxoRecoveryData;
 use crate::rpc_client;
 
-/// Has the node moved off `tip_digest`?
-///
-/// Every block mutates the mutator set, so a transaction proven against
-/// `tip_digest` stops being confirmable the moment the tip changes. The digest
-/// identifies the block, so a reorg at the same height counts too.
-///
-/// Returns `false` if the node is unreachable. The submission is the authority.
-pub(super) async fn tip_moved_since(tip_digest: &Digest) -> bool {
-    match rpc_client::node_rpc_client().get_tip_digest().await {
-        Ok(current_tip) => &current_tip != tip_digest,
-        Err(e) => {
-            warn!("Could not read the node's tip to check confirmability: {e}");
-            false
-        }
-    }
-}
-
 /// The tip a send is built against.
 ///
-/// The three travel together because they must describe the same block: the
-/// membership proofs are only valid against the mutator set they were synced to.
+/// Both fields must describe the same block: the membership proofs are only
+/// valid against the mutator set they were synced to.
 pub(crate) struct TipSnapshot {
     pub(crate) msa: MutatorSetAccumulator,
     pub(crate) header: BlockHeader,
-    pub(crate) digest: Digest,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -233,7 +213,7 @@ impl super::WalletState {
             index_sets.push(index_set);
         }
 
-        let (msmps_recovery_data, tip_header, tip_digest) = loop {
+        let (msmps_recovery_data, tip_header) = loop {
             trace!("Requesting {} ms membership proofs", index_sets.len());
             let msmps_recovery_data = rpc_client::node_rpc_client()
                 .restore_msmps(index_sets.clone())
@@ -243,15 +223,11 @@ impl super::WalletState {
                 msmps_recovery_data.membership_proofs.len()
             );
 
-            // Read the digest before the header. A tip that moves in between
-            // then fails the height check below, rather than yielding a digest
-            // for a block the proofs were not synced to.
-            let tip_digest = rpc_client::node_rpc_client().get_tip_digest().await?;
             let tip_header = rpc_client::node_rpc_client().get_tip_header().await?;
 
             let msmp_height: BlockHeight = msmps_recovery_data.synced_height.into();
             if tip_header.height == msmp_height {
-                break (msmps_recovery_data, tip_header, tip_digest);
+                break (msmps_recovery_data, tip_header);
             }
         };
 
@@ -282,7 +258,6 @@ impl super::WalletState {
             TipSnapshot {
                 msa: MutatorSetAccumulator::from(msmps_recovery_data.synced_mutator_set),
                 header: tip_header,
-                digest: tip_digest,
             },
         ))
     }

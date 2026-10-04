@@ -78,15 +78,6 @@ impl NodeRpcClient {
         Ok(block)
     }
 
-    pub(crate) async fn get_tip_digest(&self) -> Result<Digest> {
-        debug!("request: get_tip_digest");
-        let client = self.rest_server();
-
-        let digest = client.tip_digest().await?;
-
-        Ok(digest.digest)
-    }
-
     pub(crate) async fn get_tip_header(&self) -> Result<BlockHeader> {
         debug!("request: get_tip_header");
         let client = self.rest_server();
@@ -266,9 +257,7 @@ pub(crate) enum BroadcastError {
     Server(anyhow::Error),
     #[error("Internal error: {0}")]
     Internal(anyhow::Error),
-    /// Proven against a mutator set that is no longer the node's, meaning a block
-    /// landed during proving. Its own variant because it is recoverable by
-    /// rebuilding against the new tip.
+    /// Built on a block too far behind the node's tip.
     #[error("Transaction is not confirmable relative to the node's mutator set.")]
     NotConfirmable,
     #[error("Transaction rejected by server.")]
