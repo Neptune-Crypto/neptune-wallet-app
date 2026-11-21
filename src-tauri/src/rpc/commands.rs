@@ -196,6 +196,17 @@ pub(crate) async fn known_addresses(key_type: KeyType) -> Result<Vec<AddressReco
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn set_address_label(
+    key_type: KeyType,
+    key_index: u64,
+    label: Option<String>,
+) -> Result<()> {
+    WalletRpcImpl::set_address_label(key_type, key_index, label)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
 pub(crate) async fn address_balances() -> Result<AddressBalances> {
     WalletRpcImpl::address_balances().await.into_tauri_result()
 }

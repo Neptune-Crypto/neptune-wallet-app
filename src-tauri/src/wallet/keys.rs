@@ -5,6 +5,7 @@ use std::range::Range;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Result;
 use neptune_primitives::network::Network;
@@ -55,7 +56,7 @@ impl super::WalletState {
     /// Returns an error if called with the key type of symmetric addresses
     /// since these cannot be presented in a secure manner, at the time of
     /// writing.
-    pub(crate) fn known_addresses(&self, key_type: KeyType) -> Result<Vec<AddressRecord>> {
+    pub(crate) async fn known_addresses(&self, key_type: KeyType) -> Result<Vec<AddressRecord>> {
         ensure!(
             key_type != KeyType::Symmetric,
             "Symmetric keys cannot be shown in a secure manner"
@@ -74,14 +75,67 @@ impl super::WalletState {
         let keys = self.keys(range, key_type);
         let addresses = keys.into_iter().map(|(idx, x)| (idx, x.to_address()));
 
+        let labels: HashMap<i64, String> =
+            sqlx::query_as("SELECT key_index, label FROM address_labels WHERE key_type = ?")
+                .bind(key_type.to_string())
+                .fetch_all(&self.pool)
+                .await?
+                .into_iter()
+                .collect();
+
         // Above cap on key index guarantees that this unwrap can never panic.
         let addresses = addresses
             .map(|(idx, addr)| {
-                AddressRecord::new(addr, idx.try_into().unwrap(), self.network, None)
+                let label = labels.get(&(idx as i64)).cloned();
+                AddressRecord::new(addr, idx.try_into().unwrap(), self.network, label)
             })
             .collect();
 
         Ok(addresses)
+    }
+
+    /// Set the label of an address, or clear it if `label` is `None` or blank.
+    ///
+    /// Labels are stored in this wallet's own database. Symmetric keys are
+    /// rejected since their addresses are never shown.
+    pub(crate) async fn set_address_label(
+        &self,
+        key_type: KeyType,
+        key_index: u64,
+        label: Option<String>,
+    ) -> Result<()> {
+        ensure!(
+            key_type != KeyType::Symmetric,
+            "Symmetric keys cannot be labelled"
+        );
+        let key_index = i64::try_from(key_index)?;
+        let label = label.as_deref().map(str::trim).unwrap_or_default();
+        let key_type = key_type.to_string();
+
+        if label.is_empty() {
+            sqlx::query("DELETE FROM address_labels WHERE key_type = ? AND key_index = ?")
+                .bind(key_type)
+                .bind(key_index)
+                .execute(&self.pool)
+                .await?;
+            return Ok(());
+        }
+
+        // Counted in characters, not bytes, so non-ASCII labels get the same
+        // length as ASCII ones.
+        if label.chars().count() > 64 {
+            bail!("Label must be at most 64 characters");
+        }
+        sqlx::query(
+            "INSERT INTO address_labels (key_type, key_index, label) VALUES (?, ?, ?) \
+             ON CONFLICT(key_type, key_index) DO UPDATE SET label = excluded.label",
+        )
+        .bind(key_type)
+        .bind(key_index)
+        .bind(label)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     /// Add a new address of the specified type to the wallet, and return the
@@ -283,7 +337,7 @@ mod tests {
                 continue;
             }
 
-            let addresses_before = wallet_state.known_addresses(key_type).unwrap();
+            let addresses_before = wallet_state.known_addresses(key_type).await.unwrap();
 
             let mut generated_addresses = vec![];
             for _ in 0..6 {
@@ -291,12 +345,102 @@ mod tests {
                     .push(wallet_state.generate_new_address(key_type).await.unwrap());
             }
 
-            let addresses_after = wallet_state.known_addresses(key_type).unwrap();
+            let addresses_after = wallet_state.known_addresses(key_type).await.unwrap();
 
             assert_eq!(
                 addresses_after,
                 [addresses_before, generated_addresses].concat()
             )
         }
+    }
+
+    #[tokio::test]
+    async fn label_roundtrip() {
+        let wallet_state = test_devnet_wallet().await;
+        wallet_state
+            .set_address_label(KeyType::Generation, 0, Some(" pool A ".into()))
+            .await
+            .unwrap();
+        let addresses = wallet_state
+            .known_addresses(KeyType::Generation)
+            .await
+            .unwrap();
+        assert_eq!(addresses[0].label, Some("pool A".to_string()));
+
+        wallet_state
+            .set_address_label(KeyType::Generation, 0, Some("pool B".into()))
+            .await
+            .unwrap();
+        let addresses = wallet_state
+            .known_addresses(KeyType::Generation)
+            .await
+            .unwrap();
+        assert_eq!(addresses[0].label, Some("pool B".to_string()));
+    }
+
+    #[tokio::test]
+    async fn label_stored_under_key_type_name() {
+        let wallet_state = test_devnet_wallet().await;
+        wallet_state
+            .set_address_label(KeyType::EcHybrid, 2, Some("pool C".into()))
+            .await
+            .unwrap();
+        let stored: (String, i64) =
+            sqlx::query_as("SELECT key_type, key_index FROM address_labels")
+                .fetch_one(&wallet_state.pool)
+                .await
+                .unwrap();
+        assert_eq!(stored, ("ec_hybrid".to_string(), 2));
+        let generation = wallet_state
+            .known_addresses(KeyType::Generation)
+            .await
+            .unwrap();
+        assert!(generation.iter().all(|a| a.label.is_none()));
+    }
+
+    #[tokio::test]
+    async fn empty_label_clears() {
+        let wallet_state = test_devnet_wallet().await;
+        wallet_state
+            .set_address_label(KeyType::Generation, 0, Some("pool A".into()))
+            .await
+            .unwrap();
+        wallet_state
+            .set_address_label(KeyType::Generation, 0, Some("  ".into()))
+            .await
+            .unwrap();
+        let addresses = wallet_state
+            .known_addresses(KeyType::Generation)
+            .await
+            .unwrap();
+        assert_eq!(addresses[0].label, None);
+    }
+
+    #[tokio::test]
+    async fn long_label_rejected() {
+        let wallet_state = test_devnet_wallet().await;
+        let ok = "가".repeat(64);
+        wallet_state
+            .set_address_label(KeyType::Generation, 0, Some(ok.clone()))
+            .await
+            .unwrap();
+        let err = wallet_state
+            .set_address_label(KeyType::Generation, 0, Some("a".repeat(65)))
+            .await;
+        assert!(err.is_err());
+        let addresses = wallet_state
+            .known_addresses(KeyType::Generation)
+            .await
+            .unwrap();
+        assert_eq!(addresses[0].label, Some(ok));
+    }
+
+    #[tokio::test]
+    async fn symmetric_label_rejected() {
+        let wallet_state = test_devnet_wallet().await;
+        let res = wallet_state
+            .set_address_label(KeyType::Symmetric, 0, Some("x".into()))
+            .await;
+        assert!(res.is_err());
     }
 }

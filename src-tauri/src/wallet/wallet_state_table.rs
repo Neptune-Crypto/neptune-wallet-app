@@ -177,6 +177,18 @@ sqlx_migrator::sqlite_migration!(
     )]
 );
 
+struct CreateAddressLabelsMigration;
+sqlx_migrator::sqlite_migration!(
+    CreateAddressLabelsMigration,
+    "wallet_state",
+    "create_address_labels",
+    sqlx_migrator::vec_box![],
+    sqlx_migrator::vec_box![(
+        "CREATE TABLE address_labels (key_type TEXT NOT NULL, key_index INTEGER NOT NULL, label TEXT NOT NULL, PRIMARY KEY (key_type, key_index))", //up
+        "DROP TABLE address_labels" //down
+    )]
+);
+
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct UtxoDbData {
     pub(crate) id: i64,
@@ -325,6 +337,7 @@ impl WalletState {
         migrator.add_migration(Box::new(AddWatchOnlyPreimageMigration))?;
         migrator.add_migration(Box::new(AddWatchOnlySpendTrackingMigration))?;
         migrator.add_migration(Box::new(BackfillSpentHeightMigration))?;
+        migrator.add_migration(Box::new(CreateAddressLabelsMigration))?;
 
         let mut conn = self.pool.acquire().await?;
         // use apply all to apply all pending migration

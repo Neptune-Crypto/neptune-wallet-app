@@ -70,6 +70,7 @@ fn add_commands<R: tauri::Runtime>(invoke: tauri::ipc::Invoke<R>) -> bool {
         rpc::commands::import_incoming_randomness,
         rpc::commands::known_addresses,
         rpc::commands::address_balances,
+        rpc::commands::set_address_label,
         rpc::commands::generate_new_address,
         rpc::commands::add_watch_only_address,
         rpc::commands::known_watch_only_addresses,
