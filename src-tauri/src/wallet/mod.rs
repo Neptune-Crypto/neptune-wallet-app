@@ -48,6 +48,8 @@ use crate::config::Config;
 use crate::rpc_client;
 use crate::wallet::wallet_block::WalletBlock;
 
+mod address_balances;
+pub(crate) use address_balances::AddressBalances;
 pub(crate) mod balance;
 pub(crate) mod fake_archival_state;
 pub(crate) mod fork;

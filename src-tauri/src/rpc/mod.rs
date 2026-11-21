@@ -49,6 +49,7 @@ use crate::wallet::keys::AddressRecord;
 use crate::wallet::sync::SyncState;
 use crate::wallet::sync::SyncStatus;
 use crate::wallet::watch_only::WatchOnlyAddressRecord;
+use crate::wallet::AddressBalances;
 use crate::wallet::InputSelectionRule;
 // mod middleware;
 mod block;
@@ -205,6 +206,11 @@ pub(crate) trait WalletRpc {
         debug!("Returning {} addresses of type {key_type}", addresses.len());
 
         Ok(addresses)
+    }
+
+    async fn address_balances() -> Result<AddressBalances> {
+        let wallet = &get_state::<Arc<SyncState>>().wallet;
+        wallet.address_balances().await
     }
 
     async fn generate_new_address(key_type: KeyType) -> Result<AddressRecord> {
