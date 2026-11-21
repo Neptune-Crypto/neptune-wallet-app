@@ -1,12 +1,27 @@
-import { generateNewAddress, knownAddresses } from "@/commands/wallet";
+import {
+  addressBalances,
+  generateNewAddress,
+  knownAddresses,
+  setAddressLabel,
+} from "@/commands/wallet";
 import AccountContextLabel from "@/components/account-context-label";
 import CopyedIcon from "@/components/copyed-icon";
 import WithTitlePageHeader from "@/components/header/withTitlePageHeader";
 import MonoText from "@/components/mono-text";
+import { useSyncedBlock } from "@/store/sync/hooks";
 import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
-import { AddressRecord, NeptuneKeyType } from "@/utils/api/types";
+import {
+  AddressRow,
+  NO_BALANCES,
+  mergeAddressRows,
+  settleAddressFetch,
+} from "@/utils/address-rows";
+import { AddressBalances, AddressRecord, AddressTotals, NeptuneKeyType } from "@/utils/api/types";
+import { amount_to_positive_fixed } from "@/utils/math-util";
+import { notify } from "@/utils/notify";
 import {
   ActionIcon,
+  Badge,
   Box,
   Button,
   Center,
@@ -19,17 +34,25 @@ import {
   Table,
   Tabs,
   Text,
+  TextInput,
   Tooltip,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconCheck, IconCopy, IconPlus, IconQrcode } from "@tabler/icons-react";
+import { IconCheck, IconCopy, IconPencil, IconPlus, IconQrcode } from "@tabler/icons-react";
 import { QRCodeSVG } from "qrcode.react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const generation_tab = "generation";
 const viewing_tab = "viewing";
 const ec_hybrid_tab = "echybrid";
 const uri_scheme_prefix = "NPT";
+
+// Full-precision amounts are shown with four decimals; zero (in either the
+// "0" or the lossless "0.000…" form) renders as a plain "0".
+function formatNpt(amount: string): string {
+  const fixed = amount_to_positive_fixed(amount);
+  return fixed === "0.0000" ? "0" : fixed;
+}
 
 export default function AddressesPage() {
   const [activeTab, setActiveTab] = useState<string | null>(generation_tab);
@@ -38,7 +61,13 @@ export default function AddressesPage() {
   const currentWalletID = useCurrentWalledId();
   const wallets = useWallets();
   const activeAccountName = wallets.find((w) => w.id === currentWalletID)?.name;
+  // Read when a response arrives: results requested for another account are dropped.
+  const walletIdRef = useRef(currentWalletID);
+  walletIdRef.current = currentWalletID;
+  // Advances as the account syncs; balances are refetched on each new block.
+  const syncedBlock = useSyncedBlock();
   const [addresses, setAddresses] = useState<AddressRecord[]>([]);
+  const [balances, setBalances] = useState<AddressBalances>(NO_BALANCES);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   // Tracks whether the first fetch has completed, so the loading spinner only
@@ -48,6 +77,12 @@ export default function AddressesPage() {
   // State for managing the QR modal
   const [qrModalOpened, { open: openQrModal, close: closeQrModal }] = useDisclosure(false);
   const [selectedAddress, setSelectedAddress] = useState("");
+
+  // State for the label editor
+  const [labelModalOpened, { open: openLabelModal, close: closeLabelModal }] = useDisclosure(false);
+  const [labelKeyIndex, setLabelKeyIndex] = useState<number | null>(null);
+  const [labelInput, setLabelInput] = useState("");
+  const [isSavingLabel, setIsSavingLabel] = useState(false);
 
   const BUTTON_LABELS: Record<string, string> = {
     [generation_tab]: "New generation address",
@@ -84,30 +119,124 @@ export default function AddressesPage() {
     return "Generation";
   };
 
+  // Like walletIdRef, for the tab: rows fetched for another key type are dropped,
+  // so the table (and the label editor) never pairs them with the wrong one.
+  const tabRef = useRef(activeTab);
+  tabRef.current = activeTab;
+
+  // Balances come from both the full fetch and the per-block refresh; a response
+  // only applies if no later-started request has applied already.
+  const balancesSeq = useRef(0);
+  const appliedBalancesSeq = useRef(0);
+  const applyBalances = useCallback((seq: number, totals: AddressBalances) => {
+    if (seq < appliedBalancesSeq.current) return;
+    appliedBalancesSeq.current = seq;
+    setBalances(totals);
+  }, []);
+
   const fetchAddresses = useCallback(async () => {
     if (!activeTab) return;
     setIsLoading(true);
+    const walletId = currentWalletID;
+    const tab = activeTab;
+    const isCurrent = () => walletIdRef.current === walletId && tabRef.current === tab;
+    const seq = ++balancesSeq.current;
     try {
-      const keyType = keyTypeFromTab(activeTab);
-      const data = await knownAddresses(keyType);
-      setAddresses(data);
-    } catch (error) {
-      console.error("Failed to fetch addresses from backend:", error);
+      const keyType = keyTypeFromTab(tab);
+      const [data, totals] = await Promise.allSettled([knownAddresses(keyType), addressBalances()]);
+      if (!isCurrent()) return;
+      const settled = settleAddressFetch(data, totals);
+      if (settled.addresses) setAddresses(settled.addresses);
+      applyBalances(seq, settled.balances);
+      if (settled.addressesError) {
+        console.error("Failed to fetch addresses from backend:", settled.addressesError.error);
+      }
+      if (settled.balancesError) {
+        console.error("Failed to fetch address balances:", settled.balancesError.error);
+        // A fixed id replaces the previous toast, so repeated failures show one.
+        notify.error(
+          settled.balancesError.error,
+          "Balances are shown as zero. Please try again.",
+          "Couldn't load address balances",
+          { id: "address-balances-error" }
+        );
+      }
     } finally {
-      setIsLoading(false);
-      hasLoadedOnce.current = true;
+      // A dropped response must not end the newer request's loading state.
+      if (isCurrent()) {
+        setIsLoading(false);
+        hasLoadedOnce.current = true;
+      }
     }
-  }, [activeTab, currentWalletID]);
+  }, [activeTab, currentWalletID, applyBalances]);
 
   // Clear the previous account's rows as soon as the account switches, so stale
   // addresses never linger while the refetch below is in flight.
   useEffect(() => {
     setAddresses([]);
+    setBalances(NO_BALANCES);
   }, [currentWalletID]);
 
   useEffect(() => {
     fetchAddresses();
   }, [fetchAddresses]);
+
+  // On each newly synced block, refresh only the balances. During catch-up sync
+  // blocks arrive faster than a scan finishes: at most one scan runs, and blocks
+  // seen meanwhile trigger a single follow-up scan.
+  const lastSyncedBlock = useRef(syncedBlock);
+  const balancesInFlight = useRef(false);
+  const balancesStale = useRef(false);
+  const refreshBalances = useCallback(() => {
+    if (balancesInFlight.current) {
+      balancesStale.current = true;
+      return;
+    }
+    balancesInFlight.current = true;
+    balancesStale.current = false;
+    const walletId = walletIdRef.current;
+    const seq = ++balancesSeq.current;
+    addressBalances()
+      .then((totals) => {
+        if (walletIdRef.current === walletId) applyBalances(seq, totals);
+      })
+      .catch((error) => console.error("Failed to fetch address balances:", error))
+      .finally(() => {
+        balancesInFlight.current = false;
+        if (balancesStale.current) refreshBalances();
+      });
+  }, [applyBalances]);
+  useEffect(() => {
+    if (lastSyncedBlock.current === syncedBlock) return;
+    lastSyncedBlock.current = syncedBlock;
+    refreshBalances();
+  }, [syncedBlock, refreshBalances]);
+
+  const rows: AddressRow[] = useMemo(
+    () => mergeAddressRows(addresses, balances, keyTypeFromTab(activeTab)),
+    [addresses, balances, activeTab]
+  );
+
+  const editLabel = (item: AddressRow) => {
+    setLabelKeyIndex(item.key_index);
+    setLabelInput(item.label ?? "");
+    openLabelModal();
+  };
+
+  const handleSaveLabel = async () => {
+    if (!activeTab || labelKeyIndex === null) return;
+    setIsSavingLabel(true);
+    try {
+      const label = labelInput.trim();
+      await setAddressLabel(keyTypeFromTab(activeTab), labelKeyIndex, label === "" ? null : label);
+      closeLabelModal();
+      await fetchAddresses();
+    } catch (error) {
+      notify.error(error, "Please try again.", "Couldn't save label");
+    } finally {
+      setIsSavingLabel(false);
+    }
+  };
 
   // Handler for the generate button
   const handleGenerate = async () => {
@@ -250,9 +379,47 @@ export default function AddressesPage() {
     </Modal>
   );
 
+  const label_modal = (
+    <Modal
+      opened={labelModalOpened}
+      onClose={closeLabelModal}
+      title={`Label for key index ${labelKeyIndex ?? ""}`}
+      centered
+    >
+      <TextInput
+        label="Label"
+        description="Only stored in this wallet. Leave blank to remove it."
+        value={labelInput}
+        maxLength={64}
+        data-autofocus
+        onChange={(e) => setLabelInput(e.currentTarget.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSaveLabel();
+        }}
+      />
+      <Group justify="flex-end" mt="md">
+        <Button variant="default" onClick={closeLabelModal}>
+          Cancel
+        </Button>
+        <Button onClick={handleSaveLabel} loading={isSavingLabel}>
+          Save
+        </Button>
+      </Group>
+    </Modal>
+  );
+
+  // Totals not shown in the table; a line is hidden while it holds no UTXOs.
+  const footer_line = (title: string, totals: AddressTotals) =>
+    totals.utxo_count > 0 && (
+      <Text size="xs" c="dimmed">
+        {title}: {formatNpt(totals.unspent)}
+      </Text>
+    );
+
   return (
     <WithTitlePageHeader title="Receive addresses">
       {qr_modal}
+      {label_modal}
 
       {/* First element under the header on every page, so the "which account?"
           glance always lands in the same spot (matches Wallet and Send). It sits
@@ -330,7 +497,11 @@ export default function AddressesPage() {
                 highlightOnHover
                 layout="fixed"
                 w="100%"
-                styles={{ td: { verticalAlign: "top" } }}
+                // Fits the default window; narrower windows scroll sideways
+                // instead of squeezing the address column.
+                miw={860}
+                horizontalSpacing={8}
+                styles={{ td: { verticalAlign: "top" }, th: { whiteSpace: "nowrap" } }}
               >
                 <Table.Thead
                   style={{
@@ -341,29 +512,80 @@ export default function AddressesPage() {
                   }}
                 >
                   <Table.Tr>
-                    <Table.Th w={110}>Key index</Table.Th>
+                    <Table.Th w={85}>Key index</Table.Th>
+                    <Table.Th w={120}>Label</Table.Th>
                     <Table.Th>Address</Table.Th>
-                    <Table.Th w={80} ta="right">
+                    <Table.Th w={85} ta="right">
+                      Balance
+                    </Table.Th>
+                    <Table.Th w={75} ta="right">
+                      Locked
+                    </Table.Th>
+                    <Table.Th w={85} ta="right">
+                      Received
+                    </Table.Th>
+                    <Table.Th w={65} ta="right">
+                      UTXOs
+                    </Table.Th>
+                    <Table.Th w={90} ta="right">
+                      Last block
+                    </Table.Th>
+                    <Table.Th w={70} ta="right">
                       Actions
                     </Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {[...addresses]
+                  {[...rows]
                     .sort((a, b) => b.key_index - a.key_index)
                     .map((item) => (
                       <Table.Tr key={item.key_index}>
-                        <Table.Td>{item.key_index}</Table.Td>
                         <Table.Td>
-                          {/* Generation addresses are too long to show in full, so
-                              abbreviate; the other types show in full. Copy lives in
-                              the Actions column, hence copy={false}. */}
-                          <MonoText
-                            value={item.address}
-                            copy={false}
-                            full={activeTab !== generation_tab}
-                          />
+                          {/* Wrapped: Group drops falsy children, which would hide index 0. */}
+                          <Group gap={6} wrap="nowrap">
+                            <span>{item.key_index}</span>
+                            {item.utxo_count > 0 && (
+                              <Badge size="xs" variant="light">
+                                Used
+                              </Badge>
+                            )}
+                          </Group>
                         </Table.Td>
+                        <Table.Td>
+                          <Group gap={4} wrap="nowrap" justify="space-between">
+                            <Tooltip
+                              label={item.label}
+                              disabled={!item.label}
+                              withArrow
+                              position="top"
+                            >
+                              <Text size="sm" truncate="end" c={item.label ? undefined : "dimmed"}>
+                                {item.label || "—"}
+                              </Text>
+                            </Tooltip>
+                            <Tooltip label="Edit label" withArrow position="top">
+                              <ActionIcon
+                                color="blue"
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => editLabel(item)}
+                              >
+                                <IconPencil size={14} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                        <Table.Td>
+                          {/* Abbreviated on every tab (tighter than elsewhere, to leave
+                              room for the balance columns); the QR and copy actions
+                              carry the full address, hence copy={false}. */}
+                          <MonoText value={item.address} chars={9} copy={false} />
+                        </Table.Td>
+                        <Table.Td ta="right">{formatNpt(item.unspent)}</Table.Td>
+                        <Table.Td ta="right">{formatNpt(item.locked)}</Table.Td>
+                        <Table.Td ta="right">{formatNpt(item.received)}</Table.Td>
+                        <Table.Td ta="right">{item.utxo_count}</Table.Td>
+                        <Table.Td ta="right">{item.last_received_height ?? "—"}</Table.Td>
                         <Table.Td>
                           <Group gap="xs" justify="flex-end" wrap="nowrap">
                             {qr_button(item)}
@@ -376,6 +598,10 @@ export default function AddressesPage() {
               </Table>
             </ScrollArea>
           )}
+          <Box mt="xs">
+            {footer_line("Internal (change & mining rewards to internal keys)", balances.internal)}
+            {footer_line("Unclassified", balances.unattributed)}
+          </Box>
         </Tabs.Panel>
       </Tabs>
     </WithTitlePageHeader>

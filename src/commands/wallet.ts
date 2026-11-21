@@ -1,4 +1,5 @@
 import {
+  AddressBalances,
   AddressRecord,
   NeptuneKeyType,
   WatchOnlyAddressRecord,
@@ -66,6 +67,19 @@ export async function importIncomingRandomness(
 
 export async function knownAddresses(keyType: NeptuneKeyType): Promise<AddressRecord[]> {
   return await invoke<AddressRecord[]>("known_addresses", { keyType });
+}
+
+export async function addressBalances(): Promise<AddressBalances> {
+  return await invoke<AddressBalances>("address_balances", {});
+}
+
+// A null or blank label clears it.
+export async function setAddressLabel(
+  keyType: NeptuneKeyType,
+  keyIndex: number,
+  label: string | null
+): Promise<void> {
+  await invoke("set_address_label", { keyType, keyIndex, label });
 }
 
 export async function generateNewAddress(keyType: NeptuneKeyType): Promise<AddressRecord> {
