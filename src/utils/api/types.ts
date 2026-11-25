@@ -72,7 +72,10 @@ export interface AddressTotals {
   unspent: string;
   locked: string;
   utxo_count: number;
-  last_received_height: number | null;
+  // Latest block that confirmed or spent one of the UTXOs; null without UTXOs.
+  last_activity_height: number | null;
+  // That block's timestamp in milliseconds.
+  last_activity_timestamp: number | null;
 }
 
 // Matches the Rust AddressBalance struct (totals are flattened in).

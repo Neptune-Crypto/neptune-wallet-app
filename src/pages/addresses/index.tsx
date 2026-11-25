@@ -13,15 +13,16 @@ import { useCurrentWalledId, useWallets } from "@/store/wallet/hooks";
 import {
   AddressRow,
   NO_BALANCES,
+  formatNpt,
+  groupThousands,
   mergeAddressRows,
+  neverReceived,
   settleAddressFetch,
 } from "@/utils/address-rows";
 import { AddressBalances, AddressRecord, AddressTotals, NeptuneKeyType } from "@/utils/api/types";
-import { amount_to_positive_fixed } from "@/utils/math-util";
 import { notify } from "@/utils/notify";
 import {
   ActionIcon,
-  Badge,
   Box,
   Button,
   Center,
@@ -36,9 +37,11 @@ import {
   Text,
   TextInput,
   Tooltip,
+  UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconCheck, IconCopy, IconPencil, IconPlus, IconQrcode } from "@tabler/icons-react";
+import { IconCheck, IconCopy, IconLock, IconPlus, IconQrcode } from "@tabler/icons-react";
+import { format } from "date-fns";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -47,12 +50,12 @@ const viewing_tab = "viewing";
 const ec_hybrid_tab = "echybrid";
 const uri_scheme_prefix = "NPT";
 
-// Full-precision amounts are shown with four decimals; zero (in either the
-// "0" or the lossless "0.000…" form) renders as a plain "0".
-function formatNpt(amount: string): string {
-  const fixed = amount_to_positive_fixed(amount);
-  return fixed === "0.0000" ? "0" : fixed;
-}
+// Shown instead of numbers for addresses that never received anything.
+const no_value = (
+  <Text span size="sm" c="dimmed">
+    —
+  </Text>
+);
 
 export default function AddressesPage() {
   const [activeTab, setActiveTab] = useState<string | null>(generation_tab);
@@ -383,7 +386,7 @@ export default function AddressesPage() {
     <Modal
       opened={labelModalOpened}
       onClose={closeLabelModal}
-      title={`Label for key index ${labelKeyIndex ?? ""}`}
+      title={`Label for address #${labelKeyIndex ?? ""}`}
       centered
     >
       <TextInput
@@ -499,7 +502,7 @@ export default function AddressesPage() {
                 w="100%"
                 // Fits the default window; narrower windows scroll sideways
                 // instead of squeezing the address column.
-                miw={860}
+                miw={780}
                 horizontalSpacing={8}
                 styles={{ td: { verticalAlign: "top" }, th: { whiteSpace: "nowrap" } }}
               >
@@ -512,23 +515,19 @@ export default function AddressesPage() {
                   }}
                 >
                   <Table.Tr>
-                    <Table.Th w={85}>Key index</Table.Th>
-                    <Table.Th w={120}>Label</Table.Th>
+                    <Table.Th w={45}>#</Table.Th>
                     <Table.Th>Address</Table.Th>
-                    <Table.Th w={85} ta="right">
+                    <Table.Th w={115} ta="right">
                       Balance
                     </Table.Th>
-                    <Table.Th w={75} ta="right">
-                      Locked
-                    </Table.Th>
-                    <Table.Th w={85} ta="right">
+                    <Table.Th w={110} ta="right">
                       Received
                     </Table.Th>
                     <Table.Th w={65} ta="right">
                       UTXOs
                     </Table.Th>
-                    <Table.Th w={90} ta="right">
-                      Last block
+                    <Table.Th w={110} ta="right">
+                      Last activity
                     </Table.Th>
                     <Table.Th w={70} ta="right">
                       Actions
@@ -540,52 +539,77 @@ export default function AddressesPage() {
                     .sort((a, b) => b.key_index - a.key_index)
                     .map((item) => (
                       <Table.Tr key={item.key_index}>
+                        <Table.Td>{item.key_index}</Table.Td>
                         <Table.Td>
-                          {/* Wrapped: Group drops falsy children, which would hide index 0. */}
-                          <Group gap={6} wrap="nowrap">
-                            <span>{item.key_index}</span>
-                            {item.utxo_count > 0 && (
-                              <Badge size="xs" variant="light">
-                                Used
-                              </Badge>
-                            )}
-                          </Group>
-                        </Table.Td>
-                        <Table.Td>
-                          <Group gap={4} wrap="nowrap" justify="space-between">
-                            <Tooltip
-                              label={item.label}
-                              disabled={!item.label}
-                              withArrow
-                              position="top"
+                          {/* The label edits on click; "Add label" when there is none. */}
+                          <Tooltip
+                            label={item.label}
+                            disabled={!item.label}
+                            withArrow
+                            position="top-start"
+                          >
+                            <UnstyledButton
+                              onClick={() => editLabel(item)}
+                              maw="100%"
+                              display="block"
                             >
-                              <Text size="sm" truncate="end" c={item.label ? undefined : "dimmed"}>
-                                {item.label || "—"}
+                              <Text size="sm" c="blue" truncate="end">
+                                {item.label || "Add label"}
                               </Text>
-                            </Tooltip>
-                            <Tooltip label="Edit label" withArrow position="top">
-                              <ActionIcon
-                                color="blue"
-                                variant="subtle"
-                                size="sm"
-                                onClick={() => editLabel(item)}
-                              >
-                                <IconPencil size={14} />
-                              </ActionIcon>
-                            </Tooltip>
-                          </Group>
+                            </UnstyledButton>
+                          </Tooltip>
+                          {/* Abbreviated on every tab, to leave room for the balance
+                              columns; the QR and copy actions carry the full
+                              address, hence copy={false}. */}
+                          <MonoText
+                            value={item.address}
+                            chars={9}
+                            copy={false}
+                            size="sm"
+                            c="dimmed"
+                          />
                         </Table.Td>
-                        <Table.Td>
-                          {/* Abbreviated on every tab (tighter than elsewhere, to leave
-                              room for the balance columns); the QR and copy actions
-                              carry the full address, hence copy={false}. */}
-                          <MonoText value={item.address} chars={9} copy={false} />
+                        <Table.Td ta="right">
+                          {neverReceived(item) ? (
+                            no_value
+                          ) : (
+                            <>
+                              <Text size="sm">{formatNpt(item.unspent)}</Text>
+                              {formatNpt(item.locked) !== "0" && (
+                                <Tooltip label="Time-locked" withArrow position="top">
+                                  <Group gap={4} justify="flex-end" wrap="nowrap">
+                                    <IconLock size={12} color="var(--mantine-color-dimmed)" />
+                                    <Text size="sm" c="dimmed">
+                                      {formatNpt(item.locked)}
+                                    </Text>
+                                  </Group>
+                                </Tooltip>
+                              )}
+                            </>
+                          )}
                         </Table.Td>
-                        <Table.Td ta="right">{formatNpt(item.unspent)}</Table.Td>
-                        <Table.Td ta="right">{formatNpt(item.locked)}</Table.Td>
-                        <Table.Td ta="right">{formatNpt(item.received)}</Table.Td>
-                        <Table.Td ta="right">{item.utxo_count}</Table.Td>
-                        <Table.Td ta="right">{item.last_received_height ?? "—"}</Table.Td>
+                        <Table.Td ta="right">
+                          {neverReceived(item) ? no_value : formatNpt(item.received)}
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          {neverReceived(item) ? no_value : groupThousands(item.utxo_count)}
+                        </Table.Td>
+                        <Table.Td ta="right">
+                          {item.last_activity_height === null ? (
+                            no_value
+                          ) : (
+                            <>
+                              {item.last_activity_timestamp !== null && (
+                                <Text size="sm">
+                                  {format(item.last_activity_timestamp, "yyyy-MM-dd")}
+                                </Text>
+                              )}
+                              <Text size="sm" c="dimmed">
+                                Block {groupThousands(item.last_activity_height)}
+                              </Text>
+                            </>
+                          )}
+                        </Table.Td>
                         <Table.Td>
                           <Group gap="xs" justify="flex-end" wrap="nowrap">
                             {qr_button(item)}

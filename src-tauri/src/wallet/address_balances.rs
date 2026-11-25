@@ -18,7 +18,10 @@ pub(crate) struct AddressTotals {
     /// Unspent, but not spendable now because of a time lock.
     pub locked: String,
     pub utxo_count: u32,
-    pub last_received_height: Option<u64>,
+    /// Height of the latest block that confirmed or spent one of these UTXOs.
+    pub last_activity_height: Option<u64>,
+    /// Timestamp of that block.
+    pub last_activity_timestamp: Option<Timestamp>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
@@ -51,7 +54,7 @@ struct Sums {
     unspent: i128,
     locked: i128,
     utxo_count: u32,
-    last_received_height: Option<u64>,
+    last_activity: Option<(u64, Timestamp)>,
 }
 
 impl Sums {
@@ -66,8 +69,14 @@ impl Sums {
             }
         }
         self.utxo_count += 1;
-        let height = utxo.confirmed_in_block.block_height;
-        self.last_received_height = self.last_received_height.max(Some(height));
+        for block in std::iter::once(&utxo.confirmed_in_block).chain(&utxo.spent_in_block) {
+            if self
+                .last_activity
+                .is_none_or(|(height, _)| block.block_height > height)
+            {
+                self.last_activity = Some((block.block_height, block.timestamp));
+            }
+        }
     }
 
     fn totals(&self) -> AddressTotals {
@@ -77,7 +86,8 @@ impl Sums {
             unspent: display(self.unspent),
             locked: display(self.locked),
             utxo_count: self.utxo_count,
-            last_received_height: self.last_received_height,
+            last_activity_height: self.last_activity.map(|(height, _)| height),
+            last_activity_timestamp: self.last_activity.map(|(_, timestamp)| timestamp),
         }
     }
 }
@@ -196,6 +206,16 @@ mod tests {
         assert_eq!(coins(nau("0.75")), gen1.received);
         assert_eq!(coins(0), gen1.unspent);
         assert_eq!(1, gen1.utxo_count);
+
+        // gen1's only UTXO was spent: its last activity is the spending block.
+        let utxos = wallet_state.get_utxos().await.unwrap();
+        let spent: Vec<_> = utxos
+            .iter()
+            .filter_map(|u| u.spent_in_block.as_ref())
+            .collect();
+        assert_eq!(1, spent.len());
+        assert_eq!(Some(spent[0].block_height), gen1.last_activity_height);
+        assert_eq!(Some(spent[0].timestamp), gen1.last_activity_timestamp);
 
         let gen2 = balance_of(&balances, KeyType::Generation, 2);
         assert_eq!(coins(nau("0.5")), gen2.received);

@@ -1,4 +1,11 @@
-import { NO_BALANCES, mergeAddressRows, settleAddressFetch } from "@/utils/address-rows";
+import {
+  NO_BALANCES,
+  formatNpt,
+  groupThousands,
+  mergeAddressRows,
+  neverReceived,
+  settleAddressFetch,
+} from "@/utils/address-rows";
 import { AddressBalances, AddressRecord } from "@/utils/api/types";
 import assert from "node:assert";
 import test from "node:test";
@@ -9,7 +16,8 @@ const emptyTotals = {
   unspent: zero,
   locked: zero,
   utxo_count: 0,
-  last_received_height: null,
+  last_activity_height: null,
+  last_activity_timestamp: null,
 };
 
 const addresses: AddressRecord[] = [
@@ -27,7 +35,8 @@ const balances: AddressBalances = {
       unspent: "3",
       locked: "1",
       utxo_count: 2,
-      last_received_height: 100,
+      last_activity_height: 100,
+      last_activity_timestamp: 1764000000000,
     },
     {
       key_type: "EcHybrid",
@@ -36,7 +45,8 @@ const balances: AddressBalances = {
       unspent: "7",
       locked: zero,
       utxo_count: 1,
-      last_received_height: 50,
+      last_activity_height: 50,
+      last_activity_timestamp: 1763000000000,
     },
   ],
   internal: emptyTotals,
@@ -52,7 +62,8 @@ test("Balances attach by key index", () => {
   assert.strictEqual(row.unspent, "3");
   assert.strictEqual(row.locked, "1");
   assert.strictEqual(row.utxo_count, 2);
-  assert.strictEqual(row.last_received_height, 100);
+  assert.strictEqual(row.last_activity_height, 100);
+  assert.strictEqual(row.last_activity_timestamp, 1764000000000);
 });
 
 test("Balances of another key type do not attach", () => {
@@ -78,7 +89,8 @@ test("Addresses without a balance get zeros", () => {
     unspent: "0",
     locked: "0",
     utxo_count: 0,
-    last_received_height: null,
+    last_activity_height: null,
+    last_activity_timestamp: null,
   });
 });
 
@@ -110,4 +122,27 @@ test("A failed address fetch keeps the balances", () => {
   assert.strictEqual(settled.balances, balances);
   assert.deepStrictEqual(settled.addressesError, { error: undefined });
   assert.strictEqual(settled.balancesError, undefined);
+});
+
+test("Thousands are grouped", () => {
+  assert.strictEqual(groupThousands(0), "0");
+  assert.strictEqual(groupThousands(999), "999");
+  assert.strictEqual(groupThousands(62301), "62,301");
+  assert.strictEqual(groupThousands(1234567), "1,234,567");
+  assert.strictEqual(groupThousands("2046.8750"), "2,046.8750");
+});
+
+test("Amounts keep four decimals with grouped thousands", () => {
+  assert.strictEqual(formatNpt("2046.875"), "2,046.8750");
+  assert.strictEqual(formatNpt("300"), "300.0000");
+  assert.strictEqual(formatNpt(zero), "0");
+  assert.strictEqual(formatNpt("0"), "0");
+});
+
+test("Only addresses without UTXOs count as never received", () => {
+  const rows = mergeAddressRows(addresses, balances, "Generation");
+  assert.strictEqual(neverReceived(rows.find((r) => r.key_index === 1)!), true);
+  assert.strictEqual(neverReceived(rows.find((r) => r.key_index === 2)!), false);
+  // Received and fully spent: still shown as numbers.
+  assert.strictEqual(neverReceived({ ...emptyTotals, utxo_count: 1 }), false);
 });
