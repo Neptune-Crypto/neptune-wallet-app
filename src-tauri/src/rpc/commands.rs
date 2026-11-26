@@ -24,6 +24,7 @@ use crate::wallet::keys::AddressRecord;
 use crate::wallet::sync::SyncState;
 use crate::wallet::sync::SyncStatus;
 use crate::wallet::watch_only::WatchOnlyAddressRecord;
+use crate::wallet::AddressBalances;
 
 #[cfg_attr(feature = "gui", tauri::command)]
 #[cfg_attr(not(feature = "gui"), allow(unused))]
@@ -192,6 +193,22 @@ pub(crate) async fn known_addresses(key_type: KeyType) -> Result<Vec<AddressReco
     WalletRpcImpl::known_addresses(key_type)
         .await
         .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn set_address_label(
+    key_type: KeyType,
+    key_index: u64,
+    label: Option<String>,
+) -> Result<()> {
+    WalletRpcImpl::set_address_label(key_type, key_index, label)
+        .await
+        .into_tauri_result()
+}
+
+#[cfg_attr(feature = "gui", tauri::command)]
+pub(crate) async fn address_balances() -> Result<AddressBalances> {
+    WalletRpcImpl::address_balances().await.into_tauri_result()
 }
 
 #[cfg_attr(feature = "gui", tauri::command)]

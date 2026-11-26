@@ -4,12 +4,14 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 use anyhow::bail;
 use anyhow::ensure;
 use anyhow::Context;
 use anyhow::Result;
 use itertools::Itertools;
+use neptune_consensus::block::block_header::BlockHeader;
 use neptune_consensus::transaction::utxo::Utxo;
 use neptune_consensus::type_scripts::native_currency_amount::NativeCurrencyAmount;
 use neptune_mutator_set::addition_record::AdditionRecord;
@@ -20,6 +22,7 @@ use neptune_primitives::data_directory::DataDirectory;
 use neptune_primitives::network::Network;
 use neptune_primitives::timestamp::Timestamp;
 use neptune_wallet::address::KeyType;
+use neptune_wallet::address::SpendingKey;
 use neptune_wallet::incoming_utxo::IncomingUtxo;
 use neptune_wallet::incoming_utxo::IncomingUtxoRecoveryData;
 use neptune_wallet::twenty_first::tip5::Digest;
@@ -45,6 +48,8 @@ use crate::config::Config;
 use crate::rpc_client;
 use crate::wallet::wallet_block::WalletBlock;
 
+mod address_balances;
+pub(crate) use address_balances::AddressBalances;
 pub(crate) mod balance;
 pub(crate) mod fake_archival_state;
 pub(crate) mod fork;
@@ -511,7 +516,7 @@ impl WalletState {
         let spending_keys = self.known_and_future_keys();
 
         let mut all_announced = vec![];
-        for (key_type, keys) in spending_keys {
+        for (key_type, keys) in &spending_keys {
             let incoming: Vec<_> = keys
                 .par_iter()
                 .map(|(key_idx, key)| {
@@ -521,23 +526,7 @@ impl WalletState {
                         .any(|utxo| all_addition_records.contains(&utxo.addition_record()));
                     if !utxos.is_empty() && actually_received {
                         // Only bump index if block actually contains this output.
-
-                        let new_index = *key_idx + 1;
-                        match key_type {
-                            KeyType::Generation => self
-                                .generation_key_index
-                                .fetch_max(new_index, Ordering::SeqCst),
-                            KeyType::Symmetric => self
-                                .symmetric_key_index
-                                .fetch_max(new_index, Ordering::SeqCst),
-                            KeyType::EcHybrid => self
-                                .ec_hybrid_key_index
-                                .fetch_max(new_index, Ordering::SeqCst),
-                            KeyType::ViewingAddress => self
-                                .viewing_address_key_index
-                                .fetch_max(new_index, Ordering::SeqCst),
-                            _ => todo!(),
-                        };
+                        self.bump_key_index(*key_type, *key_idx);
                     }
 
                     utxos
@@ -548,19 +537,12 @@ impl WalletState {
             all_announced.extend(incoming);
         }
 
-        let (own_guesser_address, guesser_key_preimage) = {
-            let own_guesser_key = self.key.guesser_fee_key();
-            (
-                own_guesser_key.to_address(),
-                own_guesser_key.receiver_preimage(),
-            )
-        };
-        let was_guessed_by_us = block
-            .kernel
-            .header
-            .was_guessed_by(&own_guesser_address.into());
-
-        let gusser_incoming_utxos = if was_guessed_by_us {
+        // The guesser reward may be locked to any of our known or future keys,
+        // not only to the guesser-fee key (generation key 0).
+        let guesser_key = find_guesser_key(&block.kernel.header, &spending_keys);
+        let gusser_incoming_utxos = if let Some((key_type, key_idx, key)) = guesser_key {
+            self.bump_key_index(key_type, key_idx);
+            let guesser_key_preimage = key.privacy_preimage();
             let sender_randomness = block.hash;
             block
                 .kernel
@@ -599,6 +581,25 @@ impl WalletState {
         self.store_all_key_indices().await?;
 
         Ok(receive.into_iter().collect())
+    }
+
+    /// Bump the derivation index of `key_type` so that it is past `key_idx`.
+    ///
+    /// Does not persist. Caller must handle this.
+    pub(crate) fn bump_key_index(&self, key_type: KeyType, key_idx: u64) {
+        // The key index represents the *next* address to be derived.
+        let new_index = key_idx + 1;
+        let index = match key_type {
+            KeyType::Generation => &self.generation_key_index,
+            KeyType::Symmetric => &self.symmetric_key_index,
+            KeyType::EcHybrid => &self.ec_hybrid_key_index,
+            KeyType::ViewingAddress => &self.viewing_address_key_index,
+            _ => {
+                warn!("Cannot bump index of unsupported key type {key_type}");
+                return;
+            }
+        };
+        index.fetch_max(new_index, Ordering::SeqCst);
     }
 
     /// Return a list of UTXOs spent by this wallet in the transaction
@@ -698,6 +699,18 @@ impl UtxoRecoveryData {
     }
 }
 
+/// Return the first of `keys` that the block's guesser reward is locked to.
+fn find_guesser_key(
+    header: &BlockHeader,
+    keys: &HashMap<KeyType, HashMap<u64, Arc<SpendingKey>>>,
+) -> Option<(KeyType, u64, Arc<SpendingKey>)> {
+    keys.iter().find_map(|(key_type, keys)| {
+        keys.iter()
+            .find(|(_, key)| header.was_guessed_by(&key.guesser_receiver_data()))
+            .map(|(key_idx, key)| (*key_type, *key_idx, key.clone()))
+    })
+}
+
 fn incoming_utxo_recovery_data_from_incomming_utxo(
     utxo: IncomingUtxo,
     num_aocl_leafs: u64,
@@ -722,7 +735,6 @@ mod tests {
     use neptune_consensus::transaction::utxo_triple::UtxoTriple;
     use neptune_rpc_api::model::wallet::block::RpcWalletBlock;
     use neptune_wallet::address::generation_address::GenerationReceivingAddress;
-    use neptune_wallet::address::SpendingKey;
     use neptune_wallet::utxo_notification::UtxoNotificationPayload;
     use num_traits::Zero;
     use tracing_test::traced_test;
@@ -1068,6 +1080,105 @@ mod tests {
         assert!(
             wallet_state.get_utxos().await.unwrap().is_empty(),
             "UTXO with an unresolvable type script must not be recorded"
+        );
+    }
+
+    /// A test block that pays guesser fees but announces nothing to anyone, so
+    /// that the only UTXOs a wallet can find in it are the guesser-fee UTXOs.
+    pub(crate) fn template_with_guesser_fee() -> WalletBlock {
+        let mut block = (38260..=38290)
+            .filter_map(wallet_block_from_test_data)
+            .find(|b| !b.kernel.guesser_fee_utxos().unwrap().is_empty())
+            .expect("no test block with guesser fee");
+        let mut proxy =
+            TransactionKernelProxy::from(block.kernel.body.transaction_kernel().clone());
+        proxy.announcements = vec![];
+        block.kernel.body.transaction_kernel = proxy.into_kernel();
+        block
+    }
+
+    /// Return a copy of `template` whose guesser reward is locked to `key`.
+    pub(crate) fn block_guessed_by(template: &WalletBlock, key: &SpendingKey) -> WalletBlock {
+        let mut block = template.clone();
+        block.kernel.header.guesser_receiver_data = key.guesser_receiver_data();
+        block
+    }
+
+    async fn assert_credits_guesser_reward(key_type: KeyType, idx: u64) {
+        let wallet_state = test_devnet_wallet().await;
+        let key = WalletEntropy::devnet_wallet().nth_spending_key(key_type, idx);
+        let block = block_guessed_by(&template_with_guesser_fee(), &key);
+        wallet_state.update_new_tip(&block).await.unwrap();
+
+        let expected = block.kernel.guesser_fee_utxos().unwrap();
+        let utxos = wallet_state.get_utxos().await.unwrap();
+        assert_eq!(expected.len(), utxos.len());
+        assert!(utxos
+            .iter()
+            .all(|u| u.recovery_data.receiver_preimage == key.privacy_preimage()));
+        assert!(wallet_state.ephemeral_key_index(key_type) > idx);
+        for u in &utxos {
+            assert!(wallet_state
+                .find_spending_key_for_utxo(&u.recovery_data.utxo)
+                .is_some());
+        }
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    async fn credits_guesser_reward_to_gen_key_3() {
+        assert_credits_guesser_reward(KeyType::Generation, 3).await;
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    async fn credits_guesser_reward_to_ec_hybrid_key_0() {
+        assert_credits_guesser_reward(KeyType::EcHybrid, 0).await;
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    async fn credits_guesser_reward_to_viewing_key_0() {
+        assert_credits_guesser_reward(KeyType::ViewingAddress, 0).await;
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    async fn credits_guesser_reward_to_symmetric_key_1() {
+        assert_credits_guesser_reward(KeyType::Symmetric, 1).await;
+    }
+
+    #[traced_test]
+    #[tokio::test]
+    async fn ignores_guesser_reward_beyond_look_ahead() {
+        let wallet_state = test_devnet_wallet().await;
+        let index_before = wallet_state.ephemeral_key_index(KeyType::Generation);
+        let idx = index_before + wallet_state.num_future_keys() + 5;
+        let key = WalletEntropy::devnet_wallet().nth_spending_key(KeyType::Generation, idx);
+        let block = block_guessed_by(&template_with_guesser_fee(), &key);
+        wallet_state.update_new_tip(&block).await.unwrap();
+
+        assert!(wallet_state.get_utxos().await.unwrap().is_empty());
+        assert_eq!(
+            index_before,
+            wallet_state.ephemeral_key_index(KeyType::Generation)
+        );
+    }
+
+    /// Generation key 0 is also the guesser-fee key, which the wallet checked
+    /// before #109. Its reward must still be credited, and exactly once.
+    #[traced_test]
+    #[tokio::test]
+    async fn credits_guesser_reward_to_gen_key_0_once() {
+        let wallet_state = test_devnet_wallet().await;
+        let key = WalletEntropy::devnet_wallet().nth_spending_key(KeyType::Generation, 0);
+        let block = block_guessed_by(&template_with_guesser_fee(), &key);
+        wallet_state.update_new_tip(&block).await.unwrap();
+
+        let expected = block.kernel.guesser_fee_utxos().unwrap();
+        assert_eq!(
+            expected.len(),
+            wallet_state.get_utxos().await.unwrap().len()
         );
     }
 

@@ -63,7 +63,34 @@ export interface AddressRecord {
   key_index: number;
   address: string;
   address_short_form: string;
-  label?: string;
+  label?: string | null;
+}
+
+// Matches the Rust AddressTotals struct. Amounts are lossless display strings.
+export interface AddressTotals {
+  received: string;
+  unspent: string;
+  locked: string;
+  utxo_count: number;
+  // Latest block that confirmed or spent one of the UTXOs; null without UTXOs.
+  last_activity_height: number | null;
+  // That block's timestamp in milliseconds.
+  last_activity_timestamp: number | null;
+}
+
+// Matches the Rust AddressBalance struct (totals are flattened in).
+export interface AddressBalance extends AddressTotals {
+  key_type: NeptuneKeyType;
+  key_index: number;
+}
+
+// Matches the Rust AddressBalances struct
+export interface AddressBalances {
+  by_key: AddressBalance[];
+  // Symmetric keys: change and the wallet's own mining rewards.
+  internal: AddressTotals;
+  // UTXOs that match no known key.
+  unattributed: AddressTotals;
 }
 
 // Watch-only address types the backend can import today. EC hybrid is scoped
