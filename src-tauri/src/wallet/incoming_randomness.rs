@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::range::Range;
-use std::sync::atomic::Ordering;
 
 use anyhow::Result;
 use itertools::Itertools;
@@ -86,29 +85,7 @@ impl super::WalletState {
     pub(super) fn bump_key_indices(&self, key_indices: HashMap<KeyType, Option<u64>>) {
         for (key_type, max_index) in key_indices {
             let max_index = max_index.unwrap_or(0);
-
-            // new index is max-used index plus one since the key index
-            // represents the *next* address to be derived.
-            let new_index = max_index + 1;
-            match key_type {
-                KeyType::Generation => {
-                    self.generation_key_index
-                        .fetch_max(new_index, Ordering::SeqCst);
-                }
-                KeyType::Symmetric => {
-                    self.symmetric_key_index
-                        .fetch_max(new_index, Ordering::SeqCst);
-                }
-                KeyType::EcHybrid => {
-                    self.ec_hybrid_key_index
-                        .fetch_max(new_index, Ordering::SeqCst);
-                }
-                KeyType::ViewingAddress => {
-                    self.viewing_address_key_index
-                        .fetch_max(new_index, Ordering::SeqCst);
-                }
-                _ => todo!(),
-            }
+            self.bump_key_index(key_type, max_index);
         }
     }
 
