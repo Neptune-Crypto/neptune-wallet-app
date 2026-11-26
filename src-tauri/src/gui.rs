@@ -42,6 +42,8 @@ struct Payload {
     cwd: String,
 }
 
+// Recent nightly clippy flags `tauri::generate_context!()`; older ones don't know the lint.
+#[allow(unknown_lints, clippy::large_unopt_stack_frames)]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub(crate) fn run() {
     #[cfg(all(desktop, target_os = "linux"))]
